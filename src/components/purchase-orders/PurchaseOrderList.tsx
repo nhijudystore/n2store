@@ -81,6 +81,24 @@ export function PurchaseOrderList() {
     return matchesSearch && matchesStatus;
   });
 
+  // Flatten items for rowSpan structure
+  const flattenedItems = filteredOrders?.flatMap(order => {
+    if (!order.items || order.items.length === 0) {
+      return [{
+        ...order,
+        item: null,
+        itemCount: 1,
+        isFirstItem: true
+      }];
+    }
+    return order.items.map((item, index) => ({
+      ...order,
+      item,
+      itemCount: order.items.length,
+      isFirstItem: index === 0
+    }));
+  }) || [];
+
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "outline",
@@ -165,111 +183,118 @@ export function PurchaseOrderList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredOrders?.length === 0 ? (
+            {flattenedItems?.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
             ) : (
-              filteredOrders?.map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="font-medium">
-                    {order.supplier_name || "Chưa cập nhật"}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      {format(new Date(order.order_date), "dd/MM/yyyy", { locale: vi })}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {order.items?.length > 0 ? (
-                      <div className="space-y-1">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="flex items-center">
-                            {item.product_images && item.product_images.length > 0 ? (
-                              <div className="relative">
-                                <img
-                                  src={item.product_images[0]}
-                                  alt={item.product_name}
-                                  className="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => window.open(item.product_images![0], '_blank')}
-                                />
-                                {item.product_images.length > 1 && (
-                                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                                    {item.product_images.length}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
-                                <span className="text-xs text-muted-foreground">N/A</span>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+              flattenedItems?.map((flatItem, index) => (
+                <TableRow key={`${flatItem.id}-${index}`} className="border-b">
+                  {/* Order-level columns with rowSpan - only show on first item */}
+                  {flatItem.isFirstItem && (
+                    <>
+                      <TableCell 
+                        className="font-medium border-r" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        {flatItem.supplier_name || "Chưa cập nhật"}
+                      </TableCell>
+                      <TableCell 
+                        className="border-r" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          {format(new Date(flatItem.order_date), "dd/MM/yyyy", { locale: vi })}
+                        </div>
+                      </TableCell>
+                    </>
+                  )}
+                  
+                  {/* Product-level columns - show for each item */}
+                  <TableCell className="w-20">
+                    {flatItem.item ? (
+                      flatItem.item.product_images && flatItem.item.product_images.length > 0 ? (
+                        <div className="relative">
+                          <img
+                            src={flatItem.item.product_images[0]}
+                            alt={flatItem.item.product_name}
+                            className="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={() => window.open(flatItem.item.product_images![0], '_blank')}
+                          />
+                          {flatItem.item.product_images.length > 1 && (
+                            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                              {flatItem.item.product_images.length}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                          <span className="text-xs text-muted-foreground">N/A</span>
+                        </div>
+                      )
                     ) : (
                       <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
                         <span className="text-xs text-muted-foreground">N/A</span>
                       </div>
                     )}
                   </TableCell>
+                  
                   <TableCell className="max-w-xs">
-                    {order.items?.length > 0 ? (
-                      <div className="space-y-1">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="text-sm">
-                            {item.product_name}
-                          </div>
-                        ))}
-                      </div>
+                    {flatItem.item ? (
+                      <div className="text-sm">{flatItem.item.product_name}</div>
                     ) : (
                       <span className="text-muted-foreground text-sm">Chưa có sản phẩm</span>
                     )}
                   </TableCell>
+                  
                   <TableCell>
-                    {order.items?.length > 0 ? (
-                      <div className="space-y-1">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="text-sm">
-                            {item.quantity}
-                          </div>
-                        ))}
-                      </div>
+                    {flatItem.item ? (
+                      <div className="text-sm">{flatItem.item.quantity}</div>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
+                  
                   <TableCell>
-                    {order.items?.length > 0 ? (
-                      <div className="space-y-1">
-                        {order.items.map((item, index) => (
-                          <div key={index} className="text-sm">
-                            {formatCurrency(item.unit_price || 0)}
-                          </div>
-                        ))}
-                      </div>
+                    {flatItem.item ? (
+                      <div className="text-sm">{formatCurrency(flatItem.item.unit_price || 0)}</div>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="font-medium">
-                    {formatCurrency(order.final_amount || 0)}
-                  </TableCell>
-                  <TableCell>
-                    {getStatusBadge(order.status)}
-                  </TableCell>
-                  <TableCell>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => handleViewDetails(order)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
+                  
+                  {/* Order-level columns with rowSpan - only show on first item */}
+                  {flatItem.isFirstItem && (
+                    <>
+                      <TableCell 
+                        className="font-medium border-l" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        {formatCurrency(flatItem.final_amount || 0)}
+                      </TableCell>
+                      <TableCell 
+                        className="border-l" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        {getStatusBadge(flatItem.status)}
+                      </TableCell>
+                      <TableCell 
+                        className="border-l" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleViewDetails(flatItem)}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))
             )}
