@@ -17,7 +17,7 @@ interface PurchaseOrder {
   total_amount: number;
   final_amount: number;
   invoice_number: string | null;
-  suppliers: { name: string };
+  supplier_name: string | null;
 }
 
 export function PurchaseOrderList() {
@@ -29,10 +29,7 @@ export function PurchaseOrderList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select(`
-          *,
-          suppliers (name)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -42,7 +39,7 @@ export function PurchaseOrderList() {
 
   const filteredOrders = orders?.filter(order => {
     const matchesSearch = 
-      order.suppliers.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.id.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -141,7 +138,7 @@ export function PurchaseOrderList() {
                     #{order.id.slice(-8)}
                   </TableCell>
                   <TableCell className="font-medium">
-                    {order.suppliers.name}
+                    {order.supplier_name || "Chưa cập nhật"}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
