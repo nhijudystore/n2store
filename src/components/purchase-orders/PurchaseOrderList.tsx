@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Eye, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -272,19 +273,40 @@ export function PurchaseOrderList() {
                   <TableCell className="w-20">
                     {flatItem.item ? (
                       flatItem.item.product_images && flatItem.item.product_images.length > 0 ? (
-                        <div className="relative">
-                          <img
-                            src={flatItem.item.product_images[0]}
-                            alt={flatItem.item.product_name}
-                            className="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => window.open(flatItem.item.product_images![0], '_blank')}
-                          />
-                          {flatItem.item.product_images.length > 1 && (
-                            <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                              {flatItem.item.product_images.length}
-                            </span>
-                          )}
-                        </div>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <div className="relative cursor-pointer">
+                              <img
+                                src={flatItem.item.product_images[0]}
+                                alt={flatItem.item.product_name}
+                                className="w-12 h-12 object-cover rounded border hover:opacity-80 transition-opacity"
+                                onClick={() => window.open(flatItem.item.product_images![0], '_blank')}
+                              />
+                              {flatItem.item.product_images.length > 1 && (
+                                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                  {flatItem.item.product_images.length}
+                                </span>
+                              )}
+                            </div>
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-80 p-2" side="right">
+                            <div className="space-y-2">
+                              <div className="text-sm font-medium">{flatItem.item.product_name}</div>
+                              <div className="aspect-square w-full bg-muted rounded-md overflow-hidden">
+                                <img
+                                  src={flatItem.item.product_images[0]}
+                                  alt={flatItem.item.product_name}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              {flatItem.item.product_images.length > 1 && (
+                                <div className="text-xs text-muted-foreground text-center">
+                                  +{flatItem.item.product_images.length - 1} ảnh khác
+                                </div>
+                              )}
+                            </div>
+                          </HoverCardContent>
+                        </HoverCard>
                       ) : (
                         <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
                           <span className="text-xs text-muted-foreground">N/A</span>
