@@ -273,7 +273,7 @@ export function PurchaseOrderList() {
                   <TableCell className="w-20">
                     {flatItem.item ? (
                       flatItem.item.product_images && flatItem.item.product_images.length > 0 ? (
-                        <HoverCard>
+                        <HoverCard openDelay={0} closeDelay={100}>
                           <HoverCardTrigger asChild>
                             <div className="relative cursor-pointer">
                               <img
@@ -297,6 +297,8 @@ export function PurchaseOrderList() {
                                   src={flatItem.item.product_images[0]}
                                   alt={flatItem.item.product_name}
                                   className="w-full h-full object-cover"
+                                  loading="eager"
+                                  decoding="sync"
                                 />
                               </div>
                               {flatItem.item.product_images.length > 1 && (
