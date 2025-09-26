@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, X, Loader2 } from "lucide-react";
@@ -12,6 +12,7 @@ interface ImageUploadCellProps {
 
 export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUploadCellProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const { toast } = useToast();
   const cellRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +70,8 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
   }, [images, onImagesChange, toast]);
 
   const handlePaste = useCallback(async (e: ClipboardEvent) => {
-    if (!cellRef.current?.contains(e.target as Node)) return;
+    // Only process paste if this cell is focused
+    if (!isFocused) return;
     
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -78,6 +80,7 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
       const item = items[i];
       if (item.type.startsWith('image/')) {
         e.preventDefault();
+        e.stopPropagation();
         const file = item.getAsFile();
         if (file) {
           await uploadImage(file);
@@ -85,25 +88,29 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
         break;
       }
     }
-  }, [uploadImage]);
+  }, [isFocused, uploadImage]);
 
   const removeImage = useCallback((index: number) => {
     const newImages = images.filter((_, i) => i !== index);
     onImagesChange(newImages);
   }, [images, onImagesChange]);
 
-  // Add paste event listener
-  useState(() => {
+  // Add paste event listener with useEffect
+  useEffect(() => {
     const handlePasteEvent = (e: ClipboardEvent) => handlePaste(e);
     document.addEventListener('paste', handlePasteEvent);
     return () => document.removeEventListener('paste', handlePasteEvent);
-  });
+  }, [handlePaste]);
 
   return (
     <div 
       ref={cellRef}
-      className="flex flex-col gap-2 min-h-[60px] p-2"
+      className={`flex flex-col gap-2 min-h-[60px] p-2 rounded border-2 transition-colors outline-none ${
+        isFocused ? 'border-primary bg-muted/20' : 'border-transparent'
+      }`}
       tabIndex={0}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
     >
       {/* Image previews */}
       <div className="flex flex-wrap gap-1">
