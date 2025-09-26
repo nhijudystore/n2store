@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Minus, Upload, X } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface PurchaseOrderItem {
@@ -158,96 +158,80 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             </div>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Danh sách sản phẩm
-                <Button onClick={addItem} size="sm" variant="outline">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Thêm sản phẩm
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {items.map((item, index) => (
-                <div key={index} className="border rounded-lg p-4 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <h4 className="font-medium">Sản phẩm #{index + 1}</h4>
-                    {items.length > 1 && (
-                      <Button 
-                        onClick={() => removeItem(index)} 
-                        size="sm" 
-                        variant="ghost"
-                        className="text-destructive"
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
+              <Button onClick={addItem} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Thêm sản phẩm
+              </Button>
+            </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Tên sản phẩm *</Label>
-                      <Input
-                        placeholder="Nhập tên sản phẩm"
-                        value={item.product_name}
-                        onChange={(e) => updateItem(index, "product_name", e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Mô tả</Label>
-                      <Input
-                        placeholder="Mô tả sản phẩm"
-                        value={item.description}
-                        onChange={(e) => updateItem(index, "description", e.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Số lượng</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Đơn giá (VNĐ)</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Thành tiền</Label>
-                      <Input
-                        value={new Intl.NumberFormat("vi-VN").format(item.total_price)}
-                        disabled
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Ảnh sản phẩm</Label>
-                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-4 text-center">
-                      <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">
-                        Kéo thả ảnh hoặc click để chọn file
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        (Chức năng upload ảnh sẽ được tích hợp sau)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">STT</TableHead>
+                    <TableHead>Tên sản phẩm</TableHead>
+                    <TableHead className="w-32">Số lượng</TableHead>
+                    <TableHead className="w-40">Đơn giá (VNĐ)</TableHead>
+                    <TableHead className="w-40">Thành tiền</TableHead>
+                    <TableHead className="w-16">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="text-center font-medium">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          placeholder="Nhập tên sản phẩm"
+                          value={item.product_name}
+                          onChange={(e) => updateItem(index, "product_name", e.target.value)}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-center"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          value={item.unit_price}
+                          onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right"
+                        />
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {new Intl.NumberFormat("vi-VN").format(item.total_price)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {items.length > 1 && (
+                          <Button 
+                            onClick={() => removeItem(index)} 
+                            size="sm" 
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="notes">Ghi chú</Label>
