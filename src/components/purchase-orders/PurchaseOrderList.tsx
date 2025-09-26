@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Eye, Search, Filter, Calendar } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Eye, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { PurchaseOrderDetailDialog } from "./PurchaseOrderDetailDialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -39,6 +41,48 @@ export function PurchaseOrderList() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
+  
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const deletePurchaseOrderMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      // First delete all purchase order items
+      const { error: itemsError } = await supabase
+        .from("purchase_order_items")
+        .delete()
+        .eq("purchase_order_id", orderId);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the purchase order
+      const { error: orderError } = await supabase
+        .from("purchase_orders")
+        .delete()
+        .eq("id", orderId);
+
+      if (orderError) throw orderError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+      toast({
+        title: "Thành công",
+        description: "Đơn hàng đã được xóa thành công",
+      });
+      setIsDeleteDialogOpen(false);
+      setOrderToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa đơn hàng. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+      console.error("Error deleting purchase order:", error);
+    }
+  });
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["purchase-orders"],
@@ -133,6 +177,17 @@ export function PurchaseOrderList() {
   const handleViewDetails = (order: PurchaseOrder) => {
     setSelectedOrder(order);
     setIsDetailDialogOpen(true);
+  };
+
+  const handleDeleteOrder = (order: PurchaseOrder) => {
+    setOrderToDelete(order);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (orderToDelete) {
+      deletePurchaseOrderMutation.mutate(orderToDelete.id);
+    }
   };
 
   if (isLoading) {
@@ -285,13 +340,24 @@ export function PurchaseOrderList() {
                         className="border-l" 
                         rowSpan={flatItem.itemCount}
                       >
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => handleViewDetails(flatItem)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleViewDetails(flatItem)}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => handleDeleteOrder(flatItem)}
+                            disabled={flatItem.status !== 'pending' || deletePurchaseOrderMutation.isPending}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </>
                   )}
@@ -307,6 +373,33 @@ export function PurchaseOrderList() {
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}
       />
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa đơn hàng</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc chắn muốn xóa đơn hàng này không? Hành động này không thể hoàn tác.
+              {orderToDelete && (
+                <div className="mt-2 p-2 bg-muted rounded text-sm">
+                  <strong>Nhà cung cấp:</strong> {orderToDelete.supplier_name || "Chưa cập nhật"}<br/>
+                  <strong>Ngày đặt:</strong> {format(new Date(orderToDelete.order_date), "dd/MM/yyyy", { locale: vi })}
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDelete}
+              disabled={deletePurchaseOrderMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletePurchaseOrderMutation.isPending ? "Đang xóa..." : "Xóa"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
