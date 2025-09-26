@@ -15,6 +15,7 @@ interface PurchaseOrderItem {
   product_name: string;
   quantity: number;
   unit_price: number;
+  product_images: string[] | null;
 }
 
 interface PurchaseOrder {
@@ -55,7 +56,7 @@ export function PurchaseOrderList() {
         (ordersData || []).map(async (order: any) => {
           const { data: items } = await supabase
             .from("purchase_order_items")
-            .select("product_name, quantity, unit_price")
+            .select("product_name, quantity, unit_price, product_images")
             .eq("purchase_order_id", order.id);
 
           return {
@@ -154,6 +155,7 @@ export function PurchaseOrderList() {
             <TableRow>
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Ngày đặt</TableHead>
+              <TableHead className="w-20">Hình ảnh</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá</TableHead>
@@ -165,7 +167,7 @@ export function PurchaseOrderList() {
           <TableBody>
             {filteredOrders?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -180,6 +182,39 @@ export function PurchaseOrderList() {
                       <Calendar className="w-4 h-4 text-muted-foreground" />
                       {format(new Date(order.order_date), "dd/MM/yyyy", { locale: vi })}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    {order.items?.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.items.map((item, index) => (
+                          <div key={index} className="flex items-center">
+                            {item.product_images && item.product_images.length > 0 ? (
+                              <div className="relative">
+                                <img
+                                  src={item.product_images[0]}
+                                  alt={item.product_name}
+                                  className="w-12 h-12 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                                  onClick={() => window.open(item.product_images![0], '_blank')}
+                                />
+                                {item.product_images.length > 1 && (
+                                  <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                    {item.product_images.length}
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                                <span className="text-xs text-muted-foreground">N/A</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center">
+                        <span className="text-xs text-muted-foreground">N/A</span>
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-xs">
                     {order.items?.length > 0 ? (
