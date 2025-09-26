@@ -24,6 +24,8 @@ interface PurchaseOrder {
   invoice_date: string | null;
   created_at: string;
   updated_at: string;
+  items_summary?: string;
+  total_items?: number;
 }
 
 export function PurchaseOrderList() {
@@ -37,11 +39,35 @@ export function PurchaseOrderList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("purchase_orders")
-        .select("*")
+        .select(`
+          *,
+          purchase_order_items (
+            product_name,
+            quantity,
+            unit_price
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as PurchaseOrder[];
+      
+      // Process the data to create items summary
+      const processedData = data?.map((order: any) => {
+        const items = order.purchase_order_items || [];
+        const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
+        
+        const itemsSummary = items
+          .map((item: any) => `${item.product_name} (${item.quantity}x ${new Intl.NumberFormat("vi-VN").format(item.unit_price || 0)}đ)`)
+          .join(", ");
+        
+        return {
+          ...order,
+          items_summary: itemsSummary || "Chưa có sản phẩm",
+          total_items: totalItems
+        };
+      });
+      
+      return processedData as PurchaseOrder[];
     }
   });
 
@@ -131,7 +157,7 @@ export function PurchaseOrderList() {
               <TableHead>Mã đơn</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Ngày đặt</TableHead>
-              <TableHead>Số hóa đơn</TableHead>
+              <TableHead>Chi tiết sản phẩm</TableHead>
               <TableHead>Tổng tiền</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Thao tác</TableHead>
@@ -159,8 +185,15 @@ export function PurchaseOrderList() {
                       {format(new Date(order.order_date), "dd/MM/yyyy", { locale: vi })}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    {order.invoice_number || "-"}
+                  <TableCell className="max-w-sm">
+                    <div className="truncate text-sm" title={order.items_summary}>
+                      {order.items_summary || "Chưa có sản phẩm"}
+                    </div>
+                    {order.total_items ? (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Tổng: {order.total_items} sản phẩm
+                      </div>
+                    ) : null}
                   </TableCell>
                   <TableCell className="font-medium">
                     {formatCurrency(order.final_amount || 0)}
