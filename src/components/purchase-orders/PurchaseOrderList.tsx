@@ -11,6 +11,12 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { PurchaseOrderDetailDialog } from "./PurchaseOrderDetailDialog";
 
+interface PurchaseOrderItem {
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+}
+
 interface PurchaseOrder {
   id: string;
   order_date: string;
@@ -24,8 +30,7 @@ interface PurchaseOrder {
   invoice_date: string | null;
   created_at: string;
   updated_at: string;
-  items_summary?: string;
-  total_items?: number;
+  items: PurchaseOrderItem[];
 }
 
 export function PurchaseOrderList() {
@@ -53,16 +58,9 @@ export function PurchaseOrderList() {
             .select("product_name, quantity, unit_price")
             .eq("purchase_order_id", order.id);
 
-          const totalItems = items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
-          
-          const itemsSummary = items?.length ? items
-            .map((item: any) => `${item.product_name} (${item.quantity}x ${new Intl.NumberFormat("vi-VN").format(item.unit_price || 0)}đ)`)
-            .join(", ") : "";
-
           return {
             ...order,
-            items_summary: itemsSummary || "Chưa có sản phẩm",
-            total_items: totalItems
+            items: items || []
           };
         })
       );
@@ -75,7 +73,7 @@ export function PurchaseOrderList() {
     const matchesSearch = 
       order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchTerm.toLowerCase());
+      order.items?.some(item => item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === "all" || order.status === statusFilter;
     
@@ -154,10 +152,11 @@ export function PurchaseOrderList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Mã đơn</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Ngày đặt</TableHead>
-              <TableHead>Chi tiết sản phẩm</TableHead>
+              <TableHead>Tên sản phẩm</TableHead>
+              <TableHead>Số lượng</TableHead>
+              <TableHead>Giá</TableHead>
               <TableHead>Tổng tiền</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Thao tác</TableHead>
@@ -166,16 +165,13 @@ export function PurchaseOrderList() {
           <TableBody>
             {filteredOrders?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
             ) : (
               filteredOrders?.map((order) => (
                 <TableRow key={order.id}>
-                  <TableCell className="font-mono text-sm">
-                    #{order.id.slice(-8)}
-                  </TableCell>
                   <TableCell className="font-medium">
                     {order.supplier_name || "Chưa cập nhật"}
                   </TableCell>
@@ -185,15 +181,44 @@ export function PurchaseOrderList() {
                       {format(new Date(order.order_date), "dd/MM/yyyy", { locale: vi })}
                     </div>
                   </TableCell>
-                  <TableCell className="max-w-sm">
-                    <div className="truncate text-sm" title={order.items_summary}>
-                      {order.items_summary || "Chưa có sản phẩm"}
-                    </div>
-                    {order.total_items ? (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Tổng: {order.total_items} sản phẩm
+                  <TableCell className="max-w-xs">
+                    {order.items?.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.items.map((item, index) => (
+                          <div key={index} className="text-sm">
+                            {item.product_name}
+                          </div>
+                        ))}
                       </div>
-                    ) : null}
+                    ) : (
+                      <span className="text-muted-foreground text-sm">Chưa có sản phẩm</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.items?.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.items.map((item, index) => (
+                          <div key={index} className="text-sm">
+                            {item.quantity}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {order.items?.length > 0 ? (
+                      <div className="space-y-1">
+                        {order.items.map((item, index) => (
+                          <div key={index} className="text-sm">
+                            {formatCurrency(item.unit_price || 0)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">
                     {formatCurrency(order.final_amount || 0)}
