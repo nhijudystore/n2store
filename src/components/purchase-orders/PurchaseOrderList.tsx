@@ -9,6 +9,7 @@ import { Eye, Search, Filter, Calendar } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { PurchaseOrderDetailDialog } from "./PurchaseOrderDetailDialog";
 
 interface PurchaseOrder {
   id: string;
@@ -16,13 +17,20 @@ interface PurchaseOrder {
   status: string;
   total_amount: number;
   final_amount: number;
+  discount_amount: number;
   invoice_number: string | null;
   supplier_name: string | null;
+  notes: string | null;
+  invoice_date: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export function PurchaseOrderList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const { data: orders, isLoading } = useQuery({
     queryKey: ["purchase-orders"],
@@ -77,6 +85,11 @@ export function PurchaseOrderList() {
       style: "currency",
       currency: "VND"
     }).format(amount);
+  };
+
+  const handleViewDetails = (order: PurchaseOrder) => {
+    setSelectedOrder(order);
+    setIsDetailDialogOpen(true);
   };
 
   if (isLoading) {
@@ -156,7 +169,11 @@ export function PurchaseOrderList() {
                     {getStatusBadge(order.status)}
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleViewDetails(order)}
+                    >
                       <Eye className="w-4 h-4" />
                     </Button>
                   </TableCell>
@@ -166,6 +183,12 @@ export function PurchaseOrderList() {
           </TableBody>
         </Table>
       </div>
+
+      <PurchaseOrderDetailDialog 
+        order={selectedOrder}
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+      />
     </div>
   );
 }
