@@ -4,7 +4,8 @@ import {
   ShoppingCart, 
   Users, 
   Settings,
-  Home
+  Home,
+  ShoppingBag
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -40,6 +41,11 @@ const menuItems = [
     title: "Khách hàng",
     url: "/customers",
     icon: Users,
+  },
+  {
+    title: "Đặt hàng NCC",
+    url: "/purchase-orders",
+    icon: ShoppingBag,
   },
   {
     title: "Báo cáo",
