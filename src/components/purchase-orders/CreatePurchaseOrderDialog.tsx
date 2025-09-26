@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ImageUploadCell } from "./ImageUploadCell";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -176,6 +177,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                     <TableHead className="w-32">Số lượng</TableHead>
                     <TableHead className="w-40">Đơn giá (VNĐ)</TableHead>
                     <TableHead className="w-40">Thành tiền</TableHead>
+                    <TableHead className="w-32">Hình ảnh</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -213,6 +215,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                       </TableCell>
                       <TableCell className="text-right font-medium">
                         {new Intl.NumberFormat("vi-VN").format(item.total_price)}
+                      </TableCell>
+                      <TableCell>
+                        <ImageUploadCell
+                          images={item.product_images}
+                          onImagesChange={(images) => updateItem(index, "product_images", images)}
+                          itemIndex={index}
+                        />
                       </TableCell>
                       <TableCell className="text-center">
                         {items.length > 1 && (
