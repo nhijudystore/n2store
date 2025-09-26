@@ -37,37 +37,37 @@ export function PurchaseOrderList() {
   const { data: orders, isLoading } = useQuery({
     queryKey: ["purchase-orders"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Get all purchase orders first
+      const { data: ordersData, error: ordersError } = await supabase
         .from("purchase_orders")
-        .select(`
-          *,
-          purchase_order_items (
-            product_name,
-            quantity,
-            unit_price
-          )
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      
-      // Process the data to create items summary
-      const processedData = data?.map((order: any) => {
-        const items = order.purchase_order_items || [];
-        const totalItems = items.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0);
-        
-        const itemsSummary = items
-          .map((item: any) => `${item.product_name} (${item.quantity}x ${new Intl.NumberFormat("vi-VN").format(item.unit_price || 0)}đ)`)
-          .join(", ");
-        
-        return {
-          ...order,
-          items_summary: itemsSummary || "Chưa có sản phẩm",
-          total_items: totalItems
-        };
-      });
-      
-      return processedData as PurchaseOrder[];
+      if (ordersError) throw ordersError;
+
+      // Get items for each order
+      const ordersWithItems = await Promise.all(
+        (ordersData || []).map(async (order: any) => {
+          const { data: items } = await supabase
+            .from("purchase_order_items")
+            .select("product_name, quantity, unit_price")
+            .eq("purchase_order_id", order.id);
+
+          const totalItems = items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
+          
+          const itemsSummary = items?.length ? items
+            .map((item: any) => `${item.product_name} (${item.quantity}x ${new Intl.NumberFormat("vi-VN").format(item.unit_price || 0)}đ)`)
+            .join(", ") : "";
+
+          return {
+            ...order,
+            items_summary: itemsSummary || "Chưa có sản phẩm",
+            total_items: totalItems
+          };
+        })
+      );
+
+      return ordersWithItems as PurchaseOrder[];
     }
   });
 
