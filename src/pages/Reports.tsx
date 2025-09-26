@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SupplierOrderStats from "@/components/SupplierOrderStats";
 import { 
   BarChart3,
   TrendingUp,
@@ -9,10 +12,13 @@ import {
   DollarSign,
   ShoppingCart,
   Users,
-  Package
+  Package,
+  Building2
 } from "lucide-react";
 
 const Reports = () => {
+  const [activeTab, setActiveTab] = useState("overview");
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -35,7 +41,21 @@ const Reports = () => {
         </div>
       </div>
 
-      {/* Quick Stats */}
+      {/* Tabs Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 lg:w-96">
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Tổng quan
+          </TabsTrigger>
+          <TabsTrigger value="supplier" className="flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            Nhà cung cấp
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 mt-6">
+          {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="shadow-soft">
           <CardContent className="p-6">
@@ -202,6 +222,12 @@ const Reports = () => {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
+
+        <TabsContent value="supplier" className="mt-6">
+          <SupplierOrderStats />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
