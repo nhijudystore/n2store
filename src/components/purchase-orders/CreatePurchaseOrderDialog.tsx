@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Minus, Upload, X } from "lucide-react";
@@ -30,7 +29,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    supplier_id: "",
+    supplier_name: "",
     order_date: new Date().toISOString().split("T")[0],
     notes: ""
   });
@@ -39,22 +38,11 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     { product_name: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }
   ]);
 
-  const { data: suppliers } = useQuery({
-    queryKey: ["suppliers"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("suppliers")
-        .select("*")
-        .order("name");
-      if (error) throw error;
-      return data;
-    }
-  });
 
   const createOrderMutation = useMutation({
     mutationFn: async () => {
-      if (!formData.supplier_id) {
-        throw new Error("Vui lòng chọn nhà cung cấp");
+      if (!formData.supplier_name.trim()) {
+        throw new Error("Vui lòng nhập tên nhà cung cấp");
       }
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
@@ -62,7 +50,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
         .insert({
-          supplier_id: formData.supplier_id,
+          supplier_name: formData.supplier_name.trim(),
           order_date: formData.order_date,
           total_amount: totalAmount,
           final_amount: totalAmount,
@@ -108,7 +96,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   const resetForm = () => {
     setFormData({
-      supplier_id: "",
+      supplier_name: "",
       order_date: new Date().toISOString().split("T")[0],
       notes: ""
     });
@@ -151,18 +139,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplier">Nhà cung cấp *</Label>
-              <Select value={formData.supplier_id} onValueChange={(value) => setFormData({...formData, supplier_id: value})}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn nhà cung cấp" />
-                </SelectTrigger>
-                <SelectContent>
-                  {suppliers?.map((supplier) => (
-                    <SelectItem key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="supplier"
+                placeholder="Nhập tên nhà cung cấp"
+                value={formData.supplier_name}
+                onChange={(e) => setFormData({...formData, supplier_name: e.target.value})}
+              />
             </div>
 
             <div className="space-y-2">

@@ -73,7 +73,8 @@ export type Database = {
           notes: string | null
           order_date: string
           status: string
-          supplier_id: string
+          supplier_id: string | null
+          supplier_name: string | null
           total_amount: number | null
           updated_at: string
         }
@@ -88,7 +89,8 @@ export type Database = {
           notes?: string | null
           order_date?: string
           status?: string
-          supplier_id: string
+          supplier_id?: string | null
+          supplier_name?: string | null
           total_amount?: number | null
           updated_at?: string
         }
@@ -103,7 +105,8 @@ export type Database = {
           notes?: string | null
           order_date?: string
           status?: string
-          supplier_id?: string
+          supplier_id?: string | null
+          supplier_name?: string | null
           total_amount?: number | null
           updated_at?: string
         }
