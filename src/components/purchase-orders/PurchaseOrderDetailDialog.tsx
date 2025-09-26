@@ -170,64 +170,64 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Tên sản phẩm</TableHead>
                         <TableHead className="w-20">Hình ảnh</TableHead>
+                        <TableHead>Tên sản phẩm</TableHead>
                         <TableHead className="text-center">Số lượng</TableHead>
                         <TableHead className="text-right">Đơn giá</TableHead>
                         <TableHead className="text-right">Thành tiền</TableHead>
                       </TableRow>
                     </TableHeader>
                   <TableBody>
-                    {orderItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium">{item.product_name}</div>
-                            {item.description && (
-                              <div className="text-sm text-muted-foreground">
-                                {item.description}
-                              </div>
-                            )}
-                            {item.notes && (
-                              <div className="text-xs text-muted-foreground italic">
-                                Ghi chú: {item.notes}
-                              </div>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {item.product_images && item.product_images.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {item.product_images.slice(0, 2).map((imageUrl, index) => (
-                                <img
-                                  key={index}
-                                  src={imageUrl}
-                                  alt={`${item.product_name} ${index + 1}`}
-                                  className="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
-                                  onClick={() => window.open(imageUrl, '_blank')}
-                                />
-                              ))}
-                              {item.product_images.length > 2 && (
-                                <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
-                                  +{item.product_images.length - 2}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-muted-foreground">Không có</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center font-medium">
-                          {item.quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(item.unit_price || 0)}
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(item.total_price || 0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                     {orderItems.map((item) => (
+                       <TableRow key={item.id}>
+                         <TableCell>
+                           {item.product_images && item.product_images.length > 0 ? (
+                             <div className="flex flex-wrap gap-1">
+                               {item.product_images.slice(0, 2).map((imageUrl, index) => (
+                                 <img
+                                   key={index}
+                                   src={imageUrl}
+                                   alt={`${item.product_name} ${index + 1}`}
+                                   className="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
+                                   onClick={() => window.open(imageUrl, '_blank')}
+                                 />
+                               ))}
+                               {item.product_images.length > 2 && (
+                                 <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
+                                   +{item.product_images.length - 2}
+                                 </div>
+                               )}
+                             </div>
+                           ) : (
+                             <div className="text-xs text-muted-foreground">Không có</div>
+                           )}
+                         </TableCell>
+                         <TableCell>
+                           <div className="space-y-1">
+                             <div className="font-medium">{item.product_name}</div>
+                             {item.description && (
+                               <div className="text-sm text-muted-foreground">
+                                 {item.description}
+                               </div>
+                             )}
+                             {item.notes && (
+                               <div className="text-xs text-muted-foreground italic">
+                                 Ghi chú: {item.notes}
+                               </div>
+                             )}
+                           </div>
+                         </TableCell>
+                         <TableCell className="text-center font-medium">
+                           {item.quantity}
+                         </TableCell>
+                         <TableCell className="text-right">
+                           {formatCurrency(item.unit_price || 0)}
+                         </TableCell>
+                         <TableCell className="text-right font-medium">
+                           {formatCurrency(item.total_price || 0)}
+                         </TableCell>
+                       </TableRow>
+                     ))}
                   </TableBody>
                 </Table>
               </ScrollArea>
