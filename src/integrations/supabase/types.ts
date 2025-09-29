@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          live_phase_id: string | null
           live_product_id: string
           live_session_id: string
           order_code: string
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          live_phase_id?: string | null
           live_product_id: string
           live_session_id: string
           order_code: string
@@ -36,6 +38,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          live_phase_id?: string | null
           live_product_id?: string
           live_session_id?: string
           order_code?: string
@@ -59,10 +62,41 @@ export type Database = {
           },
         ]
       }
+      live_phases: {
+        Row: {
+          created_at: string
+          id: string
+          live_session_id: string
+          phase_date: string
+          phase_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          live_session_id: string
+          phase_date: string
+          phase_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          live_session_id?: string
+          phase_date?: string
+          phase_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       live_products: {
         Row: {
           created_at: string
           id: string
+          live_phase_id: string | null
           live_session_id: string
           prepared_quantity: number
           product_code: string
@@ -73,6 +107,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          live_phase_id?: string | null
           live_session_id: string
           prepared_quantity?: number
           product_code: string
@@ -83,6 +118,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          live_phase_id?: string | null
           live_session_id?: string
           prepared_quantity?: number
           product_code?: string
@@ -103,27 +139,36 @@ export type Database = {
       live_sessions: {
         Row: {
           created_at: string
+          end_date: string | null
           id: string
           notes: string | null
           session_date: string
+          session_name: string | null
+          start_date: string | null
           status: string
           supplier_name: string
           updated_at: string
         }
         Insert: {
           created_at?: string
+          end_date?: string | null
           id?: string
           notes?: string | null
           session_date?: string
+          session_name?: string | null
+          start_date?: string | null
           status?: string
           supplier_name: string
           updated_at?: string
         }
         Update: {
           created_at?: string
+          end_date?: string | null
           id?: string
           notes?: string | null
           session_date?: string
+          session_name?: string | null
+          start_date?: string | null
           status?: string
           supplier_name?: string
           updated_at?: string
@@ -319,7 +364,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_live_phases: {
+        Args: { session_id: string; start_date: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
