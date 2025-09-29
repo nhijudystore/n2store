@@ -746,16 +746,17 @@ export default function LiveProducts() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Mã đơn hàng</TableHead>
-                        <TableHead>Sản phẩm</TableHead>
-                        <TableHead className="text-center">Số lượng</TableHead>
-                        <TableHead>Ngày đặt</TableHead>
-                        <TableHead className="text-center">Thao tác</TableHead>
+                        <TableHead className="w-32">Mã đơn hàng</TableHead>
+                        <TableHead className="w-48">Tên sản phẩm</TableHead>
+                        <TableHead className="w-32">Mã sản phẩm</TableHead>
+                        <TableHead className="w-20 text-center">Số lượng</TableHead>
+                        <TableHead className="w-24 text-center">Trạng thái</TableHead>
+                        <TableHead className="w-20 text-center">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        // Group orders by order_code
+                        // Group orders by order_code and flatten for individual rows
                         const orderGroups = ordersWithProducts.reduce((groups, order) => {
                           if (!groups[order.order_code]) {
                             groups[order.order_code] = [];
@@ -764,58 +765,74 @@ export default function LiveProducts() {
                           return groups;
                         }, {} as Record<string, typeof ordersWithProducts>);
 
-                        return Object.entries(orderGroups).map(([orderCode, orders]) => {
-                          const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
-                          const orderDate = orders[0]?.order_date;
-
-                          return (
-                            <TableRow key={orderCode}>
-                              <TableCell className="font-medium align-top">
-                                <Badge variant="default" className="text-sm">
-                                  {orderCode}
-                                </Badge>
+                        return Object.entries(orderGroups).flatMap(([orderCode, orders]) =>
+                          orders.map((order, index) => (
+                            <TableRow key={order.id} className="h-12">
+                              {index === 0 && (
+                                <TableCell 
+                                  rowSpan={orders.length} 
+                                  className="font-medium align-middle border-r bg-muted/20"
+                                >
+                                  <Badge variant="outline" className="text-xs font-mono">
+                                    {orderCode}
+                                  </Badge>
+                                </TableCell>
+                              )}
+                              <TableCell className="py-2">
+                                <div className="font-medium text-sm">{order.product_name}</div>
                               </TableCell>
-                              <TableCell>
-                                <div className="space-y-2">
-                                  {orders.map(order => (
-                                    <div key={order.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
-                                      <div className="flex-1">
-                                        <div className="font-medium">{order.product_name}</div>
-                                        <div className="text-sm text-muted-foreground">{order.product_code}</div>
-                                      </div>
-                                      <Badge variant="outline" className="text-xs">
-                                        x{order.quantity}
-                                      </Badge>
+                              <TableCell className="py-2">
+                                <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{order.product_code}</code>
+                              </TableCell>
+                              <TableCell className="text-center py-2">
+                                <span className="text-sm font-medium">{order.quantity}</span>
+                              </TableCell>
+                              <TableCell className="text-center py-2">
+                                <div className="flex items-center justify-center">
+                                  <label className="flex items-center gap-1.5 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      className="sr-only"
+                                      defaultChecked={false}
+                                      onChange={(e) => {
+                                        const statusElement = e.target.nextElementSibling;
+                                        const dot = statusElement?.querySelector('.status-dot');
+                                        const text = statusElement?.querySelector('.status-text');
+                                        if (e.target.checked) {
+                                          dot?.classList.remove('bg-red-500');
+                                          dot?.classList.add('bg-green-500');
+                                          text?.classList.remove('text-red-600');
+                                          text?.classList.add('text-green-600');
+                                          if (text) text.textContent = 'Hoàn tất';
+                                        } else {
+                                          dot?.classList.remove('bg-green-500');
+                                          dot?.classList.add('bg-red-500');
+                                          text?.classList.remove('text-green-600');
+                                          text?.classList.add('text-red-600');
+                                          if (text) text.textContent = 'Đang chờ';
+                                        }
+                                      }}
+                                    />
+                                    <div className="flex items-center gap-1">
+                                      <div className="status-dot w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                                      <span className="status-text text-xs text-red-600 font-medium">Đang chờ</span>
                                     </div>
-                                  ))}
+                                  </label>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-center align-top">
-                                <Badge variant="secondary" className="text-sm">
-                                  {totalQuantity}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {orderDate && format(new Date(orderDate), "dd/MM/yyyy HH:mm", { locale: vi })}
-                              </TableCell>
-                              <TableCell className="text-center align-top">
-                                <div className="flex flex-col gap-1">
-                                  {orders.map(order => (
-                                    <Button
-                                      key={order.id}
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteOrder(order.id)}
-                                      className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  ))}
-                                </div>
+                              <TableCell className="text-center py-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
                               </TableCell>
                             </TableRow>
-                          );
-                        });
+                          ))
+                        );
                       })()}
                     </TableBody>
                   </Table>
