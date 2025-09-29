@@ -119,8 +119,8 @@ export default function LiveProducts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["live-products"] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedSession] });
+      queryClient.invalidateQueries({ queryKey: ["live-products", selectedSession] });
       toast.success("Đã xóa đơn hàng thành công");
     },
     onError: (error) => {
@@ -129,9 +129,115 @@ export default function LiveProducts() {
     },
   });
 
+  // Delete product mutation (cascade delete orders)
+  const deleteProductMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      // First delete all orders for this product
+      const { error: ordersError } = await supabase
+        .from("live_orders")
+        .delete()
+        .eq("live_product_id", productId);
+      
+      if (ordersError) throw ordersError;
+
+      // Then delete the product
+      const { error: productError } = await supabase
+        .from("live_products")
+        .delete()
+        .eq("id", productId);
+      
+      if (productError) throw productError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedSession] });
+      queryClient.invalidateQueries({ queryKey: ["live-products", selectedSession] });
+      toast.success("Đã xóa sản phẩm và tất cả đơn hàng liên quan");
+    },
+    onError: (error) => {
+      console.error("Error deleting product:", error);
+      toast.error("Có lỗi xảy ra khi xóa sản phẩm");
+    },
+  });
+
+  // Delete live session mutation (cascade delete products and orders)
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      // First delete all orders in this session
+      const { error: ordersError } = await supabase
+        .from("live_orders")
+        .delete()
+        .eq("live_session_id", sessionId);
+      
+      if (ordersError) throw ordersError;
+
+      // Then delete all products in this session
+      const { error: productsError } = await supabase
+        .from("live_products")
+        .delete()
+        .eq("live_session_id", sessionId);
+      
+      if (productsError) throw productsError;
+
+      // Finally delete the session
+      const { error: sessionError } = await supabase
+        .from("live_sessions")
+        .delete()
+        .eq("id", sessionId);
+      
+      if (sessionError) throw sessionError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-sessions"] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["live-products"] });
+      toast.success("Đã xóa đợt live và tất cả dữ liệu liên quan");
+      
+      // Reset selected session if it was deleted
+      if (liveSessions.length > 1) {
+        const remainingSessions = liveSessions.filter(s => s.id !== selectedSession);
+        setSelectedSession(remainingSessions[0]?.id || "");
+      } else {
+        setSelectedSession("");
+      }
+    },
+    onError: (error) => {
+      console.error("Error deleting session:", error);
+      toast.error("Có lỗi xảy ra khi xóa đợt live");
+    },
+  });
+
   const handleDeleteOrder = (orderId: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
       deleteOrderMutation.mutate(orderId);
+    }
+  };
+
+  const handleDeleteProduct = (productId: string, productName: string) => {
+    const productOrders = liveOrders.filter(order => order.live_product_id === productId);
+    const confirmMessage = productOrders.length > 0 
+      ? `Bạn có chắc chắn muốn xóa sản phẩm "${productName}"? Điều này sẽ xóa ${productOrders.length} đơn hàng liên quan.`
+      : `Bạn có chắc chắn muốn xóa sản phẩm "${productName}"?`;
+    
+    if (confirm(confirmMessage)) {
+      deleteProductMutation.mutate(productId);
+    }
+  };
+
+  const handleDeleteSession = (sessionId: string, sessionName: string) => {
+    const sessionProducts = liveProducts.length;
+    const sessionOrders = liveOrders.length;
+    
+    let confirmMessage = `Bạn có chắc chắn muốn xóa đợt live "${sessionName}"?`;
+    if (sessionProducts > 0) {
+      confirmMessage += ` Điều này sẽ xóa ${sessionProducts} sản phẩm`;
+      if (sessionOrders > 0) {
+        confirmMessage += ` và ${sessionOrders} đơn hàng`;
+      }
+      confirmMessage += " liên quan.";
+    }
+    
+    if (confirm(confirmMessage)) {
+      deleteSessionMutation.mutate(sessionId);
     }
   };
 
@@ -216,10 +322,28 @@ export default function LiveProducts() {
       <Tabs value={selectedSession} onValueChange={setSelectedSession}>
         <TabsList className="w-full justify-start overflow-x-auto">
           {liveSessions.map((session) => (
-            <TabsTrigger key={session.id} value={session.id} className="gap-2">
-              <Calendar className="w-4 h-4" />
-              {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
-            </TabsTrigger>
+            <div key={session.id} className="relative inline-flex">
+              <TabsTrigger value={session.id} className="gap-2 pr-8">
+                <Calendar className="w-4 h-4" />
+                {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
+              </TabsTrigger>
+              {liveSessions.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteSession(
+                      session.id, 
+                      `${format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - ${session.supplier_name}`
+                    );
+                  }}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
           ))}
         </TabsList>
 
@@ -296,9 +420,22 @@ export default function LiveProducts() {
                           </div>
                           
                           {/* Quick Add Order */}
-                          <div className="col-span-12 md:col-span-3">
-                            <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                          </div>
+                           <div className="col-span-9 md:col-span-2">
+                             <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                           </div>
+                           
+                           {/* Delete Product Button */}
+                           <div className="col-span-3 md:col-span-1 flex justify-center">
+                             <Button
+                               variant="ghost"
+                               size="sm"
+                               onClick={() => handleDeleteProduct(product.id, product.product_name)}
+                               className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
+                               disabled={deleteProductMutation.isPending}
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </div>
                         </div>
                       </div>
                     );
