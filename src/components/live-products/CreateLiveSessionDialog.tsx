@@ -81,7 +81,7 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
 
   const onSubmit = async (data: FormData) => {
     if (!data.supplier_name.trim()) {
-      toast.error("Vui lòng nhập tên nhà cung cấp");
+      toast.error("Vui lòng nhập tên đợt live");
       return;
     }
 
@@ -149,10 +149,10 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
               name="supplier_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tên nhà cung cấp *</FormLabel>
+                  <FormLabel>Tên đợt live *</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Nhập tên nhà cung cấp"
+                      placeholder="Nhập tên đợt live"
                       {...field}
                     />
                   </FormControl>
