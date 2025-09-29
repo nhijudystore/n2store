@@ -12,6 +12,7 @@ import { EditLivestreamReportDialog } from "@/components/livestream-reports/Edit
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { parseTimeRangeForDisplay } from "@/lib/time-utils";
 
 interface LivestreamReport {
   id: string;
@@ -160,9 +161,14 @@ const LivestreamReports = () => {
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
                             <Badge variant="outline" className="text-xs">Sáng</Badge>
-                            <span className="text-sm">
-                              {report.morning_duration || "-"}
-                            </span>
+                            <div className="text-sm whitespace-pre-line leading-tight">
+                              {(() => {
+                                const timeData = parseTimeRangeForDisplay(report.morning_duration || "");
+                                return timeData.timeRange !== "-" 
+                                  ? `${timeData.timeRange}\n${timeData.duration}`
+                                  : "-";
+                              })()}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
@@ -211,9 +217,14 @@ const LivestreamReports = () => {
                         <TableCell className="text-center">
                           <div className="flex flex-col items-center gap-1">
                             <Badge variant="secondary" className="text-xs">Chiều</Badge>
-                            <span className="text-sm">
-                              {report.evening_duration || "-"}
-                            </span>
+                            <div className="text-sm whitespace-pre-line leading-tight">
+                              {(() => {
+                                const timeData = parseTimeRangeForDisplay(report.evening_duration || "");
+                                return timeData.timeRange !== "-" 
+                                  ? `${timeData.timeRange}\n${timeData.duration}`
+                                  : "-";
+                              })()}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">

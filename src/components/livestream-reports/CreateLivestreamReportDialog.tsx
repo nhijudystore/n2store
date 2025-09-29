@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { formatTimeRangeForStorage } from "@/lib/time-utils";
 
 const formSchema = z.object({
   report_date: z.date({
@@ -23,11 +24,39 @@ const formSchema = z.object({
   }),
   morning_ad_cost: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
   evening_ad_cost: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
-  morning_duration: z.string().optional(),
-  evening_duration: z.string().optional(),
+  morning_start_time: z.string().optional(),
+  morning_end_time: z.string().optional(),
+  evening_start_time: z.string().optional(),
+  evening_end_time: z.string().optional(),
   morning_live_orders: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
   evening_live_orders: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
   total_inbox_orders: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
+}).refine((data) => {
+  // Validate morning time range if both times are provided
+  if (data.morning_start_time && data.morning_end_time) {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(data.morning_start_time) || !timeRegex.test(data.morning_end_time)) {
+      return false;
+    }
+    const startMinutes = parseInt(data.morning_start_time.split(':')[0]) * 60 + parseInt(data.morning_start_time.split(':')[1]);
+    const endMinutes = parseInt(data.morning_end_time.split(':')[0]) * 60 + parseInt(data.morning_end_time.split(':')[1]);
+    if (endMinutes <= startMinutes) return false;
+  }
+  
+  // Validate evening time range if both times are provided
+  if (data.evening_start_time && data.evening_end_time) {
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(data.evening_start_time) || !timeRegex.test(data.evening_end_time)) {
+      return false;
+    }
+    const startMinutes = parseInt(data.evening_start_time.split(':')[0]) * 60 + parseInt(data.evening_start_time.split(':')[1]);
+    const endMinutes = parseInt(data.evening_end_time.split(':')[0]) * 60 + parseInt(data.evening_end_time.split(':')[1]);
+    if (endMinutes <= startMinutes) return false;
+  }
+  
+  return true;
+}, {
+  message: "Giờ kết thúc phải sau giờ bắt đầu và đúng định dạng HH:MM",
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -48,8 +77,10 @@ export const CreateLivestreamReportDialog: React.FC<CreateLivestreamReportDialog
     defaultValues: {
       morning_ad_cost: 0,
       evening_ad_cost: 0,
-      morning_duration: "",
-      evening_duration: "",
+      morning_start_time: "",
+      morning_end_time: "",
+      evening_start_time: "",
+      evening_end_time: "",
       morning_live_orders: 0,
       evening_live_orders: 0,
       total_inbox_orders: 0,
@@ -58,14 +89,23 @@ export const CreateLivestreamReportDialog: React.FC<CreateLivestreamReportDialog
 
   const createMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      // Format time ranges for storage
+      const morningDuration = data.morning_start_time && data.morning_end_time 
+        ? formatTimeRangeForStorage(data.morning_start_time, data.morning_end_time)
+        : null;
+      
+      const eveningDuration = data.evening_start_time && data.evening_end_time 
+        ? formatTimeRangeForStorage(data.evening_start_time, data.evening_end_time)
+        : null;
+      
       const { error } = await supabase
         .from("livestream_reports")
         .insert([{
           report_date: format(data.report_date, "yyyy-MM-dd"),
           morning_ad_cost: data.morning_ad_cost,
           evening_ad_cost: data.evening_ad_cost,
-          morning_duration: data.morning_duration || null,
-          evening_duration: data.evening_duration || null,
+          morning_duration: morningDuration,
+          evening_duration: eveningDuration,
           morning_live_orders: data.morning_live_orders,
           evening_live_orders: data.evening_live_orders,
           total_inbox_orders: data.total_inbox_orders,
@@ -170,19 +210,45 @@ export const CreateLivestreamReportDialog: React.FC<CreateLivestreamReportDialog
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="morning_duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Thời gian live</FormLabel>
-                      <FormControl>
-                        <Input placeholder="VD: 2h30p" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-3">
+                  <FormLabel>Thời gian live</FormLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField
+                      control={form.control}
+                      name="morning_start_time"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Giờ bắt đầu</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="time" 
+                              placeholder="HH:MM" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="morning_end_time"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Giờ kết thúc</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="time" 
+                              placeholder="HH:MM" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}
@@ -226,19 +292,45 @@ export const CreateLivestreamReportDialog: React.FC<CreateLivestreamReportDialog
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="evening_duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Thời gian live</FormLabel>
-                      <FormControl>
-                        <Input placeholder="VD: 3h15p" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="space-y-3">
+                  <FormLabel>Thời gian live</FormLabel>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField
+                      control={form.control}
+                      name="evening_start_time"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Giờ bắt đầu</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="time" 
+                              placeholder="HH:MM" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="evening_end_time"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Giờ kết thúc</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="time" 
+                              placeholder="HH:MM" 
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}
