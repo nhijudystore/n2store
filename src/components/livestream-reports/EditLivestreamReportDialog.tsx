@@ -259,7 +259,8 @@ export const EditLivestreamReportDialog: React.FC<EditLivestreamReportDialogProp
                           <FormControl>
                             <Input 
                               type="time" 
-                              placeholder="HH:MM" 
+                              step="60"
+                              placeholder="00:00" 
                               {...field} 
                             />
                           </FormControl>
@@ -276,7 +277,8 @@ export const EditLivestreamReportDialog: React.FC<EditLivestreamReportDialogProp
                           <FormControl>
                             <Input 
                               type="time" 
-                              placeholder="HH:MM" 
+                              step="60"
+                              placeholder="00:00" 
                               {...field} 
                             />
                           </FormControl>
@@ -341,7 +343,8 @@ export const EditLivestreamReportDialog: React.FC<EditLivestreamReportDialogProp
                           <FormControl>
                             <Input 
                               type="time" 
-                              placeholder="HH:MM" 
+                              step="60"
+                              placeholder="00:00" 
                               {...field} 
                             />
                           </FormControl>
@@ -358,7 +361,8 @@ export const EditLivestreamReportDialog: React.FC<EditLivestreamReportDialogProp
                           <FormControl>
                             <Input 
                               type="time" 
-                              placeholder="HH:MM" 
+                              step="60"
+                              placeholder="00:00" 
                               {...field} 
                             />
                           </FormControl>
