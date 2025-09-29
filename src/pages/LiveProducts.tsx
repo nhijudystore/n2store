@@ -558,74 +558,141 @@ export default function LiveProducts() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Mã đơn hàng</TableHead>
-                            <TableHead>Mã sản phẩm</TableHead>
+                            <TableHead>Ngày đặt</TableHead>
+                            <TableHead>Hình ảnh</TableHead>
                             <TableHead>Tên sản phẩm</TableHead>
                             <TableHead className="text-center">Số lượng</TableHead>
-                            <TableHead>Hình ảnh</TableHead>
-                            <TableHead>Ngày đặt</TableHead>
+                            <TableHead>Giá</TableHead>
+                            <TableHead>Tổng tiền</TableHead>
+                            <TableHead>Trạng thái</TableHead>
                             <TableHead className="text-center">Thao tác</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {ordersWithProducts.map((order) => (
-                            <TableRow key={order.id}>
-                              <TableCell>
-                                <Badge variant="outline" className="font-mono">
-                                  {order.order_code}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="font-mono text-sm">
-                                {order.product_code}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                {order.product_name}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Badge variant="secondary">
-                                  {order.quantity}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                {order.product_images && order.product_images.length > 0 ? (
-                                  <div className="flex gap-1">
-                                    {order.product_images.slice(0, 2).map((image, index) => (
-                                      <img
-                                        key={index}
-                                        src={image}
-                                        alt={order.product_name}
-                                        className="w-8 h-8 object-cover rounded border"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
-                                        }}
-                                      />
-                                    ))}
-                                    {order.product_images.length > 2 && (
-                                      <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs">
-                                        +{order.product_images.length - 2}
+                          {(() => {
+                            // Group orders by order_code
+                            const groupedOrders = ordersWithProducts.reduce((acc, order) => {
+                              if (!acc[order.order_code]) {
+                                acc[order.order_code] = [];
+                              }
+                              acc[order.order_code].push(order);
+                              return acc;
+                            }, {} as Record<string, typeof ordersWithProducts>);
+
+                            return Object.entries(groupedOrders).map(([orderCode, orders]) => {
+                              const firstOrder = orders[0];
+                              const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+                              
+                              return orders.map((order, index) => (
+                                <TableRow key={order.id}>
+                                  {/* Order Code - only show for first row of each group */}
+                                  {index === 0 ? (
+                                    <TableCell rowSpan={orders.length} className="align-top border-r">
+                                      <div className="space-y-2">
+                                        <Badge variant="outline" className="font-mono text-base">
+                                          {orderCode}
+                                        </Badge>
+                                        <div className="text-xs text-muted-foreground">
+                                          Tổng: {totalQuantity} sản phẩm
+                                        </div>
+                                      </div>
+                                    </TableCell>
+                                  ) : null}
+                                  
+                                  {/* Date - only show for first row of each group */}
+                                  {index === 0 ? (
+                                    <TableCell rowSpan={orders.length} className="align-top border-r">
+                                      <div className="text-sm text-muted-foreground">
+                                        {format(new Date(firstOrder.order_date), "dd/MM/yyyy", { locale: vi })}
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {format(new Date(firstOrder.order_date), "HH:mm", { locale: vi })}
+                                      </div>
+                                    </TableCell>
+                                  ) : null}
+                                  
+                                  {/* Product Image */}
+                                  <TableCell>
+                                    {order.product_images && order.product_images.length > 0 ? (
+                                      <div className="flex gap-1">
+                                        {order.product_images.slice(0, 1).map((image, imgIndex) => (
+                                          <img
+                                            key={imgIndex}
+                                            src={image}
+                                            alt={order.product_name}
+                                            className="w-10 h-10 object-cover rounded border"
+                                            onError={(e) => {
+                                              e.currentTarget.style.display = 'none';
+                                            }}
+                                          />
+                                        ))}
+                                        {order.product_images.length > 1 && (
+                                          <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center text-xs">
+                                            +{order.product_images.length - 1}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center">
+                                        <Package className="w-4 h-4 text-muted-foreground" />
                                       </div>
                                     )}
-                                  </div>
-                                ) : (
-                                  <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center">
-                                    <Package className="w-4 h-4 text-muted-foreground" />
-                                  </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="text-sm text-muted-foreground">
-                                {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                  </TableCell>
+                                  
+                                  {/* Product Name */}
+                                  <TableCell>
+                                    <div className="font-medium">{order.product_name}</div>
+                                    <div className="text-xs text-muted-foreground font-mono">
+                                      {order.product_code}
+                                    </div>
+                                  </TableCell>
+                                  
+                                  {/* Quantity */}
+                                  <TableCell className="text-center">
+                                    <Badge variant="secondary">
+                                      {order.quantity}
+                                    </Badge>
+                                  </TableCell>
+                                  
+                                  {/* Price */}
+                                  <TableCell>
+                                    <div className="text-sm text-muted-foreground">-</div>
+                                  </TableCell>
+                                  
+                                  {/* Total */}
+                                  <TableCell>
+                                    <div className="text-sm text-muted-foreground">-</div>
+                                  </TableCell>
+                                  
+                                  {/* Status */}
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-green-600">
+                                      Đang chờ
+                                    </Badge>
+                                  </TableCell>
+                                  
+                                  {/* Actions - only show for first row of each group */}
+                                  {index === 0 ? (
+                                    <TableCell rowSpan={orders.length} className="text-center align-top border-l">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          // Delete all orders with this order_code
+                                          if (confirm(`Bạn có chắc chắn muốn xóa tất cả sản phẩm trong đơn hàng ${orderCode}?`)) {
+                                            orders.forEach(o => handleDeleteOrder(o.id));
+                                          }
+                                        }}
+                                        className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </TableCell>
+                                  ) : null}
+                                </TableRow>
+                              ));
+                            });
+                          })()}
                         </TableBody>
                       </Table>
                     ) : (
