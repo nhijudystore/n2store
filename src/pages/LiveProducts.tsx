@@ -773,7 +773,7 @@ export default function LiveProducts() {
                                   rowSpan={orders.length} 
                                   className="font-medium align-middle border-r bg-muted/20 text-center"
                                 >
-                                  <Badge variant="outline" className="text-base font-bold font-mono">
+                                  <Badge className="text-base font-bold font-mono bg-primary text-primary-foreground px-3 py-1.5">
                                     {orderCode}
                                   </Badge>
                                 </TableCell>
