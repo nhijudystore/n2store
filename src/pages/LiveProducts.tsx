@@ -771,9 +771,9 @@ export default function LiveProducts() {
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={orders.length} 
-                                  className="font-medium align-middle border-r bg-muted/20"
+                                  className="font-medium align-middle border-r bg-muted/20 text-center"
                                 >
-                                  <Badge variant="outline" className="text-xs font-mono">
+                                  <Badge variant="outline" className="text-base font-bold font-mono">
                                     {orderCode}
                                   </Badge>
                                 </TableCell>
