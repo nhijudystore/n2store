@@ -11,6 +11,7 @@ import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSe
 import { EditLiveSessionDialog } from "@/components/live-products/EditLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
+import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { 
@@ -23,7 +24,8 @@ import {
   ChevronDown,
   ChevronRight,
   Edit,
-  ListOrdered
+  ListOrdered,
+  Pencil
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -91,6 +93,13 @@ export default function LiveProducts() {
     prepared_quantity: number;
   } | null>(null);
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
+  const [isEditOrderItemOpen, setIsEditOrderItemOpen] = useState(false);
+  const [editingOrderItem, setEditingOrderItem] = useState<{
+    id: string;
+    product_id: string;
+    product_name: string;
+    quantity: number;
+  } | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -192,26 +201,28 @@ export default function LiveProducts() {
     enabled: !!selectedPhase,
   });
 
-  // Delete order mutation
-  const deleteOrderMutation = useMutation({
-    mutationFn: async (orderId: string) => {
-      const order = liveOrders.find(o => o.id === orderId);
-      if (!order) throw new Error("Order not found");
-
+  // Delete order item mutation (delete single product from order)
+  const deleteOrderItemMutation = useMutation({
+    mutationFn: async ({ orderId, productId, quantity }: { orderId: string; productId: string; quantity: number }) => {
       // Update product sold quantity first
-      const product = liveProducts.find(p => p.id === order.live_product_id);
-      if (product) {
-        const { error: updateError } = await supabase
-          .from("live_products")
-          .update({ 
-            sold_quantity: Math.max(0, product.sold_quantity - order.quantity) 
-          })
-          .eq("id", order.live_product_id);
-        
-        if (updateError) throw updateError;
-      }
+      const { data: product, error: productFetchError } = await supabase
+        .from("live_products")
+        .select("sold_quantity")
+        .eq("id", productId)
+        .single();
 
-      // Delete the order
+      if (productFetchError) throw productFetchError;
+
+      const { error: updateError } = await supabase
+        .from("live_products")
+        .update({ 
+          sold_quantity: Math.max(0, product.sold_quantity - quantity) 
+        })
+        .eq("id", productId);
+      
+      if (updateError) throw updateError;
+
+      // Delete the order item
       const { error } = await supabase
         .from("live_orders")
         .delete()
@@ -223,11 +234,11 @@ export default function LiveProducts() {
       queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase] });
       queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase] });
       queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase] });
-      toast.success("Đã xóa đơn hàng thành công");
+      toast.success("Đã xóa sản phẩm khỏi đơn hàng");
     },
     onError: (error) => {
-      console.error("Error deleting order:", error);
-      toast.error("Có lỗi xảy ra khi xóa đơn hàng");
+      console.error("Error deleting order item:", error);
+      toast.error("Có lỗi xảy ra khi xóa sản phẩm");
     },
   });
 
@@ -378,10 +389,20 @@ export default function LiveProducts() {
     },
   });
 
-  const handleDeleteOrder = async (orderId: string) => {
-    if (window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
-      await deleteOrderMutation.mutateAsync(orderId);
+  const handleDeleteOrderItem = async (orderId: string, productId: string, quantity: number) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này khỏi đơn hàng?")) {
+      await deleteOrderItemMutation.mutateAsync({ orderId, productId, quantity });
     }
+  };
+
+  const handleEditOrderItem = (order: OrderWithProduct) => {
+    setEditingOrderItem({
+      id: order.id,
+      product_id: order.live_product_id,
+      product_name: order.product_name,
+      quantity: order.quantity,
+    });
+    setIsEditOrderItemOpen(true);
   };
 
   const handleDeleteAllPhasesForSession = async (sessionId: string) => {
@@ -746,11 +767,11 @@ export default function LiveProducts() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-20 text-center font-bold text-base">Thao tác</TableHead>
                         <TableHead className="w-32 font-bold text-base">Mã đơn hàng</TableHead>
                         <TableHead className="w-48 font-bold text-base">Tên sản phẩm</TableHead>
                         <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
                         <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
+                        <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
                         <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -778,22 +799,7 @@ export default function LiveProducts() {
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={orders.length} 
-                                  className="text-center py-2 align-middle border-r border-l"
-                                >
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteOrder(order.id)}
-                                    className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </TableCell>
-                              )}
-                              {index === 0 && (
-                                <TableCell 
-                                  rowSpan={orders.length} 
-                                  className="font-medium align-middle border-r text-center"
+                                  className="font-medium align-middle border-r border-l text-center"
                                 >
                                   <Badge className="text-base font-bold font-mono bg-primary text-primary-foreground px-3 py-1.5">
                                     {orderCode}
@@ -808,6 +814,26 @@ export default function LiveProducts() {
                               </TableCell>
                               <TableCell className="text-center py-2 border-r">
                                 <span className="text-sm font-medium">{order.quantity}</span>
+                              </TableCell>
+                              <TableCell className="text-center py-2 border-r">
+                                <div className="flex items-center justify-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditOrderItem(order)}
+                                    className="h-7 w-7 p-0"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteOrderItem(order.id, order.live_product_id, order.quantity)}
+                                    className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </TableCell>
                               {index === 0 && (
                                 <TableCell 
@@ -912,6 +938,13 @@ export default function LiveProducts() {
         open={isEditProductOpen}
         onOpenChange={setIsEditProductOpen}
         product={editingProduct}
+      />
+
+      <EditOrderItemDialog 
+        open={isEditOrderItemOpen}
+        onOpenChange={setIsEditOrderItemOpen}
+        orderItem={editingOrderItem}
+        phaseId={selectedPhase}
       />
     </div>
   );
