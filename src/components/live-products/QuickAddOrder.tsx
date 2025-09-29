@@ -6,11 +6,13 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus } from 'lucide-react';
 
 interface QuickAddOrderProps {
-  sessionId: string;
   productId: string;
+  phaseId: string;
+  sessionId?: string;
+  availableQuantity: number;
 }
 
-export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
+export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity }: QuickAddOrderProps) {
   const [orderCode, setOrderCode] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -23,6 +25,7 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
         .insert({
           order_code: orderCodeValue,
           live_session_id: sessionId,
+          live_phase_id: phaseId,
           live_product_id: productId,
           quantity: 1
         });
@@ -47,8 +50,8 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
     },
     onSuccess: () => {
       setOrderCode('');
-      queryClient.invalidateQueries({ queryKey: ['live-orders', sessionId] });
-      queryClient.invalidateQueries({ queryKey: ['live-products', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
+      queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
       toast({
         title: "Thành công",
         description: "Đã thêm đơn hàng mới",
@@ -65,7 +68,7 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
   });
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && orderCode.trim()) {
+    if (e.key === 'Enter' && orderCode.trim() && availableQuantity > 0) {
       addOrderMutation.mutate(orderCode.trim());
     }
   };
@@ -74,13 +77,12 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
     <div className="flex items-center gap-2 w-full">
       <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <Input
-        placeholder="Nhập mã đơn + Enter"
+        placeholder={availableQuantity > 0 ? "Nhập mã đơn + Enter" : "Hết hàng"}
         value={orderCode}
         onChange={(e) => setOrderCode(e.target.value)}
         onKeyPress={handleKeyPress}
-        disabled={addOrderMutation.isPending}
+        disabled={addOrderMutation.isPending || availableQuantity <= 0}
         className="flex-1 text-sm"
-        
       />
     </div>
   );

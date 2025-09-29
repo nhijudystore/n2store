@@ -17,11 +17,12 @@ interface LiveOrder {
 
 interface LiveSessionStatsProps {
   sessionId: string;
+  phaseId: string;
   products: LiveProduct[];
   orders: LiveOrder[];
 }
 
-export function LiveSessionStats({ sessionId, products, orders }: LiveSessionStatsProps) {
+export function LiveSessionStats({ sessionId, phaseId, products, orders }: LiveSessionStatsProps) {
   const totalPreparedQuantity = products.reduce((sum, product) => sum + product.prepared_quantity, 0);
   const totalSoldQuantity = products.reduce((sum, product) => sum + product.sold_quantity, 0);
   const uniqueCustomers = new Set(orders.map(order => order.order_code)).size;

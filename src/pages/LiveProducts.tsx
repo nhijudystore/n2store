@@ -33,14 +33,27 @@ interface LiveSession {
   id: string;
   session_date: string;
   supplier_name: string;
+  session_name?: string;
+  start_date?: string;
+  end_date?: string;
   status: string;
   notes?: string;
+  created_at: string;
+}
+
+interface LivePhase {
+  id: string;
+  live_session_id: string;
+  phase_date: string;
+  phase_type: string;
+  status: string;
   created_at: string;
 }
 
 interface LiveProduct {
   id: string;
   live_session_id: string;
+  live_phase_id?: string;
   product_code: string;
   product_name: string;
   prepared_quantity: number;
@@ -51,6 +64,7 @@ interface LiveOrder {
   id: string;
   live_session_id: string;
   live_product_id: string;
+  live_phase_id?: string;
   order_code: string;
   quantity: number;
   order_date: string;
@@ -64,6 +78,7 @@ interface OrderWithProduct extends LiveOrder {
 
 export default function LiveProducts() {
   const [selectedSession, setSelectedSession] = useState<string>("");
+  const [selectedPhase, setSelectedPhase] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("products");
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
@@ -93,88 +108,110 @@ export default function LiveProducts() {
     },
   });
 
-  // Fetch live products for selected session
-  const { data: liveProducts = [] } = useQuery({
-    queryKey: ["live-products", selectedSession],
+  // Fetch live phases for selected session
+  const { data: livePhases = [] } = useQuery({
+    queryKey: ["live-phases", selectedSession],
     queryFn: async () => {
       if (!selectedSession) return [];
+      
+      const { data, error } = await supabase
+        .from("live_phases")
+        .select("*")
+        .eq("live_session_id", selectedSession)
+        .order("phase_date", { ascending: true })
+        .order("phase_type", { ascending: true });
+      
+      if (error) throw error;
+      return data as LivePhase[];
+    },
+    enabled: !!selectedSession,
+  });
+
+  // Fetch live products for selected phase
+  const { data: liveProducts = [] } = useQuery({
+    queryKey: ["live-products", selectedPhase],
+    queryFn: async () => {
+      if (!selectedPhase) return [];
       
       const { data, error } = await supabase
         .from("live_products")
         .select("*")
-        .eq("live_session_id", selectedSession)
-        .order("created_at", { ascending: true });
+        .eq("live_phase_id", selectedPhase)
+        .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data as LiveProduct[];
     },
-    enabled: !!selectedSession,
+    enabled: !!selectedPhase,
   });
 
-  // Fetch live orders for selected session
+  // Fetch live orders for selected phase
   const { data: liveOrders = [] } = useQuery({
-    queryKey: ["live-orders", selectedSession],
+    queryKey: ["live-orders", selectedPhase],
     queryFn: async () => {
-      if (!selectedSession) return [];
+      if (!selectedPhase) return [];
       
       const { data, error } = await supabase
         .from("live_orders")
         .select("*")
-        .eq("live_session_id", selectedSession)
-        .order("order_date", { ascending: false });
+        .eq("live_phase_id", selectedPhase)
+        .order("created_at", { ascending: false });
       
       if (error) throw error;
       return data as LiveOrder[];
     },
-    enabled: !!selectedSession,
+    enabled: !!selectedPhase,
   });
 
-  // Fetch orders with product details for order list tab
+  // Fetch orders with product details for selected phase
   const { data: ordersWithProducts = [] } = useQuery({
-    queryKey: ["orders-with-products", selectedSession],
+    queryKey: ["orders-with-products", selectedPhase],
     queryFn: async () => {
-      if (!selectedSession) return [];
+      if (!selectedPhase) return [];
       
-      const { data: orders, error: ordersError } = await supabase
+      const { data, error } = await supabase
         .from("live_orders")
         .select(`
           *,
-          live_products!inner(
+          live_products (
             product_code,
             product_name
           )
         `)
-        .eq("live_session_id", selectedSession)
-        .order("order_date", { ascending: false });
+        .eq("live_phase_id", selectedPhase)
+        .order("created_at", { ascending: false });
       
-      if (ordersError) throw ordersError;
-
-      // Get product images from purchase_order_items
-      const ordersWithImages = await Promise.all(
-        orders.map(async (order: any) => {
-          const { data: purchaseItems } = await supabase
-            .from("purchase_order_items")
-            .select("product_images")
-            .eq("product_name", order.live_products.product_name)
-            .limit(1);
-
-          return {
-            ...order,
-            product_code: order.live_products.product_code,
-            product_name: order.live_products.product_name,
-            product_images: purchaseItems?.[0]?.product_images || []
-          } as OrderWithProduct;
-        })
-      );
-
-      return ordersWithImages;
+      if (error) throw error;
+      
+      return data.map(order => ({
+        ...order,
+        product_code: order.live_products?.product_code || "",
+        product_name: order.live_products?.product_name || "",
+      })) as OrderWithProduct[];
     },
-    enabled: !!selectedSession,
+    enabled: !!selectedPhase,
   });
 
   // Delete order mutation
   const deleteOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
+      const order = liveOrders.find(o => o.id === orderId);
+      if (!order) throw new Error("Order not found");
+
+      // Update product sold quantity first
+      const product = liveProducts.find(p => p.id === order.live_product_id);
+      if (product) {
+        const { error: updateError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity - order.quantity) 
+          })
+          .eq("id", order.live_product_id);
+        
+        if (updateError) throw updateError;
+      }
+
+      // Delete the order
       const { error } = await supabase
         .from("live_orders")
         .delete()
@@ -183,8 +220,9 @@ export default function LiveProducts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedSession] });
-      queryClient.invalidateQueries({ queryKey: ["live-products", selectedSession] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase] });
       toast.success("Đã xóa đơn hàng thành công");
     },
     onError: (error) => {
@@ -193,29 +231,30 @@ export default function LiveProducts() {
     },
   });
 
-  // Delete product mutation (cascade delete orders)
+  // Delete product mutation (cascading delete orders)
   const deleteProductMutation = useMutation({
     mutationFn: async (productId: string) => {
       // First delete all orders for this product
-      const { error: ordersError } = await supabase
+      const { error: deleteOrdersError } = await supabase
         .from("live_orders")
         .delete()
         .eq("live_product_id", productId);
       
-      if (ordersError) throw ordersError;
+      if (deleteOrdersError) throw deleteOrdersError;
 
       // Then delete the product
-      const { error: productError } = await supabase
+      const { error } = await supabase
         .from("live_products")
         .delete()
         .eq("id", productId);
       
-      if (productError) throw productError;
+      if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedSession] });
-      queryClient.invalidateQueries({ queryKey: ["live-products", selectedSession] });
-      toast.success("Đã xóa sản phẩm và tất cả đơn hàng liên quan");
+      queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase] });
+      toast.success("Đã xóa sản phẩm và các đơn hàng liên quan thành công");
     },
     onError: (error) => {
       console.error("Error deleting product:", error);
@@ -223,85 +262,84 @@ export default function LiveProducts() {
     },
   });
 
-  // Delete live session mutation (cascade delete products and orders)
+  // Delete live session mutation (cascading delete products and orders)
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
-      // First delete all orders in this session
-      const { error: ordersError } = await supabase
-        .from("live_orders")
-        .delete()
+      // First get all phases for this session
+      const { data: phases, error: phasesError } = await supabase
+        .from("live_phases")
+        .select("id")
         .eq("live_session_id", sessionId);
       
-      if (ordersError) throw ordersError;
+      if (phasesError) throw phasesError;
 
-      // Then delete all products in this session
-      const { error: productsError } = await supabase
-        .from("live_products")
+      const phaseIds = phases.map(p => p.id);
+
+      // Delete all orders for all phases in this session
+      if (phaseIds.length > 0) {
+        const { error: deleteOrdersError } = await supabase
+          .from("live_orders")
+          .delete()
+          .in("live_phase_id", phaseIds);
+        
+        if (deleteOrdersError) throw deleteOrdersError;
+
+        // Delete all products for all phases in this session
+        const { error: deleteProductsError } = await supabase
+          .from("live_products")
+          .delete()
+          .in("live_phase_id", phaseIds);
+        
+        if (deleteProductsError) throw deleteProductsError;
+      }
+
+      // Delete all phases for this session
+      const { error: deletePhasesError } = await supabase
+        .from("live_phases")
         .delete()
         .eq("live_session_id", sessionId);
       
-      if (productsError) throw productsError;
+      if (deletePhasesError) throw deletePhasesError;
 
       // Finally delete the session
-      const { error: sessionError } = await supabase
+      const { error } = await supabase
         .from("live_sessions")
         .delete()
         .eq("id", sessionId);
       
-      if (sessionError) throw sessionError;
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["live-sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["live-phases"] });
       queryClient.invalidateQueries({ queryKey: ["live-products"] });
-      toast.success("Đã xóa đợt live và tất cả dữ liệu liên quan");
-      
-      // Reset selected session if it was deleted
-      if (liveSessions.length > 1) {
-        const remainingSessions = liveSessions.filter(s => s.id !== selectedSession);
-        setSelectedSession(remainingSessions[0]?.id || "");
-      } else {
-        setSelectedSession("");
-      }
+      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products"] });
+      setSelectedSession("");
+      setSelectedPhase("");
+      toast.success("Đã xóa đợt live và tất cả dữ liệu liên quan thành công");
     },
     onError: (error) => {
-      console.error("Error deleting session:", error);
+      console.error("Error deleting live session:", error);
       toast.error("Có lỗi xảy ra khi xóa đợt live");
     },
   });
 
-  const handleDeleteOrder = (orderId: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
-      deleteOrderMutation.mutate(orderId);
+  const handleDeleteOrder = async (orderId: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
+      await deleteOrderMutation.mutateAsync(orderId);
     }
   };
 
-  const handleDeleteProduct = (productId: string, productName: string) => {
-    const productOrders = liveOrders.filter(order => order.live_product_id === productId);
-    const confirmMessage = productOrders.length > 0 
-      ? `Bạn có chắc chắn muốn xóa sản phẩm "${productName}"? Điều này sẽ xóa ${productOrders.length} đơn hàng liên quan.`
-      : `Bạn có chắc chắn muốn xóa sản phẩm "${productName}"?`;
-    
-    if (confirm(confirmMessage)) {
-      deleteProductMutation.mutate(productId);
+  const handleDeleteProduct = async (productId: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này? Tất cả đơn hàng liên quan cũng sẽ bị xóa.")) {
+      await deleteProductMutation.mutateAsync(productId);
     }
   };
 
-  const handleDeleteSession = (sessionId: string, sessionName: string) => {
-    const sessionProducts = liveProducts.length;
-    const sessionOrders = liveOrders.length;
-    
-    let confirmMessage = `Bạn có chắc chắn muốn xóa đợt live "${sessionName}"?`;
-    if (sessionProducts > 0) {
-      confirmMessage += ` Điều này sẽ xóa ${sessionProducts} sản phẩm`;
-      if (sessionOrders > 0) {
-        confirmMessage += ` và ${sessionOrders} đơn hàng`;
-      }
-      confirmMessage += " liên quan.";
-    }
-    
-    if (confirm(confirmMessage)) {
-      deleteSessionMutation.mutate(sessionId);
+  const handleDeleteSession = async (sessionId: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa đợt live này? Tất cả phiên live, sản phẩm và đơn hàng liên quan sẽ bị xóa.")) {
+      await deleteSessionMutation.mutateAsync(sessionId);
     }
   };
 
@@ -321,356 +359,409 @@ export default function LiveProducts() {
   };
 
   const exportToCSV = () => {
-    if (!selectedSession) {
-      toast.error("Vui lòng chọn một đợt live để xuất dữ liệu");
+    if (!selectedPhase || liveProducts.length === 0) {
+      toast.error("Không có dữ liệu để xuất");
       return;
     }
 
-    const session = liveSessions.find(s => s.id === selectedSession);
-    if (!session) return;
+    const selectedPhaseData = livePhases.find(p => p.id === selectedPhase);
+    if (!selectedPhaseData) return;
 
-    const csvData = liveProducts.map(product => {
-      const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
-      return {
-        "Mã sản phẩm": product.product_code,
-        "Tên sản phẩm": product.product_name,
-        "SL chuẩn bị": product.prepared_quantity,
-        "SL đã bán": product.sold_quantity,
-        "Số đơn hàng": productOrders.length,
-        "Chi tiết đơn hàng": productOrders.map(o => `${o.order_code}: ${o.quantity}`).join("; ")
-      };
-    });
+    const csvData = liveProducts.map(product => ({
+      "Mã sản phẩm": product.product_code,
+      "Tên sản phẩm": product.product_name,
+      "Số lượng chuẩn bị": product.prepared_quantity,
+      "Số lượng đã bán": product.sold_quantity,
+      "Còn lại": product.prepared_quantity - product.sold_quantity,
+    }));
 
-    const headers = Object.keys(csvData[0] || {});
     const csvContent = [
-      headers.join(","),
-      ...csvData.map(row => headers.map(header => `"${row[header] || ""}"`).join(","))
+      Object.keys(csvData[0]).join(","),
+      ...csvData.map(row => Object.values(row).join(","))
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `live-session-${format(new Date(session.session_date), "yyyy-MM-dd")}.csv`;
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `danh-sach-san-pham-${format(new Date(selectedPhaseData.phase_date), "dd-MM-yyyy")}-${selectedPhaseData.phase_type}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+  };
+
+  const getPhaseDisplayName = (phase: LivePhase) => {
+    const date = new Date(phase.phase_date);
+    const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const phaseType = phase.phase_type === 'morning' ? 'Sáng' : 'Chiều';
+    return `Ngày ${dayNumber} - ${phaseType} (${format(date, "dd/MM/yyyy")})`;
+  };
+
+  const getSessionDisplayName = (session: LiveSession) => {
+    const sessionName = session.session_name || session.supplier_name;
+    if (session.start_date && session.end_date) {
+      return `${sessionName} - ${format(new Date(session.start_date), "dd/MM/yyyy")} đến ${format(new Date(session.end_date), "dd/MM/yyyy")}`;
+    }
+    return `${sessionName} - ${format(new Date(session.session_date), "dd/MM/yyyy")}`;
   };
 
   if (isLoading) {
-    return <div className="p-6">Đang tải...</div>;
+    return (
+      <div className="container mx-auto p-6">
+        <div className="text-center">Đang tải...</div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Quản Lý Sản Phẩm Live</h1>
-          <p className="text-muted-foreground">Quản lý các đợt livestream và đơn hàng</p>
+          <h1 className="text-3xl font-bold tracking-tight">Live Products</h1>
+          <p className="text-muted-foreground">
+            Quản lý các phiên live, sản phẩm và đơn hàng
+          </p>
         </div>
+        
         <div className="flex gap-2">
           <Button 
             onClick={() => setIsCreateSessionOpen(true)}
-            className="gap-2"
+            className="flex items-center gap-2"
           >
-            <Plus className="w-4 h-4" />
-            Tạo đợt live mới
+            <Plus className="h-4 w-4" />
+            Tạo đợt Live mới
           </Button>
-          {selectedSession && (
-            <>
-              <Button 
-                variant="outline"
-                onClick={() => setIsAddProductOpen(true)}
-                className="gap-2"
-              >
-                <Package className="w-4 h-4" />
-                Thêm sản phẩm
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={exportToCSV}
-                className="gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Xuất CSV
-              </Button>
-            </>
-          )}
         </div>
       </div>
 
-      {/* Prominent Session Selector */}
-      <div className="flex items-center justify-center py-8 bg-gradient-to-r from-background to-accent/10 rounded-lg border-2">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-6 h-6 text-primary" />
-            <span className="text-lg font-semibold text-foreground">Chọn đợt Live:</span>
-          </div>
-          
-          <Select value={selectedSession} onValueChange={setSelectedSession}>
-            <SelectTrigger className="w-80 h-12 text-base font-medium border-2 shadow-lg bg-background hover:bg-accent/5 transition-colors">
-              <SelectValue placeholder="Chọn đợt live..." />
-            </SelectTrigger>
-            <SelectContent className="w-80">
-              {liveSessions.map((session) => (
-                <SelectItem key={session.id} value={session.id} className="text-base">
-                  {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Session Selection */}
+      {liveSessions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Chọn đợt Live
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Đợt Live</label>
+                <Select 
+                  value={selectedSession} 
+                  onValueChange={(value) => {
+                    setSelectedSession(value);
+                    setSelectedPhase(""); // Reset phase selection
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn một đợt live" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {liveSessions.map((session) => (
+                      <SelectItem key={session.id} value={session.id}>
+                        {getSessionDisplayName(session)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          {selectedSession && (
-            <div className="flex gap-2 ml-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const session = liveSessions.find(s => s.id === selectedSession);
-                  if (session) handleEditSession(session);
-                }}
-                className="gap-2 hover:bg-accent/10"
-              >
-                <Edit className="h-4 w-4" />
-                Chỉnh sửa
-              </Button>
-              {liveSessions.length > 1 && (
+              {selectedSession && livePhases.length > 0 && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Phiên Live</label>
+                  <Select value={selectedPhase} onValueChange={setSelectedPhase}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn phiên live" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {livePhases.map((phase) => (
+                        <SelectItem key={phase.id} value={phase.id}>
+                          {getPhaseDisplayName(phase)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            {selectedSession && (
+              <div className="flex gap-2 mt-4">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
                     const session = liveSessions.find(s => s.id === selectedSession);
-                    if (session) {
-                      handleDeleteSession(
-                        session.id, 
-                        `${format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - ${session.supplier_name}`
-                      );
-                    }
+                    if (session) handleEditSession(session);
                   }}
-                  className="gap-2 hover:bg-destructive/10 hover:text-destructive"
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Chỉnh sửa đợt live
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteSession(selectedSession)}
+                  className="flex items-center gap-2 text-red-600 hover:text-red-700"
                 >
                   <Trash2 className="h-4 w-4" />
-                  Xóa
+                  Xóa đợt live
                 </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {selectedSession && (
-        <div className="space-y-4">
+      {/* Stats and Content */}
+      {selectedPhase && (
+        <>
           <LiveSessionStats 
             sessionId={selectedSession}
+            phaseId={selectedPhase}
             products={liveProducts}
             orders={liveOrders}
           />
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="products" className="gap-2">
-                <Package className="w-4 h-4" />
-                Sản phẩm
-              </TabsTrigger>
-              <TabsTrigger value="orders" className="gap-2">
-                <ListOrdered className="w-4 h-4" />
-                Đơn hàng
-              </TabsTrigger>
-            </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex items-center justify-between">
+              <TabsList>
+                <TabsTrigger value="products" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Sản phẩm ({liveProducts.length})
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Đơn hàng ({liveOrders.length})
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="products">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="w-5 h-5" />
-                    Danh sách sản phẩm
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {liveProducts.map((product) => {
-                      const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
-                      
-                      return (
-                        <div key={product.id} className="border rounded-lg p-4">
-                          <div className="grid grid-cols-12 gap-4 items-center">
-                            {/* Product Info */}
-                            <div className="col-span-12 md:col-span-3">
-                              <div className="font-medium">{product.product_name}</div>
-                              <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
-                            </div>
-                            
-                            {/* Prepared Quantity */}
-                            <div className="col-span-3 md:col-span-1 text-center">
-                              <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
-                              <div className="font-medium">{product.prepared_quantity}</div>
-                            </div>
-                            
-                            {/* Sold Quantity */}
-                            <div className="col-span-3 md:col-span-1 text-center">
-                              <div className="text-sm text-muted-foreground">SL đã bán</div>
-                              <div className="font-medium text-green-600">{product.sold_quantity}</div>
-                            </div>
-                            
-                            {/* Order Count */}
-                            <div className="col-span-3 md:col-span-1 text-center">
-                              <div className="text-sm text-muted-foreground">Số đơn</div>
-                              <div className="font-medium text-blue-600">{productOrders.length}</div>
-                            </div>
-                            
-                            {/* Quick Add Order */}
-                            <div className="col-span-12 md:col-span-4">
-                              <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                            </div>
-                            
-                            {/* Actions */}
-                            <div className="col-span-12 md:col-span-2 flex gap-2 justify-end">
+              <div className="flex gap-2">
+                {activeTab === "products" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddProductOpen(true)}
+                      className="flex items-center gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Thêm sản phẩm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportToCSV}
+                      disabled={liveProducts.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      Xuất CSV
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <TabsContent value="products" className="space-y-4">
+              {liveProducts.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <Package className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Chưa có sản phẩm nào</h3>
+                    <p className="text-muted-foreground text-center mb-4">
+                      Thêm sản phẩm đầu tiên cho phiên live này
+                    </p>
+                    <Button onClick={() => setIsAddProductOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm sản phẩm
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mã SP</TableHead>
+                        <TableHead>Tên sản phẩm</TableHead>
+                        <TableHead className="text-center">SL chuẩn bị</TableHead>
+                        <TableHead className="text-center">SL đã bán</TableHead>
+                        <TableHead className="text-center">Còn lại</TableHead>
+                        <TableHead className="text-center">Trạng thái</TableHead>
+                        <TableHead className="text-center">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {liveProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell className="font-medium">{product.product_code}</TableCell>
+                          <TableCell>{product.product_name}</TableCell>
+                          <TableCell className="text-center">{product.prepared_quantity}</TableCell>
+                          <TableCell className="text-center">{product.sold_quantity}</TableCell>
+                          <TableCell className="text-center">
+                            {product.prepared_quantity - product.sold_quantity}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant={
+                              product.sold_quantity >= product.prepared_quantity 
+                                ? "destructive" 
+                                : product.sold_quantity > 0 
+                                ? "default" 
+                                : "secondary"
+                            }>
+                              {product.sold_quantity >= product.prepared_quantity 
+                                ? "Hết hàng" 
+                                : product.sold_quantity > 0 
+                                ? "Đang bán" 
+                                : "Chưa bán"
+                              }
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <QuickAddOrder 
+                                productId={product.id}
+                                phaseId={selectedPhase}
+                                sessionId={selectedSession}
+                                availableQuantity={product.prepared_quantity - product.sold_quantity}
+                              />
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditProduct(product)}
                               >
-                                <Edit className="w-4 h-4" />
+                                <Edit className="h-4 w-4" />
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
-                                onClick={() => handleDeleteProduct(product.id, product.product_name)}
-                                className="hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                className="text-red-600 hover:text-red-700"
                               >
-                                <Trash2 className="w-4 h-4" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    
-                    {liveProducts.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Chưa có sản phẩm nào trong đợt live này</p>
-                        <p className="text-sm">Nhấn "Thêm sản phẩm" để bắt đầu</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
             </TabsContent>
 
-            <TabsContent value="orders">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <ListOrdered className="w-5 h-5" />
-                    Danh sách đơn hàng
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {ordersWithProducts.length > 0 ? (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Mã đơn hàng</TableHead>
-                          <TableHead>Sản phẩm</TableHead>
-                          <TableHead className="text-center">Số lượng</TableHead>
-                          <TableHead>Ngày đặt</TableHead>
-                          <TableHead className="text-center">Thao tác</TableHead>
+            <TabsContent value="orders" className="space-y-4">
+              {ordersWithProducts.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Chưa có đơn hàng nào</h3>
+                    <p className="text-muted-foreground text-center">
+                      Đơn hàng sẽ xuất hiện ở đây khi có người mua sản phẩm
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mã đơn hàng</TableHead>
+                        <TableHead>Sản phẩm</TableHead>
+                        <TableHead className="text-center">Số lượng</TableHead>
+                        <TableHead>Ngày đặt</TableHead>
+                        <TableHead className="text-center">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {ordersWithProducts.map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.order_code}</TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{order.product_name}</div>
+                              <div className="text-sm text-muted-foreground">{order.product_code}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">{order.quantity}</TableCell>
+                          <TableCell>
+                            {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(() => {
-                          const productGroups = ordersWithProducts.reduce((groups, order) => {
-                            if (!groups[order.product_name]) {
-                              groups[order.product_name] = [];
-                            }
-                            groups[order.product_name].push(order);
-                            return groups;
-                          }, {} as Record<string, OrderWithProduct[]>);
-
-                          return Object.entries(productGroups).map(([productName, orders]) => {
-                            return orders.map((order, index) => (
-                              <TableRow key={order.id}>
-                                <TableCell className="font-medium">{order.order_code}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-3">
-                                    {order.product_images && order.product_images.length > 0 && (
-                                      <img 
-                                        src={order.product_images[0]} 
-                                        alt={order.product_name}
-                                        className="w-10 h-10 object-cover rounded"
-                                      />
-                                    )}
-                                    <div>
-                                      <div className="font-medium">{order.product_name}</div>
-                                      <div className="text-sm text-muted-foreground">Mã: {order.product_code}</div>
-                                    </div>
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge variant="secondary">{order.quantity}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                  {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleDeleteOrder(order.id)}
-                                    className="hover:bg-destructive/10 hover:text-destructive"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            ));
-                          });
-                        })()}
-                      </TableBody>
-                    </Table>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Chưa có đơn hàng nào trong đợt live này</p>
-                      <p className="text-sm">Đơn hàng sẽ hiển thị khi có khách đặt mua</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
             </TabsContent>
           </Tabs>
-        </div>
+        </>
       )}
 
+      {/* Empty States */}
       {liveSessions.length === 0 && (
         <Card>
-          <CardContent className="text-center py-8">
-            <Calendar className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-medium mb-2">Chưa có đợt live nào</h3>
-            <p className="text-muted-foreground mb-4">Tạo đợt live đầu tiên để bắt đầu quản lý sản phẩm</p>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Calendar className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Chưa có đợt live nào</h3>
+            <p className="text-muted-foreground text-center mb-4">
+              Tạo đợt live đầu tiên để bắt đầu quản lý sản phẩm và đơn hàng
+            </p>
             <Button onClick={() => setIsCreateSessionOpen(true)}>
-              Tạo đợt live mới
+              <Plus className="h-4 w-4 mr-2" />
+              Tạo đợt Live mới
             </Button>
           </CardContent>
         </Card>
       )}
 
-      <CreateLiveSessionDialog
-        open={isCreateSessionOpen}
-        onOpenChange={setIsCreateSessionOpen}
-      />
+      {selectedSession && !selectedPhase && livePhases.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <ListOrdered className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Đợt live chưa có phiên nào</h3>
+            <p className="text-muted-foreground text-center">
+              Có vẻ như đợt live này được tạo bằng hệ thống cũ. Vui lòng tạo đợt live mới để sử dụng tính năng mới.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-      <EditLiveSessionDialog
+      {/* Dialogs */}
+      <CreateLiveSessionDialog 
+        open={isCreateSessionOpen} 
+        onOpenChange={setIsCreateSessionOpen} 
+      />
+      
+      <EditLiveSessionDialog 
         open={isEditSessionOpen}
         onOpenChange={setIsEditSessionOpen}
         session={editingSession}
       />
 
-      <AddProductToLiveDialog
+      <AddProductToLiveDialog 
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
+        phaseId={selectedPhase}
         sessionId={selectedSession}
       />
 
-      <EditProductDialog
+      <EditProductDialog 
         open={isEditProductOpen}
         onOpenChange={setIsEditProductOpen}
         product={editingProduct}

@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -27,7 +28,6 @@ import {
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
-import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -37,8 +37,8 @@ interface CreateLiveSessionDialogProps {
 }
 
 interface FormData {
-  session_date: Date;
-  supplier_name: string;
+  session_name: string;
+  start_date: Date;
   notes?: string;
 }
 
@@ -48,28 +48,43 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
 
   const form = useForm<FormData>({
     defaultValues: {
-      session_date: new Date(),
-      supplier_name: "",
+      start_date: new Date(),
+      session_name: "",
       notes: "",
     },
   });
 
   const createSessionMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const { error } = await supabase
-        .from("live_sessions")
-        .insert([{
-          session_date: format(data.session_date, "yyyy-MM-dd"),
-          supplier_name: data.supplier_name.trim(),
-          notes: data.notes?.trim() || null,
-          status: "active",
-        }]);
+      const endDate = new Date(data.start_date);
+      endDate.setDate(endDate.getDate() + 2); // 3 days total
       
+      const { data: session, error } = await supabase
+        .from("live_sessions")
+        .insert({
+          session_name: data.session_name,
+          start_date: data.start_date.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          session_date: data.start_date.toISOString().split('T')[0], // Keep for compatibility
+          supplier_name: data.session_name, // Keep for compatibility
+          notes: data.notes,
+        })
+        .select()
+        .single();
+
       if (error) throw error;
+
+      // Create the 6 phases for this session
+      await supabase.rpc('create_live_phases', {
+        session_id: session.id,
+        start_date: data.start_date.toISOString().split('T')[0]
+      });
+
+      return session;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["live-sessions"] });
-      toast.success("Đã tạo đợt live mới thành công");
+      toast.success("Đã tạo đợt live mới với 6 phiên thành công");
       form.reset();
       onOpenChange(false);
     },
@@ -80,7 +95,7 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
   });
 
   const onSubmit = async (data: FormData) => {
-    if (!data.supplier_name.trim()) {
+    if (!data.session_name.trim()) {
       toast.error("Vui lòng nhập tên đợt live");
       return;
     }
@@ -88,6 +103,8 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
     setIsSubmitting(true);
     try {
       await createSessionMutation.mutateAsync(data);
+    } catch (error) {
+      console.error("Error creating live session:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -97,31 +114,51 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Tạo Đợt Live Mới</DialogTitle>
+          <DialogTitle>Tạo đợt Live mới</DialogTitle>
+          <DialogDescription>
+            Tạo một đợt live 3 ngày với 6 phiên (sáng/chiều mỗi ngày) để quản lý sản phẩm và đơn hàng.
+          </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="session_date"
+              name="session_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tên đợt live *</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Nhập tên đợt live"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="start_date"
               render={({ field }) => (
                 <FormItem className="flex flex-col">
-                  <FormLabel>Ngày live</FormLabel>
+                  <FormLabel>Ngày bắt đầu (3 ngày liên tiếp) *</FormLabel>
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
                         <Button
-                          variant="outline"
+                          variant={"outline"}
                           className={cn(
                             "w-full pl-3 text-left font-normal",
                             !field.value && "text-muted-foreground"
                           )}
                         >
                           {field.value ? (
-                            format(field.value, "dd/MM/yyyy", { locale: vi })
+                            format(field.value, "dd/MM/yyyy")
                           ) : (
-                            <span>Chọn ngày</span>
+                            <span>Chọn ngày bắt đầu</span>
                           )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
@@ -133,29 +170,12 @@ export function CreateLiveSessionDialog({ open, onOpenChange }: CreateLiveSessio
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                          date < new Date() || date < new Date("1900-01-01")
                         }
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="supplier_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Tên đợt live *</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Nhập tên đợt live"
-                      {...field}
-                    />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

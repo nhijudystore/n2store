@@ -23,6 +23,7 @@ import { toast } from "sonner";
 interface AddProductToLiveDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  phaseId: string;
   sessionId: string;
 }
 
@@ -32,7 +33,7 @@ interface FormData {
   prepared_quantity: number;
 }
 
-export function AddProductToLiveDialog({ open, onOpenChange, sessionId }: AddProductToLiveDialogProps) {
+export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId }: AddProductToLiveDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -50,6 +51,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, sessionId }: AddPro
         .from("live_products")
         .insert([{
           live_session_id: sessionId,
+          live_phase_id: phaseId,
           product_code: data.product_code.trim(),
           product_name: data.product_name.trim(),
           prepared_quantity: data.prepared_quantity,
@@ -59,8 +61,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, sessionId }: AddPro
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-products", sessionId] });
-      toast.success("Đã thêm sản phẩm vào đợt live thành công");
+      queryClient.invalidateQueries({ queryKey: ["live-products", phaseId] });
+      toast.success("Đã thêm sản phẩm vào phiên live thành công");
       form.reset();
       onOpenChange(false);
     },
@@ -71,8 +73,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, sessionId }: AddPro
   });
 
   const onSubmit = async (data: FormData) => {
-    if (!sessionId) {
-      toast.error("Vui lòng chọn một đợt live");
+    if (!phaseId) {
+      toast.error("Vui lòng chọn một phiên live");
       return;
     }
 
@@ -168,7 +170,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, sessionId }: AddPro
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || !sessionId}
+                disabled={isSubmitting || !phaseId}
                 className="flex-1"
               >
                 {isSubmitting ? "Đang thêm..." : "Thêm sản phẩm"}
