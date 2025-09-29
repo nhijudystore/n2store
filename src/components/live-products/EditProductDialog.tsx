@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
 
 interface EditProductDialogProps {
@@ -31,20 +31,22 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
 
   const form = useForm<FormData>({
     defaultValues: {
-      product_code: product?.product_code || "",
-      product_name: product?.product_name || "",
-      prepared_quantity: product?.prepared_quantity || 0,
+      product_code: "",
+      product_name: "",
+      prepared_quantity: 0,
     },
   });
 
-  // Reset form when product changes
-  if (product && form.getValues().product_code !== product.product_code) {
-    form.reset({
-      product_code: product.product_code,
-      product_name: product.product_name,
-      prepared_quantity: product.prepared_quantity,
-    });
-  }
+  // Reset form when product changes or dialog opens
+  useEffect(() => {
+    if (product && open) {
+      form.reset({
+        product_code: product.product_code,
+        product_name: product.product_name,
+        prepared_quantity: product.prepared_quantity,
+      });
+    }
+  }, [product?.id, open, form]);
 
   const updateProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
