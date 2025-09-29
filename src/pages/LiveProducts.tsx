@@ -262,6 +262,59 @@ export default function LiveProducts() {
     },
   });
 
+  // Delete all phases and data for a live session
+  const deleteAllPhasesForSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      // First get all phases for this session
+      const { data: phases, error: phasesError } = await supabase
+        .from("live_phases")
+        .select("id")
+        .eq("live_session_id", sessionId);
+      
+      if (phasesError) throw phasesError;
+
+      const phaseIds = phases.map(p => p.id);
+
+      // Delete all orders for all phases in this session
+      if (phaseIds.length > 0) {
+        const { error: deleteOrdersError } = await supabase
+          .from("live_orders")
+          .delete()
+          .in("live_phase_id", phaseIds);
+        
+        if (deleteOrdersError) throw deleteOrdersError;
+
+        // Delete all products for all phases in this session
+        const { error: deleteProductsError } = await supabase
+          .from("live_products")
+          .delete()
+          .in("live_phase_id", phaseIds);
+        
+        if (deleteProductsError) throw deleteProductsError;
+      }
+
+      // Delete all phases for this session
+      const { error: deletePhasesError } = await supabase
+        .from("live_phases")
+        .delete()
+        .eq("live_session_id", sessionId);
+      
+      if (deletePhasesError) throw deletePhasesError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-phases"] });
+      queryClient.invalidateQueries({ queryKey: ["live-products"] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products"] });
+      setSelectedPhase("");
+      toast.success("Đã xóa toàn bộ phiên live và dữ liệu thành công");
+    },
+    onError: (error) => {
+      console.error("Error deleting all phases for session:", error);
+      toast.error("Có lỗi xảy ra khi xóa phiên live");
+    },
+  });
+
   // Delete live session mutation (cascading delete products and orders)
   const deleteSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
@@ -328,6 +381,12 @@ export default function LiveProducts() {
   const handleDeleteOrder = async (orderId: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa đơn hàng này?")) {
       await deleteOrderMutation.mutateAsync(orderId);
+    }
+  };
+
+  const handleDeleteAllPhasesForSession = async (sessionId: string) => {
+    if (window.confirm("Bạn có chắc chắn muốn xóa toàn bộ phiên live và dữ liệu của đợt này? Hành động này không thể hoàn tác.")) {
+      await deleteAllPhasesForSessionMutation.mutateAsync(sessionId);
     }
   };
 
@@ -501,6 +560,15 @@ export default function LiveProducts() {
                 >
                   <Edit className="h-4 w-4" />
                   Chỉnh sửa đợt live
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleDeleteAllPhasesForSession(selectedSession)}
+                  className="flex items-center gap-2 text-orange-600 hover:text-orange-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Xóa toàn bộ phiên live
                 </Button>
                 <Button
                   variant="outline"
