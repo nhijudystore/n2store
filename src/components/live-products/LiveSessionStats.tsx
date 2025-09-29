@@ -25,8 +25,8 @@ interface LiveSessionStatsProps {
 export function LiveSessionStats({ sessionId, phaseId, products, orders }: LiveSessionStatsProps) {
   const totalPreparedQuantity = products.reduce((sum, product) => sum + product.prepared_quantity, 0);
   const totalSoldQuantity = products.reduce((sum, product) => sum + product.sold_quantity, 0);
+  const totalOrders = orders.length;
   const uniqueCustomers = new Set(orders.map(order => order.order_code)).size;
-  const totalOrders = uniqueCustomers;
   
   const sellThroughRate = totalPreparedQuantity > 0 
     ? ((totalSoldQuantity / totalPreparedQuantity) * 100).toFixed(1)
@@ -46,6 +46,7 @@ export function LiveSessionStats({ sessionId, phaseId, products, orders }: LiveS
       icon: TrendingUp,
       description: "Số lượng đã bán",
       color: "bg-green-500",
+      extraInfo: `${sellThroughRate}% sell-through`,
     },
     {
       title: "Số đơn hàng",
@@ -76,10 +77,10 @@ export function LiveSessionStats({ sessionId, phaseId, products, orders }: LiveS
           <CardContent>
             <div className="text-2xl font-bold">{stat.value}</div>
             <p className="text-xs text-muted-foreground">{stat.description}</p>
-            {stat.title === "Tổng SL khách" && (
+            {stat.extraInfo && (
               <div className="mt-2">
                 <Badge variant={parseFloat(sellThroughRate) >= 80 ? "default" : "secondary"}>
-                  {sellThroughRate}% sell-through
+                  {stat.extraInfo}
                 </Badge>
               </div>
             )}

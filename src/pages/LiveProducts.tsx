@@ -659,8 +659,8 @@ export default function LiveProducts() {
                         <TableHead>Tên sản phẩm</TableHead>
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
-                        <TableHead className="text-center">Còn lại</TableHead>
-                        <TableHead>Đơn hàng đã nhập</TableHead>
+                        <TableHead className="text-center">Số đơn</TableHead>
+                        <TableHead>Mã đơn hàng</TableHead>
                         <TableHead className="text-center">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -672,49 +672,39 @@ export default function LiveProducts() {
                           <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                           <TableCell className="text-center">{product.sold_quantity}</TableCell>
                           <TableCell className="text-center">
-                            {product.prepared_quantity - product.sold_quantity}
+                            {ordersWithProducts.filter(order => order.live_product_id === product.id).length}
                           </TableCell>
                           <TableCell>
-                            {(() => {
-                              const productOrders = ordersWithProducts.filter(order => order.live_product_id === product.id);
-                              if (productOrders.length === 0) {
-                                return <span className="text-muted-foreground text-sm">Chưa có đơn hàng</span>;
-                              }
-                              
-                              if (productOrders.length <= 3) {
+                            <div className="flex flex-wrap items-center gap-1">
+                              {(() => {
+                                const productOrders = ordersWithProducts.filter(order => order.live_product_id === product.id);
+                                
                                 return (
-                                  <div className="space-y-1">
+                                  <>
                                     {productOrders.map(order => (
-                                      <Badge key={order.id} variant="secondary" className="text-xs">
-                                        {order.order_code} (x{order.quantity})
+                                      <Badge 
+                                        key={order.id} 
+                                        variant="secondary" 
+                                        className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
+                                      >
+                                        {order.order_code}
                                       </Badge>
                                     ))}
-                                  </div>
+                                    <div className="flex items-center gap-2 ml-2">
+                                      <QuickAddOrder 
+                                        productId={product.id}
+                                        phaseId={selectedPhase}
+                                        sessionId={selectedSession}
+                                        availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                      />
+                                    </div>
+                                  </>
                                 );
-                              }
-                              
-                              return (
-                                <div className="space-y-1">
-                                  {productOrders.slice(0, 2).map(order => (
-                                    <Badge key={order.id} variant="secondary" className="text-xs">
-                                      {order.order_code} (x{order.quantity})
-                                    </Badge>
-                                  ))}
-                                  <Badge variant="outline" className="text-xs">
-                                    +{productOrders.length - 2} đơn khác
-                                  </Badge>
-                                </div>
-                              );
-                            })()}
+                              })()}
+                            </div>
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <QuickAddOrder 
-                                productId={product.id}
-                                phaseId={selectedPhase}
-                                sessionId={selectedSession}
-                                availableQuantity={product.prepared_quantity - product.sold_quantity}
-                              />
                               <Button
                                 variant="ghost"
                                 size="sm"
