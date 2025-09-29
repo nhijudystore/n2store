@@ -802,39 +802,44 @@ export default function LiveProducts() {
                               <TableCell className="text-center py-2">
                                 <span className="text-sm font-medium">{order.quantity}</span>
                               </TableCell>
-                              <TableCell className="text-center py-2">
-                                <div className="flex items-center justify-center">
-                                  <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      className="sr-only"
-                                      defaultChecked={false}
-                                      onChange={(e) => {
-                                        const statusElement = e.target.nextElementSibling;
-                                        const dot = statusElement?.querySelector('.status-dot');
-                                        const text = statusElement?.querySelector('.status-text');
-                                        if (e.target.checked) {
-                                          dot?.classList.remove('bg-red-500');
-                                          dot?.classList.add('bg-green-500');
-                                          text?.classList.remove('text-red-600');
-                                          text?.classList.add('text-green-600');
-                                          if (text) text.textContent = 'Hoàn tất';
-                                        } else {
-                                          dot?.classList.remove('bg-green-500');
-                                          dot?.classList.add('bg-red-500');
-                                          text?.classList.remove('text-green-600');
-                                          text?.classList.add('text-red-600');
-                                          if (text) text.textContent = 'Đang chờ';
-                                        }
-                                      }}
-                                    />
-                                    <div className="flex items-center gap-1">
-                                      <div className="status-dot w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                                      <span className="status-text text-xs text-red-600 font-medium">Đang chờ</span>
-                                    </div>
-                                  </label>
-                                </div>
-                              </TableCell>
+                              {index === 0 && (
+                                <TableCell 
+                                  rowSpan={orders.length}
+                                  className="text-center py-2 align-middle border-r"
+                                >
+                                  <div className="flex items-center justify-center">
+                                    <label className="flex items-center gap-1.5 cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        className="sr-only"
+                                        defaultChecked={false}
+                                        onChange={(e) => {
+                                          const statusElement = e.target.nextElementSibling;
+                                          const dot = statusElement?.querySelector('.status-dot');
+                                          const text = statusElement?.querySelector('.status-text');
+                                          if (e.target.checked) {
+                                            dot?.classList.remove('bg-red-500');
+                                            dot?.classList.add('bg-green-500');
+                                            text?.classList.remove('text-red-600');
+                                            text?.classList.add('text-green-600');
+                                            if (text) text.textContent = 'Hoàn tất';
+                                          } else {
+                                            dot?.classList.remove('bg-green-500');
+                                            dot?.classList.add('bg-red-500');
+                                            text?.classList.remove('text-green-600');
+                                            text?.classList.add('text-red-600');
+                                            if (text) text.textContent = 'Đang chờ';
+                                          }
+                                        }}
+                                      />
+                                      <div className="flex items-center gap-1">
+                                        <div className="status-dot w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                                        <span className="status-text text-xs text-red-600 font-medium">Đang chờ</span>
+                                      </div>
+                                    </label>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ))
                         );
