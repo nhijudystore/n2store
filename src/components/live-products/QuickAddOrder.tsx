@@ -47,14 +47,24 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         .eq('id', productId);
 
       if (updateError) throw updateError;
+      
+      return orderCodeValue;
     },
-    onSuccess: () => {
+    onSuccess: (orderCodeValue) => {
       setOrderCode('');
+      // Force refetch all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
+      queryClient.invalidateQueries({ queryKey: ['orders-with-products', phaseId] });
+      
+      // Also refetch queries to ensure UI updates immediately
+      queryClient.refetchQueries({ queryKey: ['live-orders', phaseId] });
+      queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
+      queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
+      
       toast({
         title: "Thành công",
-        description: "Đã thêm đơn hàng mới",
+        description: `Đã thêm đơn hàng ${orderCodeValue}`,
       });
     },
     onError: (error) => {
