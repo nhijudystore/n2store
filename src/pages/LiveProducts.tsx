@@ -65,7 +65,6 @@ interface OrderWithProduct extends LiveOrder {
 export default function LiveProducts() {
   const [selectedSession, setSelectedSession] = useState<string>("");
   const [activeTab, setActiveTab] = useState<string>("products");
-  // Removed expandedSessions state as we no longer need expand/collapse
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -321,8 +320,6 @@ export default function LiveProducts() {
     setIsEditSessionOpen(true);
   };
 
-  // Removed toggleSessionExpansion function as we no longer need expand/collapse
-
   const exportToCSV = () => {
     if (!selectedSession) {
       toast.error("Vui lòng chọn một đợt live để xuất dữ liệu");
@@ -399,355 +396,249 @@ export default function LiveProducts() {
         </div>
       </div>
 
-      <Tabs value={selectedSession} onValueChange={setSelectedSession}>
-        <TabsList className="w-full justify-start overflow-x-auto">
-          {liveSessions.map((session) => (
-            <div key={session.id} className="relative inline-flex">
-              <TabsTrigger value={session.id} className="gap-2 pr-16">
-                <Calendar className="w-4 h-4" />
-                {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
-              </TabsTrigger>
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+      {/* Prominent Session Selector */}
+      <div className="flex items-center justify-center py-8 bg-gradient-to-r from-background to-accent/10 rounded-lg border-2">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Calendar className="w-6 h-6 text-primary" />
+            <span className="text-lg font-semibold text-foreground">Chọn đợt Live:</span>
+          </div>
+          
+          <Select value={selectedSession} onValueChange={setSelectedSession}>
+            <SelectTrigger className="w-80 h-12 text-base font-medium border-2 shadow-lg bg-background hover:bg-accent/5 transition-colors">
+              <SelectValue placeholder="Chọn đợt live..." />
+            </SelectTrigger>
+            <SelectContent className="w-80">
+              {liveSessions.map((session) => (
+                <SelectItem key={session.id} value={session.id} className="text-base">
+                  {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {selectedSession && (
+            <div className="flex gap-2 ml-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const session = liveSessions.find(s => s.id === selectedSession);
+                  if (session) handleEditSession(session);
+                }}
+                className="gap-2 hover:bg-accent/10"
+              >
+                <Edit className="h-4 w-4" />
+                Chỉnh sửa
+              </Button>
+              {liveSessions.length > 1 && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditSession(session);
-                  }}
-                  className="h-6 w-6 p-0 hover:bg-accent"
-                >
-                  <Edit className="h-3 w-3" />
-                </Button>
-                {liveSessions.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
+                  onClick={() => {
+                    const session = liveSessions.find(s => s.id === selectedSession);
+                    if (session) {
                       handleDeleteSession(
                         session.id, 
                         `${format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - ${session.supplier_name}`
                       );
-                    }}
-                    className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+                    }
+                  }}
+                  className="gap-2 hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Xóa
+                </Button>
+              )}
             </div>
-          ))}
-        </TabsList>
+          )}
+        </div>
+      </div>
 
-        {liveSessions.map((session) => (
-          <TabsContent key={session.id} value={session.id} className="space-y-4">
-            <LiveSessionStats 
-              sessionId={session.id}
-              products={liveProducts}
-              orders={liveOrders}
-            />
+      {selectedSession && (
+        <div className="space-y-4">
+          <LiveSessionStats 
+            sessionId={selectedSession}
+            products={liveProducts}
+            orders={liveOrders}
+          />
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="products" className="gap-2">
-                  <Package className="w-4 h-4" />
-                  Sản phẩm
-                </TabsTrigger>
-                <TabsTrigger value="orders" className="gap-2">
-                  <ListOrdered className="w-4 h-4" />
-                  Đơn hàng
-                </TabsTrigger>
-              </TabsList>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="products" className="gap-2">
+                <Package className="w-4 h-4" />
+                Sản phẩm
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="gap-2">
+                <ListOrdered className="w-4 h-4" />
+                Đơn hàng
+              </TabsTrigger>
+            </TabsList>
 
-              <TabsContent value="products">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="w-5 h-5" />
-                      Danh sách sản phẩm
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {liveProducts.map((product) => {
-                        const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
-                        
-                        return (
-                          <div key={product.id} className="border rounded-lg p-4">
-                            <div className="grid grid-cols-12 gap-4 items-center">
-                              {/* Product Info */}
-                              <div className="col-span-12 md:col-span-3">
-                                <div className="font-medium">{product.product_name}</div>
-                                <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
-                              </div>
-                              
-                              {/* Prepared Quantity */}
-                              <div className="col-span-3 md:col-span-1 text-center">
-                                <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
-                                <div className="font-medium">{product.prepared_quantity}</div>
-                              </div>
-                              
-                              {/* Sold Quantity */}
-                              <div className="col-span-3 md:col-span-1 text-center">
-                                <div className="text-sm text-muted-foreground">SL đã bán</div>
-                                <div className="font-medium text-primary">{product.sold_quantity}</div>
-                              </div>
-                              
-                              {/* Order Count */}
-                              <div className="col-span-3 md:col-span-1 text-center">
-                                <div className="text-sm text-muted-foreground">Số đơn</div>
-                                <div className="font-medium">{productOrders.length}</div>
-                              </div>
-                              
-                              {/* Order Codes */}
-                              <div className="col-span-12 md:col-span-3">
-                                <div className="text-sm text-muted-foreground mb-1">Mã đơn hàng:</div>
-                                <div className="flex flex-wrap gap-1">
-                                  {productOrders.length > 0 ? productOrders.map((order) => (
-                                    <div
-                                      key={order.id}
-                                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-mono"
-                                    >
-                                      <span>{order.order_code}</span>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteOrder(order.id)}
-                                        className="h-3 w-3 p-0 hover:bg-destructive/20"
-                                      >
-                                        <Trash2 className="h-2 w-2" />
-                                      </Button>
+            <TabsContent value="products">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Package className="w-5 h-5" />
+                    Danh sách sản phẩm
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {liveProducts.map((product) => {
+                      const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
+                      
+                      return (
+                        <div key={product.id} className="border rounded-lg p-4">
+                          <div className="grid grid-cols-12 gap-4 items-center">
+                            {/* Product Info */}
+                            <div className="col-span-12 md:col-span-3">
+                              <div className="font-medium">{product.product_name}</div>
+                              <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
+                            </div>
+                            
+                            {/* Prepared Quantity */}
+                            <div className="col-span-3 md:col-span-1 text-center">
+                              <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
+                              <div className="font-medium">{product.prepared_quantity}</div>
+                            </div>
+                            
+                            {/* Sold Quantity */}
+                            <div className="col-span-3 md:col-span-1 text-center">
+                              <div className="text-sm text-muted-foreground">SL đã bán</div>
+                              <div className="font-medium text-green-600">{product.sold_quantity}</div>
+                            </div>
+                            
+                            {/* Order Count */}
+                            <div className="col-span-3 md:col-span-1 text-center">
+                              <div className="text-sm text-muted-foreground">Số đơn</div>
+                              <div className="font-medium text-blue-600">{productOrders.length}</div>
+                            </div>
+                            
+                            {/* Quick Add Order */}
+                            <div className="col-span-12 md:col-span-4">
+                              <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                            </div>
+                            
+                            {/* Actions */}
+                            <div className="col-span-12 md:col-span-2 flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditProduct(product)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteProduct(product.id, product.product_name)}
+                                className="hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {liveProducts.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Chưa có sản phẩm nào trong đợt live này</p>
+                        <p className="text-sm">Nhấn "Thêm sản phẩm" để bắt đầu</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="orders">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ListOrdered className="w-5 h-5" />
+                    Danh sách đơn hàng
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {ordersWithProducts.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mã đơn hàng</TableHead>
+                          <TableHead>Sản phẩm</TableHead>
+                          <TableHead className="text-center">Số lượng</TableHead>
+                          <TableHead>Ngày đặt</TableHead>
+                          <TableHead className="text-center">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const productGroups = ordersWithProducts.reduce((groups, order) => {
+                            if (!groups[order.product_name]) {
+                              groups[order.product_name] = [];
+                            }
+                            groups[order.product_name].push(order);
+                            return groups;
+                          }, {} as Record<string, OrderWithProduct[]>);
+
+                          return Object.entries(productGroups).map(([productName, orders]) => {
+                            return orders.map((order, index) => (
+                              <TableRow key={order.id}>
+                                <TableCell className="font-medium">{order.order_code}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-3">
+                                    {order.product_images && order.product_images.length > 0 && (
+                                      <img 
+                                        src={order.product_images[0]} 
+                                        alt={order.product_name}
+                                        className="w-10 h-10 object-cover rounded"
+                                      />
+                                    )}
+                                    <div>
+                                      <div className="font-medium">{order.product_name}</div>
+                                      <div className="text-sm text-muted-foreground">Mã: {order.product_code}</div>
                                     </div>
-                                  )) : (
-                                    <span className="text-xs text-muted-foreground">Chưa có đơn</span>
-                                  )}
-                                </div>
-                              </div>
-                              
-                               {/* Quick Add Order */}
-                                <div className="col-span-6 md:col-span-2">
-                                  <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                                </div>
-                                
-                                {/* Edit and Delete Product Buttons */}
-                                <div className="col-span-6 md:col-span-1 flex justify-center gap-2">
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge variant="secondary">{order.quantity}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
+                                </TableCell>
+                                <TableCell className="text-center">
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleEditProduct(product)}
-                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                    className="hover:bg-destructive/10 hover:text-destructive"
                                   >
-                                    <Edit className="h-4 w-4" />
+                                    <Trash2 className="w-4 h-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteProduct(product.id, product.product_name)}
-                                    className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      
-                      {liveProducts.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                          <p>Chưa có sản phẩm nào trong đợt live này</p>
-                          <p className="text-sm">Thêm sản phẩm để bắt đầu bán hàng</p>
-                        </div>
-                      )}
+                                </TableCell>
+                              </TableRow>
+                            ));
+                          });
+                        })()}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Chưa có đơn hàng nào trong đợt live này</p>
+                      <p className="text-sm">Đơn hàng sẽ hiển thị khi có khách đặt mua</p>
                     </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="orders">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <ListOrdered className="w-5 h-5" />
-                      Danh sách đơn hàng
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {ordersWithProducts.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Mã đơn hàng</TableHead>
-                            <TableHead>Hình ảnh</TableHead>
-                            <TableHead>Mã sản phẩm</TableHead>
-                            <TableHead>Tên sản phẩm</TableHead>
-                            <TableHead className="text-center">Số lượng</TableHead>
-                            <TableHead>Trạng thái</TableHead>
-                            <TableHead className="text-center">Thao tác</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(() => {
-                            // Group orders by order_code
-                            const groupedOrders = ordersWithProducts.reduce((acc, order) => {
-                              if (!acc[order.order_code]) {
-                                acc[order.order_code] = [];
-                              }
-                              acc[order.order_code].push(order);
-                              return acc;
-                            }, {} as Record<string, typeof ordersWithProducts>);
-
-                            return Object.entries(groupedOrders).map(([orderCode, orders]) => {
-                              const firstOrder = orders[0];
-                              const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
-                              
-                              return orders.map((order, index) => (
-                                <TableRow key={order.id}>
-                                  {/* Order Code - only show for first row of each group */}
-                                  {index === 0 ? (
-                                    <TableCell rowSpan={orders.length} className="align-top border-r">
-                                      <div className="space-y-2">
-                                        <Badge variant="outline" className="font-mono text-base">
-                                          {orderCode}
-                                        </Badge>
-                                        <div className="text-xs text-muted-foreground">
-                                          Tổng: {totalQuantity} sản phẩm
-                                        </div>
-                                      </div>
-                                    </TableCell>
-                                  ) : null}
-                                  
-                                  
-                                  {/* Product Image */}
-                                  <TableCell>
-                                    {order.product_images && order.product_images.length > 0 ? (
-                                      <div className="flex gap-1">
-                                        {order.product_images.slice(0, 1).map((image, imgIndex) => (
-                                          <img
-                                            key={imgIndex}
-                                            src={image}
-                                            alt={order.product_name}
-                                            className="w-10 h-10 object-cover rounded border"
-                                            onError={(e) => {
-                                              e.currentTarget.style.display = 'none';
-                                            }}
-                                          />
-                                        ))}
-                                        {order.product_images.length > 1 && (
-                                          <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center text-xs">
-                                            +{order.product_images.length - 1}
-                                          </div>
-                                        )}
-                                      </div>
-                                    ) : (
-                                      <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center">
-                                        <Package className="w-4 h-4 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                  
-                                  {/* Product Code */}
-                                  <TableCell>
-                                    <div className="text-sm font-mono text-muted-foreground">
-                                      {order.product_code}
-                                    </div>
-                                  </TableCell>
-                                  
-                                  {/* Product Name */}
-                                  <TableCell>
-                                    <div className="font-medium">{order.product_name}</div>
-                                  </TableCell>
-                                  
-                                  {/* Quantity */}
-                                  <TableCell className="text-center">
-                                    <Badge variant="secondary">
-                                      {order.quantity}
-                                    </Badge>
-                                  </TableCell>
-                                  
-                                  {/* Status - only show for first row of each group */}
-                                  {index === 0 ? (
-                                    <TableCell rowSpan={orders.length} className="align-top">
-                                      <Select 
-                                        defaultValue="pending"
-                                        onValueChange={(value) => {
-                                          // TODO: Update order status in database
-                                          toast.info(`Cập nhật trạng thái: ${value === 'pending' ? 'Đang chờ' : 'Hoàn tất'}`);
-                                        }}
-                                      >
-                                        <SelectTrigger className="w-32">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="pending">
-                                            <div className="flex items-center gap-2">
-                                              <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full"></Badge>
-                                              Đang chờ
-                                            </div>
-                                          </SelectItem>
-                                          <SelectItem value="completed">
-                                            <div className="flex items-center gap-2">
-                                              <Badge className="h-2 w-2 p-0 rounded-full bg-green-600"></Badge>
-                                              Hoàn tất
-                                            </div>
-                                          </SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </TableCell>
-                                  ) : null}
-                                  
-                                  {/* Actions - only show for first row of each group */}
-                                  {index === 0 ? (
-                                    <TableCell rowSpan={orders.length} className="text-center align-top border-l">
-                                      <div className="flex flex-col gap-2">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => {
-                                            toast.info("Chức năng chỉnh sửa đang được phát triển");
-                                          }}
-                                          className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            // Delete all orders with this order_code
-                                            if (confirm(`Bạn có chắc chắn muốn xóa tất cả sản phẩm trong đơn hàng ${orderCode}?`)) {
-                                              orders.forEach(o => handleDeleteOrder(o.id));
-                                            }
-                                          }}
-                                          className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  ) : null}
-                                </TableRow>
-                              ));
-                            });
-                          })()}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Chưa có đơn hàng nào trong đợt live này</p>
-                        <p className="text-sm">Đơn hàng sẽ hiển thị khi có khách đặt mua</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </TabsContent>
-        ))}
-      </Tabs>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      )}
 
       {liveSessions.length === 0 && (
         <Card>
