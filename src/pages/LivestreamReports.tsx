@@ -6,12 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Edit, Trash2, BarChart3 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Edit, Trash2, BarChart3, CalendarIcon } from "lucide-react";
 import { CreateLivestreamReportDialog } from "@/components/livestream-reports/CreateLivestreamReportDialog";
 import { EditLivestreamReportDialog } from "@/components/livestream-reports/EditLivestreamReportDialog";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, isSameDay, isWithinInterval } from "date-fns";
 import { vi } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { parseTimeRangeForDisplay } from "@/lib/time-utils";
 
 interface LivestreamReport {
@@ -27,9 +31,11 @@ interface LivestreamReport {
 }
 
 const LivestreamReports = () => {
-  const [searchTerm, setSearchTerm] = React.useState("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
   const [editingReport, setEditingReport] = React.useState<LivestreamReport | null>(null);
+  const [fromDate, setFromDate] = React.useState<Date | undefined>();
+  const [toDate, setToDate] = React.useState<Date | undefined>();
+  const [datePreset, setDatePreset] = React.useState<string>("");
   const queryClient = useQueryClient();
 
   const { data: reports = [], isLoading } = useQuery({
@@ -70,10 +76,42 @@ const LivestreamReports = () => {
     },
   });
 
-  const filteredReports = reports.filter((report) =>
-    format(new Date(report.report_date), "dd/MM/yyyy").includes(searchTerm) ||
-    report.report_date.includes(searchTerm)
-  );
+  // Handle date preset selection
+  const handleDatePreset = (preset: string) => {
+    setDatePreset(preset);
+    const today = new Date();
+    
+    switch (preset) {
+      case "today":
+        setFromDate(startOfDay(today));
+        setToDate(endOfDay(today));
+        break;
+      case "yesterday":
+        const yesterday = subDays(today, 1);
+        setFromDate(startOfDay(yesterday));
+        setToDate(endOfDay(yesterday));
+        break;
+      case "this-week":
+        setFromDate(startOfWeek(today, { weekStartsOn: 1 }));
+        setToDate(endOfWeek(today, { weekStartsOn: 1 }));
+        break;
+      case "this-month":
+        setFromDate(startOfMonth(today));
+        setToDate(endOfMonth(today));
+        break;
+      default:
+        setFromDate(undefined);
+        setToDate(undefined);
+    }
+  };
+
+  // Filter reports based on date range
+  const filteredReports = reports.filter((report) => {
+    if (!fromDate || !toDate) return true;
+    
+    const reportDate = new Date(report.report_date);
+    return isWithinInterval(reportDate, { start: fromDate, end: toDate });
+  });
 
   const handleDelete = (id: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa báo cáo này?")) {
@@ -104,16 +142,92 @@ const LivestreamReports = () => {
       <Card>
         <CardHeader>
           <CardTitle>Danh sách báo cáo</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Tìm kiếm theo ngày..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Date Range Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Từ ngày:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !fromDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {fromDate ? format(fromDate, "dd/MM/yyyy") : "Chọn ngày"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={fromDate}
+                    onSelect={setFromDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Đến ngày:</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-[140px] justify-start text-left font-normal",
+                      !toDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {toDate ? format(toDate, "dd/MM/yyyy") : "Chọn ngày"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={toDate}
+                    onSelect={setToDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Preset Date Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Lọc nhanh:</span>
+              <Select value={datePreset} onValueChange={handleDatePreset}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Chọn thời gian" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Hôm nay</SelectItem>
+                  <SelectItem value="yesterday">Hôm qua</SelectItem>
+                  <SelectItem value="this-week">Tuần này</SelectItem>
+                  <SelectItem value="this-month">Tháng này</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters */}
+            {(fromDate || toDate || datePreset) && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  setFromDate(undefined);
+                  setToDate(undefined);
+                  setDatePreset("");
+                }}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
