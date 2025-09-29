@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
@@ -19,7 +20,8 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
-  Edit
+  Edit,
+  ListOrdered
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -52,8 +54,15 @@ interface LiveOrder {
   order_date: string;
 }
 
+interface OrderWithProduct extends LiveOrder {
+  product_code: string;
+  product_name: string;
+  product_images?: string[];
+}
+
 export default function LiveProducts() {
   const [selectedSession, setSelectedSession] = useState<string>("");
+  const [activeTab, setActiveTab] = useState<string>("products");
   // Removed expandedSessions state as we no longer need expand/collapse
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -113,6 +122,49 @@ export default function LiveProducts() {
       
       if (error) throw error;
       return data as LiveOrder[];
+    },
+    enabled: !!selectedSession,
+  });
+
+  // Fetch orders with product details for order list tab
+  const { data: ordersWithProducts = [] } = useQuery({
+    queryKey: ["orders-with-products", selectedSession],
+    queryFn: async () => {
+      if (!selectedSession) return [];
+      
+      const { data: orders, error: ordersError } = await supabase
+        .from("live_orders")
+        .select(`
+          *,
+          live_products!inner(
+            product_code,
+            product_name
+          )
+        `)
+        .eq("live_session_id", selectedSession)
+        .order("order_date", { ascending: false });
+      
+      if (ordersError) throw ordersError;
+
+      // Get product images from purchase_order_items
+      const ordersWithImages = await Promise.all(
+        orders.map(async (order: any) => {
+          const { data: purchaseItems } = await supabase
+            .from("purchase_order_items")
+            .select("product_images")
+            .eq("product_name", order.live_products.product_name)
+            .limit(1);
+
+          return {
+            ...order,
+            product_code: order.live_products.product_code,
+            product_name: order.live_products.product_name,
+            product_images: purchaseItems?.[0]?.product_images || []
+          } as OrderWithProduct;
+        })
+      );
+
+      return ordersWithImages;
     },
     enabled: !!selectedSession,
   });
@@ -374,108 +426,219 @@ export default function LiveProducts() {
               orders={liveOrders}
             />
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5" />
-                  Danh sách sản phẩm
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {liveProducts.map((product) => {
-                    const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
-                    
-                    return (
-                      <div key={product.id} className="border rounded-lg p-4">
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                          {/* Product Info */}
-                          <div className="col-span-12 md:col-span-3">
-                            <div className="font-medium">{product.product_name}</div>
-                            <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
-                          </div>
-                          
-                          {/* Prepared Quantity */}
-                          <div className="col-span-3 md:col-span-1 text-center">
-                            <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
-                            <div className="font-medium">{product.prepared_quantity}</div>
-                          </div>
-                          
-                          {/* Sold Quantity */}
-                          <div className="col-span-3 md:col-span-1 text-center">
-                            <div className="text-sm text-muted-foreground">SL đã bán</div>
-                            <div className="font-medium text-primary">{product.sold_quantity}</div>
-                          </div>
-                          
-                          {/* Order Count */}
-                          <div className="col-span-3 md:col-span-1 text-center">
-                            <div className="text-sm text-muted-foreground">Số đơn</div>
-                            <div className="font-medium">{productOrders.length}</div>
-                          </div>
-                          
-                          {/* Order Codes */}
-                          <div className="col-span-12 md:col-span-3">
-                            <div className="text-sm text-muted-foreground mb-1">Mã đơn hàng:</div>
-                            <div className="flex flex-wrap gap-1">
-                              {productOrders.length > 0 ? productOrders.map((order) => (
-                                <div
-                                  key={order.id}
-                                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-mono"
-                                >
-                                  <span>{order.order_code}</span>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="products" className="gap-2">
+                  <Package className="w-4 h-4" />
+                  Sản phẩm
+                </TabsTrigger>
+                <TabsTrigger value="orders" className="gap-2">
+                  <ListOrdered className="w-4 h-4" />
+                  Đơn hàng
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="products">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Package className="w-5 h-5" />
+                      Danh sách sản phẩm
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {liveProducts.map((product) => {
+                        const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
+                        
+                        return (
+                          <div key={product.id} className="border rounded-lg p-4">
+                            <div className="grid grid-cols-12 gap-4 items-center">
+                              {/* Product Info */}
+                              <div className="col-span-12 md:col-span-3">
+                                <div className="font-medium">{product.product_name}</div>
+                                <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
+                              </div>
+                              
+                              {/* Prepared Quantity */}
+                              <div className="col-span-3 md:col-span-1 text-center">
+                                <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
+                                <div className="font-medium">{product.prepared_quantity}</div>
+                              </div>
+                              
+                              {/* Sold Quantity */}
+                              <div className="col-span-3 md:col-span-1 text-center">
+                                <div className="text-sm text-muted-foreground">SL đã bán</div>
+                                <div className="font-medium text-primary">{product.sold_quantity}</div>
+                              </div>
+                              
+                              {/* Order Count */}
+                              <div className="col-span-3 md:col-span-1 text-center">
+                                <div className="text-sm text-muted-foreground">Số đơn</div>
+                                <div className="font-medium">{productOrders.length}</div>
+                              </div>
+                              
+                              {/* Order Codes */}
+                              <div className="col-span-12 md:col-span-3">
+                                <div className="text-sm text-muted-foreground mb-1">Mã đơn hàng:</div>
+                                <div className="flex flex-wrap gap-1">
+                                  {productOrders.length > 0 ? productOrders.map((order) => (
+                                    <div
+                                      key={order.id}
+                                      className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-mono"
+                                    >
+                                      <span>{order.order_code}</span>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteOrder(order.id)}
+                                        className="h-3 w-3 p-0 hover:bg-destructive/20"
+                                      >
+                                        <Trash2 className="h-2 w-2" />
+                                      </Button>
+                                    </div>
+                                  )) : (
+                                    <span className="text-xs text-muted-foreground">Chưa có đơn</span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                               {/* Quick Add Order */}
+                                <div className="col-span-6 md:col-span-2">
+                                  <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                                </div>
+                                
+                                {/* Edit and Delete Product Buttons */}
+                                <div className="col-span-6 md:col-span-1 flex justify-center gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEditProduct(product)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleDeleteOrder(order.id)}
-                                    className="h-3 w-3 p-0 hover:bg-destructive/20"
+                                    onClick={() => handleDeleteProduct(product.id, product.product_name)}
+                                    className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
                                   >
-                                    <Trash2 className="h-2 w-2" />
+                                    <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </div>
-                              )) : (
-                                <span className="text-xs text-muted-foreground">Chưa có đơn</span>
-                              )}
                             </div>
                           </div>
-                          
-                           {/* Quick Add Order */}
-                            <div className="col-span-6 md:col-span-2">
-                              <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                            </div>
-                            
-                            {/* Edit and Delete Product Buttons */}
-                            <div className="col-span-6 md:col-span-1 flex justify-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditProduct(product)}
-                                className="h-8 w-8 p-0"
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteProduct(product.id, product.product_name)}
-                                className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                disabled={deleteProductMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                        );
+                      })}
+                      
+                      {liveProducts.length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Chưa có sản phẩm nào trong đợt live này</p>
+                          <p className="text-sm">Thêm sản phẩm để bắt đầu bán hàng</p>
                         </div>
-                      </div>
-                    );
-                  })}
-                  
-                  {liveProducts.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      Chưa có sản phẩm nào trong đợt live này
+                      )}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="orders">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <ListOrdered className="w-5 h-5" />
+                      Danh sách đơn hàng
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {ordersWithProducts.length > 0 ? (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mã đơn hàng</TableHead>
+                            <TableHead>Mã sản phẩm</TableHead>
+                            <TableHead>Tên sản phẩm</TableHead>
+                            <TableHead className="text-center">Số lượng</TableHead>
+                            <TableHead>Hình ảnh</TableHead>
+                            <TableHead>Ngày đặt</TableHead>
+                            <TableHead className="text-center">Thao tác</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {ordersWithProducts.map((order) => (
+                            <TableRow key={order.id}>
+                              <TableCell>
+                                <Badge variant="outline" className="font-mono">
+                                  {order.order_code}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-sm">
+                                {order.product_code}
+                              </TableCell>
+                              <TableCell className="font-medium">
+                                {order.product_name}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="secondary">
+                                  {order.quantity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {order.product_images && order.product_images.length > 0 ? (
+                                  <div className="flex gap-1">
+                                    {order.product_images.slice(0, 2).map((image, index) => (
+                                      <img
+                                        key={index}
+                                        src={image}
+                                        alt={order.product_name}
+                                        className="w-8 h-8 object-cover rounded border"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none';
+                                        }}
+                                      />
+                                    ))}
+                                    {order.product_images.length > 2 && (
+                                      <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs">
+                                        +{order.product_images.length - 2}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center">
+                                    <Package className="w-4 h-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm text-muted-foreground">
+                                {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <ShoppingCart className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>Chưa có đơn hàng nào trong đợt live này</p>
+                        <p className="text-sm">Đơn hàng sẽ hiển thị khi có khách đặt mua</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
         ))}
       </Tabs>
