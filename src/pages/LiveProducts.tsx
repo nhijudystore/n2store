@@ -731,6 +731,19 @@ export default function LiveProducts() {
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
+              {ordersWithProducts.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12">
+                    <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">Chưa có đơn hàng nào</h3>
+                    <p className="text-muted-foreground text-center">
+                      Đơn hàng sẽ xuất hiện ở đây khi có người mua sản phẩm
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card>
+                  <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Mã đơn hàng</TableHead>
@@ -804,61 +817,6 @@ export default function LiveProducts() {
                           );
                         });
                       })()}
-                    </TableBody>
-                  </Table>
-                </Card>
-              )}
-            </TabsContent>
-
-            <TabsContent value="orders" className="space-y-4">
-              {ordersWithProducts.length === 0 ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-12">
-                    <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Chưa có đơn hàng nào</h3>
-                    <p className="text-muted-foreground text-center">
-                      Đơn hàng sẽ xuất hiện ở đây khi có người mua sản phẩm
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <Card>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Mã đơn hàng</TableHead>
-                        <TableHead>Sản phẩm</TableHead>
-                        <TableHead className="text-center">Số lượng</TableHead>
-                        <TableHead>Ngày đặt</TableHead>
-                        <TableHead className="text-center">Thao tác</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {ordersWithProducts.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">{order.order_code}</TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{order.product_name}</div>
-                              <div className="text-sm text-muted-foreground">{order.product_code}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">{order.quantity}</TableCell>
-                          <TableCell>
-                            {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteOrder(order.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
                     </TableBody>
                   </Table>
                 </Card>
