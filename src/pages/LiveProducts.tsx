@@ -660,7 +660,7 @@ export default function LiveProducts() {
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
                         <TableHead className="text-center">Còn lại</TableHead>
-                        <TableHead className="text-center">Trạng thái</TableHead>
+                        <TableHead>Đơn hàng đã nhập</TableHead>
                         <TableHead className="text-center">Thao tác</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -674,21 +674,38 @@ export default function LiveProducts() {
                           <TableCell className="text-center">
                             {product.prepared_quantity - product.sold_quantity}
                           </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant={
-                              product.sold_quantity >= product.prepared_quantity 
-                                ? "destructive" 
-                                : product.sold_quantity > 0 
-                                ? "default" 
-                                : "secondary"
-                            }>
-                              {product.sold_quantity >= product.prepared_quantity 
-                                ? "Hết hàng" 
-                                : product.sold_quantity > 0 
-                                ? "Đang bán" 
-                                : "Chưa bán"
+                          <TableCell>
+                            {(() => {
+                              const productOrders = ordersWithProducts.filter(order => order.live_product_id === product.id);
+                              if (productOrders.length === 0) {
+                                return <span className="text-muted-foreground text-sm">Chưa có đơn hàng</span>;
                               }
-                            </Badge>
+                              
+                              if (productOrders.length <= 3) {
+                                return (
+                                  <div className="space-y-1">
+                                    {productOrders.map(order => (
+                                      <Badge key={order.id} variant="secondary" className="text-xs">
+                                        {order.order_code} (x{order.quantity})
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                );
+                              }
+                              
+                              return (
+                                <div className="space-y-1">
+                                  {productOrders.slice(0, 2).map(order => (
+                                    <Badge key={order.id} variant="secondary" className="text-xs">
+                                      {order.order_code} (x{order.quantity})
+                                    </Badge>
+                                  ))}
+                                  <Badge variant="outline" className="text-xs">
+                                    +{productOrders.length - 2} đơn khác
+                                  </Badge>
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-center">
                             <div className="flex items-center justify-center gap-2">
