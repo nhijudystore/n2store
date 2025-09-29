@@ -12,7 +12,7 @@ interface LiveOrder {
   id: string;
   live_product_id: string;
   quantity: number;
-  customer_code: string;
+  order_code: string;
 }
 
 interface LiveSessionStatsProps {
@@ -25,7 +25,7 @@ export function LiveSessionStats({ sessionId, products, orders }: LiveSessionSta
   const totalPreparedQuantity = products.reduce((sum, product) => sum + product.prepared_quantity, 0);
   const totalSoldQuantity = products.reduce((sum, product) => sum + product.sold_quantity, 0);
   const totalOrders = orders.length;
-  const uniqueCustomers = new Set(orders.map(order => order.customer_code)).size;
+  const uniqueCustomers = new Set(orders.map(order => order.order_code)).size;
   
   const sellThroughRate = totalPreparedQuantity > 0 
     ? ((totalSoldQuantity / totalPreparedQuantity) * 100).toFixed(1)

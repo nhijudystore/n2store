@@ -17,7 +17,6 @@ export type Database = {
       live_orders: {
         Row: {
           created_at: string
-          customer_code: string
           id: string
           live_product_id: string
           live_session_id: string
@@ -27,7 +26,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          customer_code: string
           id?: string
           live_product_id: string
           live_session_id: string
@@ -37,7 +35,6 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          customer_code?: string
           id?: string
           live_product_id?: string
           live_session_id?: string

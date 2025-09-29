@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
-import { AddOrderDialog } from "@/components/live-products/AddOrderDialog";
+import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { 
   Plus, 
@@ -46,7 +46,6 @@ interface LiveOrder {
   live_session_id: string;
   live_product_id: string;
   order_code: string;
-  customer_code: string;
   quantity: number;
   order_date: string;
 }
@@ -56,8 +55,6 @@ export default function LiveProducts() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
-  const [isAddOrderOpen, setIsAddOrderOpen] = useState(false);
-  const [selectedProductId, setSelectedProductId] = useState<string>("");
   
   const queryClient = useQueryClient();
 
@@ -165,7 +162,7 @@ export default function LiveProducts() {
         "SL chuẩn bị": product.prepared_quantity,
         "SL đã bán": product.sold_quantity,
         "Số đơn hàng": productOrders.length,
-        "Chi tiết đơn hàng": productOrders.map(o => `${o.order_code} (${o.customer_code}: ${o.quantity})`).join("; ")
+        "Chi tiết đơn hàng": productOrders.map(o => `${o.order_code}: ${o.quantity}`).join("; ")
       };
     });
 
@@ -285,43 +282,34 @@ export default function LiveProducts() {
                               <div className="text-sm text-muted-foreground">Đơn hàng</div>
                               <div className="font-medium">{productOrders.length}</div>
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setSelectedProductId(product.id);
-                                setIsAddOrderOpen(true);
-                              }}
-                              className="gap-2"
-                            >
-                              <ShoppingCart className="w-4 h-4" />
-                              Thêm đơn
-                            </Button>
                           </div>
                         </div>
 
+                        <div className="mt-4">
+                          <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                        </div>
+
                         {isExpanded && productOrders.length > 0 && (
-                          <div className="mt-4 pl-8 space-y-2">
+                          <div className="mt-4 space-y-2">
                             <div className="text-sm font-medium text-muted-foreground">Đơn hàng:</div>
-                            {productOrders.map((order) => (
-                              <div key={order.id} className="flex items-center justify-between bg-muted/50 rounded p-3">
-                                <div className="flex items-center gap-4">
-                                  <Badge variant="outline">{order.order_code}</Badge>
-                                  <span className="text-sm">KH: {order.customer_code}</span>
-                                  <span className="text-sm">SL: {order.quantity}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
-                                  </span>
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="text-destructive hover:text-destructive"
+                            <div className="flex flex-wrap gap-1">
+                              {productOrders.map((order) => (
+                                <div
+                                  key={order.id}
+                                  className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-mono"
                                 >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ))}
+                                  <span>{order.order_code}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                    className="h-4 w-4 p-0 hover:bg-destructive/20"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -364,12 +352,6 @@ export default function LiveProducts() {
         sessionId={selectedSession}
       />
 
-      <AddOrderDialog
-        open={isAddOrderOpen}
-        onOpenChange={setIsAddOrderOpen}
-        sessionId={selectedSession}
-        productId={selectedProductId}
-      />
     </div>
   );
 }
