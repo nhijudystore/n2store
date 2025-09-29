@@ -52,7 +52,7 @@ interface LiveOrder {
 
 export default function LiveProducts() {
   const [selectedSession, setSelectedSession] = useState<string>("");
-  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  // Removed expandedSessions state as we no longer need expand/collapse
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   
@@ -135,15 +135,7 @@ export default function LiveProducts() {
     }
   };
 
-  const toggleSessionExpansion = (sessionId: string) => {
-    const newExpanded = new Set(expandedSessions);
-    if (newExpanded.has(sessionId)) {
-      newExpanded.delete(sessionId);
-    } else {
-      newExpanded.add(sessionId);
-    }
-    setExpandedSessions(newExpanded);
-  };
+  // Removed toggleSessionExpansion function as we no longer need expand/collapse
 
   const exportToCSV = () => {
     if (!selectedSession) {
@@ -247,53 +239,42 @@ export default function LiveProducts() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {liveProducts.map((product) => {
                     const productOrders = liveOrders.filter(order => order.live_product_id === product.id);
-                    const isExpanded = expandedSessions.has(product.id);
                     
                     return (
                       <div key={product.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleSessionExpansion(product.id)}
-                              className="p-1"
-                            >
-                              {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            </Button>
-                            <div>
-                              <div className="font-medium">{product.product_name}</div>
-                              <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
-                            </div>
+                        <div className="grid grid-cols-12 gap-4 items-center">
+                          {/* Product Info */}
+                          <div className="col-span-12 md:col-span-3">
+                            <div className="font-medium">{product.product_name}</div>
+                            <div className="text-sm text-muted-foreground">Mã: {product.product_code}</div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
-                              <div className="font-medium">{product.prepared_quantity}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">SL đã bán</div>
-                              <div className="font-medium text-primary">{product.sold_quantity}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Đơn hàng</div>
-                              <div className="font-medium">{productOrders.length}</div>
-                            </div>
+                          
+                          {/* Prepared Quantity */}
+                          <div className="col-span-3 md:col-span-1 text-center">
+                            <div className="text-sm text-muted-foreground">SL chuẩn bị</div>
+                            <div className="font-medium">{product.prepared_quantity}</div>
                           </div>
-                        </div>
-
-                        <div className="mt-4">
-                          <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                        </div>
-
-                        {isExpanded && productOrders.length > 0 && (
-                          <div className="mt-4 space-y-2">
-                            <div className="text-sm font-medium text-muted-foreground">Đơn hàng:</div>
+                          
+                          {/* Sold Quantity */}
+                          <div className="col-span-3 md:col-span-1 text-center">
+                            <div className="text-sm text-muted-foreground">SL đã bán</div>
+                            <div className="font-medium text-primary">{product.sold_quantity}</div>
+                          </div>
+                          
+                          {/* Order Count */}
+                          <div className="col-span-3 md:col-span-1 text-center">
+                            <div className="text-sm text-muted-foreground">Số đơn</div>
+                            <div className="font-medium">{productOrders.length}</div>
+                          </div>
+                          
+                          {/* Order Codes */}
+                          <div className="col-span-12 md:col-span-3">
+                            <div className="text-sm text-muted-foreground mb-1">Mã đơn hàng:</div>
                             <div className="flex flex-wrap gap-1">
-                              {productOrders.map((order) => (
+                              {productOrders.length > 0 ? productOrders.map((order) => (
                                 <div
                                   key={order.id}
                                   className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-full text-xs font-mono"
@@ -303,15 +284,22 @@ export default function LiveProducts() {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => handleDeleteOrder(order.id)}
-                                    className="h-4 w-4 p-0 hover:bg-destructive/20"
+                                    className="h-3 w-3 p-0 hover:bg-destructive/20"
                                   >
-                                    <Trash2 className="h-3 w-3" />
+                                    <Trash2 className="h-2 w-2" />
                                   </Button>
                                 </div>
-                              ))}
+                              )) : (
+                                <span className="text-xs text-muted-foreground">Chưa có đơn</span>
+                              )}
                             </div>
                           </div>
-                        )}
+                          
+                          {/* Quick Add Order */}
+                          <div className="col-span-12 md:col-span-3">
+                            <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                          </div>
+                        </div>
                       </div>
                     );
                   })}

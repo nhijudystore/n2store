@@ -71,15 +71,16 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Plus className="h-4 w-4 text-muted-foreground" />
+    <div className="flex items-center gap-2 w-full">
+      <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
       <Input
-        placeholder="Nhập mã đơn hàng và bấm Enter"
+        placeholder="Nhập mã đơn + Enter"
         value={orderCode}
         onChange={(e) => setOrderCode(e.target.value)}
         onKeyPress={handleKeyPress}
         disabled={addOrderMutation.isPending}
-        className="flex-1"
+        className="flex-1 text-sm"
+        
       />
     </div>
   );
