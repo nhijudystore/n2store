@@ -24,8 +24,8 @@ interface LiveSessionStatsProps {
 export function LiveSessionStats({ sessionId, products, orders }: LiveSessionStatsProps) {
   const totalPreparedQuantity = products.reduce((sum, product) => sum + product.prepared_quantity, 0);
   const totalSoldQuantity = products.reduce((sum, product) => sum + product.sold_quantity, 0);
-  const totalOrders = orders.length;
   const uniqueCustomers = new Set(orders.map(order => order.order_code)).size;
+  const totalOrders = uniqueCustomers;
   
   const sellThroughRate = totalPreparedQuantity > 0 
     ? ((totalSoldQuantity / totalPreparedQuantity) * 100).toFixed(1)
@@ -50,7 +50,7 @@ export function LiveSessionStats({ sessionId, products, orders }: LiveSessionSta
       title: "Số đơn hàng",
       value: totalOrders.toLocaleString(),
       icon: ShoppingCart,
-      description: "Tổng đơn hàng",
+      description: "Đơn hàng unique",
       color: "bg-orange-500",
     },
     {
