@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
@@ -559,10 +560,9 @@ export default function LiveProducts() {
                           <TableRow>
                             <TableHead>Mã đơn hàng</TableHead>
                             <TableHead>Hình ảnh</TableHead>
+                            <TableHead>Mã sản phẩm</TableHead>
                             <TableHead>Tên sản phẩm</TableHead>
                             <TableHead className="text-center">Số lượng</TableHead>
-                            <TableHead>Giá</TableHead>
-                            <TableHead>Tổng tiền</TableHead>
                             <TableHead>Trạng thái</TableHead>
                             <TableHead className="text-center">Thao tác</TableHead>
                           </TableRow>
@@ -627,12 +627,16 @@ export default function LiveProducts() {
                                     )}
                                   </TableCell>
                                   
+                                  {/* Product Code */}
+                                  <TableCell>
+                                    <div className="text-sm font-mono text-muted-foreground">
+                                      {order.product_code}
+                                    </div>
+                                  </TableCell>
+                                  
                                   {/* Product Name */}
                                   <TableCell>
                                     <div className="font-medium">{order.product_name}</div>
-                                    <div className="text-xs text-muted-foreground font-mono">
-                                      {order.product_code}
-                                    </div>
                                   </TableCell>
                                   
                                   {/* Quantity */}
@@ -642,22 +646,36 @@ export default function LiveProducts() {
                                     </Badge>
                                   </TableCell>
                                   
-                                  {/* Price */}
-                                  <TableCell>
-                                    <div className="text-sm text-muted-foreground">-</div>
-                                  </TableCell>
-                                  
-                                  {/* Total */}
-                                  <TableCell>
-                                    <div className="text-sm text-muted-foreground">-</div>
-                                  </TableCell>
-                                  
-                                  {/* Status */}
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-green-600">
-                                      Đang chờ
-                                    </Badge>
-                                  </TableCell>
+                                  {/* Status - only show for first row of each group */}
+                                  {index === 0 ? (
+                                    <TableCell rowSpan={orders.length} className="align-top">
+                                      <Select 
+                                        defaultValue="pending"
+                                        onValueChange={(value) => {
+                                          // TODO: Update order status in database
+                                          toast.info(`Cập nhật trạng thái: ${value === 'pending' ? 'Đang chờ' : 'Hoàn tất'}`);
+                                        }}
+                                      >
+                                        <SelectTrigger className="w-32">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="pending">
+                                            <div className="flex items-center gap-2">
+                                              <Badge variant="destructive" className="h-2 w-2 p-0 rounded-full"></Badge>
+                                              Đang chờ
+                                            </div>
+                                          </SelectItem>
+                                          <SelectItem value="completed">
+                                            <div className="flex items-center gap-2">
+                                              <Badge className="h-2 w-2 p-0 rounded-full bg-green-600"></Badge>
+                                              Hoàn tất
+                                            </div>
+                                          </SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                  ) : null}
                                   
                                   {/* Actions - only show for first row of each group */}
                                   {index === 0 ? (
