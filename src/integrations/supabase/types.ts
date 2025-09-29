@@ -14,6 +14,125 @@ export type Database = {
   }
   public: {
     Tables: {
+      live_orders: {
+        Row: {
+          created_at: string
+          customer_code: string
+          id: string
+          live_product_id: string
+          live_session_id: string
+          order_code: string
+          order_date: string
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          customer_code: string
+          id?: string
+          live_product_id: string
+          live_session_id: string
+          order_code: string
+          order_date?: string
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          customer_code?: string
+          id?: string
+          live_product_id?: string
+          live_session_id?: string
+          order_code?: string
+          order_date?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_orders_live_product_id_fkey"
+            columns: ["live_product_id"]
+            isOneToOne: false
+            referencedRelation: "live_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "live_orders_live_session_id_fkey"
+            columns: ["live_session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_products: {
+        Row: {
+          created_at: string
+          id: string
+          live_session_id: string
+          prepared_quantity: number
+          product_code: string
+          product_name: string
+          sold_quantity: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          live_session_id: string
+          prepared_quantity?: number
+          product_code: string
+          product_name: string
+          sold_quantity?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          live_session_id?: string
+          prepared_quantity?: number
+          product_code?: string
+          product_name?: string
+          sold_quantity?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "live_products_live_session_id_fkey"
+            columns: ["live_session_id"]
+            isOneToOne: false
+            referencedRelation: "live_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      live_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          session_date: string
+          status: string
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_date?: string
+          status?: string
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          session_date?: string
+          status?: string
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_order_items: {
         Row: {
           created_at: string

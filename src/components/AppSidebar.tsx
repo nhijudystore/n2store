@@ -48,6 +48,11 @@ const menuItems = [
     icon: ShoppingBag,
   },
   {
+    title: "Sản phẩm Live",
+    url: "/live-products",
+    icon: ShoppingCart,
+  },
+  {
     title: "Báo cáo",
     url: "/reports",
     icon: BarChart3,
