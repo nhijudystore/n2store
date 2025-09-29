@@ -36,6 +36,19 @@ interface EditOrderItemDialogProps {
     product_id: string;
     product_name: string;
     quantity: number;
+    orders?: Array<{
+      id: string;
+      live_product_id: string;
+      product_name: string;
+      product_code: string;
+      quantity: number;
+      order_code: string;
+      created_at?: string;
+      order_date?: string;
+      live_session_id: string;
+      live_phase_id?: string;
+      sold_quantity?: number;
+    }>;
   } | null;
   phaseId: string;
 }
@@ -67,33 +80,145 @@ export function EditOrderItemDialog({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
       if (!orderItem) return;
 
-      const quantityDiff = values.quantity - orderItem.quantity;
+      // If we have multiple orders (aggregated), use smart logic
+      if (orderItem.orders && orderItem.orders.length > 0) {
+        const orders = orderItem.orders;
+        const currentTotalQty = orders.reduce((sum, o) => sum + o.quantity, 0);
+        const newTotalQty = values.quantity;
+        const diff = newTotalQty - currentTotalQty;
 
-      // Update order quantity
-      const { error: orderError } = await supabase
-        .from("live_orders")
-        .update({ quantity: values.quantity })
-        .eq("id", orderItem.id);
+        if (diff === 0) return;
 
-      if (orderError) throw orderError;
+        if (diff < 0) {
+          // DECREASE: Delete newest records first
+          const deleteCount = Math.abs(diff);
+          
+          // Sort by created_at DESC to get newest records
+          const sortedOrders = [...orders].sort((a, b) => {
+            const dateA = new Date(a.created_at || a.order_date || 0).getTime();
+            const dateB = new Date(b.created_at || b.order_date || 0).getTime();
+            return dateB - dateA;
+          });
+          
+          let remaining = deleteCount;
+          const ordersToDelete: string[] = [];
+          
+          for (const order of sortedOrders) {
+            if (remaining <= 0) break;
+            
+            if (order.quantity <= remaining) {
+              // Delete entire order
+              ordersToDelete.push(order.id);
+              remaining -= order.quantity;
+            } else {
+              // Decrease quantity of this order
+              const { error } = await supabase
+                .from("live_orders")
+                .update({ quantity: order.quantity - remaining })
+                .eq("id", order.id);
+              
+              if (error) throw error;
+              remaining = 0;
+            }
+          }
+          
+          // Delete marked orders
+          if (ordersToDelete.length > 0) {
+            const { error } = await supabase
+              .from("live_orders")
+              .delete()
+              .in("id", ordersToDelete);
+            
+            if (error) throw error;
+          }
+          
+          // Fetch current sold_quantity
+          const { data: product, error: productFetchError } = await supabase
+            .from("live_products")
+            .select("sold_quantity")
+            .eq("id", orderItem.product_id)
+            .single();
+          
+          if (productFetchError) throw productFetchError;
+          
+          // Update sold_quantity
+          const { error: productError } = await supabase
+            .from("live_products")
+            .update({ 
+              sold_quantity: Math.max(0, product.sold_quantity - deleteCount)
+            })
+            .eq("id", orderItem.product_id);
+          
+          if (productError) throw productError;
+          
+        } else {
+          // INCREASE: Create new records with quantity = 1
+          const addCount = diff;
+          const firstOrder = orders[0];
+          
+          const newRecords = Array.from({ length: addCount }, () => ({
+            live_session_id: firstOrder.live_session_id,
+            live_phase_id: firstOrder.live_phase_id || null,
+            live_product_id: firstOrder.live_product_id,
+            order_code: firstOrder.order_code,
+            quantity: 1,
+          }));
+          
+          const { error } = await supabase
+            .from("live_orders")
+            .insert(newRecords);
+          
+          if (error) throw error;
+          
+          // Fetch current sold_quantity
+          const { data: product, error: productFetchError } = await supabase
+            .from("live_products")
+            .select("sold_quantity")
+            .eq("id", orderItem.product_id)
+            .single();
+          
+          if (productFetchError) throw productFetchError;
+          
+          // Update sold_quantity
+          const { error: productError } = await supabase
+            .from("live_products")
+            .update({ 
+              sold_quantity: product.sold_quantity + addCount
+            })
+            .eq("id", orderItem.product_id);
+          
+          if (productError) throw productError;
+        }
+      } else {
+        // Single order item - original logic
+        const quantityDiff = values.quantity - orderItem.quantity;
 
-      // Update product sold_quantity
-      const { data: product, error: productFetchError } = await supabase
-        .from("live_products")
-        .select("sold_quantity")
-        .eq("id", orderItem.product_id)
-        .single();
+        // Update order quantity
+        const { error: orderError } = await supabase
+          .from("live_orders")
+          .update({ quantity: values.quantity })
+          .eq("id", orderItem.id);
 
-      if (productFetchError) throw productFetchError;
+        if (orderError) throw orderError;
 
-      const { error: productUpdateError } = await supabase
-        .from("live_products")
-        .update({ 
-          sold_quantity: Math.max(0, product.sold_quantity + quantityDiff) 
-        })
-        .eq("id", orderItem.product_id);
+        // Update product sold_quantity
+        const { data: product, error: productFetchError } = await supabase
+          .from("live_products")
+          .select("sold_quantity")
+          .eq("id", orderItem.product_id)
+          .single();
 
-      if (productUpdateError) throw productUpdateError;
+        if (productFetchError) throw productFetchError;
+
+        const { error: productUpdateError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity + quantityDiff) 
+          })
+          .eq("id", orderItem.product_id);
+
+        if (productUpdateError) throw productUpdateError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["live-orders", phaseId] });

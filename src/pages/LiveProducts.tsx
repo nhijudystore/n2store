@@ -100,6 +100,7 @@ export default function LiveProducts() {
     product_id: string;
     product_name: string;
     quantity: number;
+    orders?: OrderWithProduct[];
   } | null>(null);
   
   const queryClient = useQueryClient();
@@ -476,14 +477,70 @@ export default function LiveProducts() {
     }
   };
 
-  const handleEditOrderItem = (order: OrderWithProduct) => {
+  const handleEditOrderItem = (aggregatedProduct: {
+    product_code: string;
+    product_name: string;
+    live_product_id: string;
+    total_quantity: number;
+    orders: OrderWithProduct[];
+  }) => {
     setEditingOrderItem({
-      id: order.id,
-      product_id: order.live_product_id,
-      product_name: order.product_name,
-      quantity: order.quantity,
+      id: aggregatedProduct.orders[0].id,
+      product_id: aggregatedProduct.live_product_id,
+      product_name: aggregatedProduct.product_name,
+      quantity: aggregatedProduct.total_quantity,
+      orders: aggregatedProduct.orders,
     });
     setIsEditOrderItemOpen(true);
+  };
+
+  const handleDeleteAggregatedProduct = async (aggregatedProduct: {
+    product_code: string;
+    product_name: string;
+    live_product_id: string;
+    total_quantity: number;
+    orders: OrderWithProduct[];
+  }) => {
+    if (window.confirm(`Bạn có chắc muốn xóa tất cả ${aggregatedProduct.total_quantity} sản phẩm ${aggregatedProduct.product_name}?`)) {
+      const orderIds = aggregatedProduct.orders.map(o => o.id);
+      
+      try {
+        // Delete all orders
+        const { error: deleteError } = await supabase
+          .from("live_orders")
+          .delete()
+          .in("id", orderIds);
+        
+        if (deleteError) throw deleteError;
+        
+        // Fetch current sold_quantity
+        const { data: product, error: productFetchError } = await supabase
+          .from("live_products")
+          .select("sold_quantity")
+          .eq("id", aggregatedProduct.live_product_id)
+          .single();
+        
+        if (productFetchError) throw productFetchError;
+        
+        // Update sold_quantity
+        const { error: productError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity - aggregatedProduct.total_quantity)
+          })
+          .eq("id", aggregatedProduct.live_product_id);
+        
+        if (productError) throw productError;
+        
+        queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase] });
+        queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase] });
+        queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase] });
+        toast.success("Đã xóa sản phẩm khỏi đơn hàng");
+      } catch (error) {
+        console.error("Error deleting aggregated product:", error);
+        toast.error("Có lỗi xảy ra khi xóa sản phẩm");
+      }
+    }
   };
 
   const handleDeleteAllPhasesForSession = async (sessionId: string) => {
@@ -894,7 +951,7 @@ export default function LiveProducts() {
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        // Group orders by order_code and flatten for individual rows
+                        // Group orders by order_code
                         const orderGroups = ordersWithProducts.reduce((groups, order) => {
                           if (!groups[order.order_code]) {
                             groups[order.order_code] = [];
@@ -903,19 +960,44 @@ export default function LiveProducts() {
                           return groups;
                         }, {} as Record<string, typeof ordersWithProducts>);
 
-                        return Object.entries(orderGroups).flatMap(([orderCode, orders], groupIndex) =>
-                          orders.map((order, index) => (
+                        return Object.entries(orderGroups).flatMap(([orderCode, orders], groupIndex) => {
+                          // Group by product_code within order_code
+                          const productGroups = orders.reduce((groups, order) => {
+                            const key = order.product_code;
+                            if (!groups[key]) {
+                              groups[key] = {
+                                product_code: order.product_code,
+                                product_name: order.product_name,
+                                live_product_id: order.live_product_id,
+                                total_quantity: 0,
+                                orders: [] as OrderWithProduct[]
+                              };
+                            }
+                            groups[key].total_quantity += order.quantity;
+                            groups[key].orders.push(order);
+                            return groups;
+                          }, {} as Record<string, {
+                            product_code: string;
+                            product_name: string;
+                            live_product_id: string;
+                            total_quantity: number;
+                            orders: OrderWithProduct[];
+                          }>);
+
+                          const aggregatedProducts = Object.values(productGroups);
+
+                          return aggregatedProducts.map((product, index) => (
                             <TableRow 
-                              key={order.id} 
+                              key={`${orderCode}-${product.product_code}`}
                               className={`h-12 ${
-                                index === orders.length - 1 
+                                index === aggregatedProducts.length - 1 
                                   ? 'border-b-2 border-border/60' 
                                   : 'border-b border-border/20'
                               } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}
                             >
                               {index === 0 && (
                                 <TableCell 
-                                  rowSpan={orders.length} 
+                                  rowSpan={aggregatedProducts.length} 
                                   className="font-medium align-middle border-r border-l text-center"
                                 >
                                   <Badge className="text-base font-bold font-mono bg-primary text-primary-foreground px-3 py-1.5">
@@ -924,20 +1006,20 @@ export default function LiveProducts() {
                                 </TableCell>
                               )}
                               <TableCell className="py-2 border-r">
-                                <div className="font-medium text-sm">{order.product_name}</div>
+                                <div className="font-medium text-sm">{product.product_name}</div>
                               </TableCell>
                               <TableCell className="py-2 border-r">
-                                <span className="text-sm">{order.product_code}</span>
+                                <span className="text-sm">{product.product_code}</span>
                               </TableCell>
                               <TableCell className="text-center py-2 border-r">
-                                <span className="text-sm font-medium">{order.quantity}</span>
+                                <span className="text-sm font-medium">{product.total_quantity}</span>
                               </TableCell>
                               <TableCell className="text-center py-2 border-r">
                                 <div className="flex items-center justify-center gap-1">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleEditOrderItem(order)}
+                                    onClick={() => handleEditOrderItem(product)}
                                     className="h-7 w-7 p-0"
                                   >
                                     <Pencil className="h-3.5 w-3.5" />
@@ -945,7 +1027,7 @@ export default function LiveProducts() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => handleDeleteOrderItem(order.id, order.live_product_id, order.quantity)}
+                                    onClick={() => handleDeleteAggregatedProduct(product)}
                                     className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -954,7 +1036,7 @@ export default function LiveProducts() {
                               </TableCell>
                               {index === 0 && (
                                 <TableCell 
-                                  rowSpan={orders.length}
+                                  rowSpan={aggregatedProducts.length}
                                   className="text-center py-2 align-middle border-r"
                                 >
                                   <div className="flex items-center justify-center">
@@ -991,8 +1073,8 @@ export default function LiveProducts() {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ))
-                        );
+                          ));
+                        });
                       })()}
                     </TableBody>
                   </Table>
