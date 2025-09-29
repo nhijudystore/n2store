@@ -767,7 +767,14 @@ export default function LiveProducts() {
 
                         return Object.entries(orderGroups).flatMap(([orderCode, orders], groupIndex) =>
                           orders.map((order, index) => (
-                            <TableRow key={order.id} className={`h-12 border-b ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}>
+                            <TableRow 
+                              key={order.id} 
+                              className={`h-12 ${
+                                index === orders.length - 1 
+                                  ? 'border-b-2 border-border/60' 
+                                  : 'border-b border-border/20'
+                              } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}
+                            >
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={orders.length} 
