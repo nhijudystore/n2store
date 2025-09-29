@@ -746,12 +746,12 @@ export default function LiveProducts() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-32">Mã đơn hàng</TableHead>
-                        <TableHead className="w-48">Tên sản phẩm</TableHead>
-                        <TableHead className="w-32">Mã sản phẩm</TableHead>
-                        <TableHead className="w-20 text-center">Số lượng</TableHead>
-                        <TableHead className="w-24 text-center">Trạng thái</TableHead>
-                        <TableHead className="w-20 text-center">Thao tác</TableHead>
+                        <TableHead className="w-20 text-center font-bold text-base">Thao tác</TableHead>
+                        <TableHead className="w-32 font-bold text-base">Mã đơn hàng</TableHead>
+                        <TableHead className="w-48 font-bold text-base">Tên sản phẩm</TableHead>
+                        <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
+                        <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
+                        <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -765,13 +765,28 @@ export default function LiveProducts() {
                           return groups;
                         }, {} as Record<string, typeof ordersWithProducts>);
 
-                        return Object.entries(orderGroups).flatMap(([orderCode, orders]) =>
+                        return Object.entries(orderGroups).flatMap(([orderCode, orders], groupIndex) =>
                           orders.map((order, index) => (
-                            <TableRow key={order.id} className="h-12">
+                            <TableRow key={order.id} className={`h-12 ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}>
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={orders.length} 
-                                  className="font-medium align-middle border-r bg-muted/20 text-center"
+                                  className="text-center py-2 align-middle border-r"
+                                >
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteOrder(order.id)}
+                                    className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                </TableCell>
+                              )}
+                              {index === 0 && (
+                                <TableCell 
+                                  rowSpan={orders.length} 
+                                  className="font-medium align-middle border-r text-center"
                                 >
                                   <Badge className="text-base font-bold font-mono bg-primary text-primary-foreground px-3 py-1.5">
                                     {orderCode}
@@ -819,16 +834,6 @@ export default function LiveProducts() {
                                     </div>
                                   </label>
                                 </div>
-                              </TableCell>
-                              <TableCell className="text-center py-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteOrder(order.id)}
-                                  className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
                               </TableCell>
                             </TableRow>
                           ))
