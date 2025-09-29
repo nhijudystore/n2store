@@ -797,20 +797,31 @@ export default function LiveProducts() {
                                   ? ordersWithProducts.filter(order => order.product_code === product.product_code)
                                   : ordersWithProducts.filter(order => order.live_product_id === product.id);
                                 
-                                // Get unique order codes
-                                const uniqueOrderCodes = [...new Set(productOrders.map(o => o.order_code))];
+                                // Đếm số lần xuất hiện của mỗi order_code
+                                const orderCodeCounts = productOrders.reduce((acc, order) => {
+                                  acc[order.order_code] = (acc[order.order_code] || 0) + 1;
+                                  return acc;
+                                }, {} as Record<string, number>);
+                                
+                                // Lấy unique order codes để hiển thị
+                                const uniqueOrderCodes = Object.keys(orderCodeCounts);
                                 
                                 return (
                                   <>
-                                    {uniqueOrderCodes.map(orderCode => (
-                                      <Badge 
-                                        key={orderCode} 
-                                        variant="secondary" 
-                                        className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
-                                      >
-                                        {orderCode}
-                                      </Badge>
-                                    ))}
+                                    {uniqueOrderCodes.map(orderCode => {
+                                      const count = orderCodeCounts[orderCode];
+                                      const displayText = count > 1 ? `${orderCode} x${count}` : orderCode;
+                                      
+                                      return (
+                                        <Badge 
+                                          key={orderCode} 
+                                          variant="secondary" 
+                                          className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
+                                        >
+                                          {displayText}
+                                        </Badge>
+                                      );
+                                    })}
                                     {selectedPhase !== "all" && (
                                       <div className="flex items-center gap-2 ml-2">
                                         <QuickAddOrder 
