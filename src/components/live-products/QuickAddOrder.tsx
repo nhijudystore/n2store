@@ -47,8 +47,8 @@ export function QuickAddOrder({ sessionId, productId }: QuickAddOrderProps) {
     },
     onSuccess: () => {
       setOrderCode('');
-      queryClient.invalidateQueries({ queryKey: ['liveOrders'] });
-      queryClient.invalidateQueries({ queryKey: ['liveProducts'] });
+      queryClient.invalidateQueries({ queryKey: ['live-orders', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['live-products', sessionId] });
       toast({
         title: "Thành công",
         description: "Đã thêm đơn hàng mới",
