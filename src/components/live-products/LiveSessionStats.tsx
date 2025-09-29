@@ -17,7 +17,7 @@ interface LiveOrder {
 
 interface LiveSessionStatsProps {
   sessionId: string;
-  phaseId: string;
+  phaseId: string | "all";
   products: LiveProduct[];
   orders: LiveOrder[];
 }

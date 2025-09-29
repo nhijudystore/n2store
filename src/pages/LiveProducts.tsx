@@ -60,6 +60,7 @@ interface LiveProduct {
   product_name: string;
   prepared_quantity: number;
   sold_quantity: number;
+  created_at?: string;
 }
 
 interface LiveOrder {
@@ -136,69 +137,149 @@ export default function LiveProducts() {
     enabled: !!selectedSession,
   });
 
-  // Fetch live products for selected phase
+  // Fetch live products for selected phase (or all phases if "all" selected)
   const { data: liveProducts = [] } = useQuery({
-    queryKey: ["live-products", selectedPhase],
+    queryKey: ["live-products", selectedPhase, selectedSession],
     queryFn: async () => {
       if (!selectedPhase) return [];
       
-      const { data, error } = await supabase
-        .from("live_products")
-        .select("*")
-        .eq("live_phase_id", selectedPhase)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data as LiveProduct[];
+      if (selectedPhase === "all") {
+        // Fetch all products for the session
+        const { data, error } = await supabase
+          .from("live_products")
+          .select("*")
+          .eq("live_session_id", selectedSession)
+          .order("created_at", { ascending: true });
+        
+        if (error) throw error;
+        
+        // Aggregate products by product_code
+        const aggregated = (data as LiveProduct[]).reduce((acc, product) => {
+          if (!acc[product.product_code]) {
+            acc[product.product_code] = {
+              id: product.id, // Keep first id for reference
+              live_session_id: product.live_session_id,
+              live_phase_id: product.live_phase_id,
+              product_code: product.product_code,
+              product_name: product.product_name,
+              prepared_quantity: 0,
+              sold_quantity: 0,
+              earliest_created_at: product.created_at,
+            };
+          }
+          
+          // Update product_name if found earlier record
+          const currentCreatedAt = new Date(product.created_at || 0).getTime();
+          const earliestCreatedAt = new Date(acc[product.product_code].earliest_created_at || 0).getTime();
+          
+          if (currentCreatedAt < earliestCreatedAt) {
+            acc[product.product_code].product_name = product.product_name;
+            acc[product.product_code].earliest_created_at = product.created_at;
+          }
+          
+          // Sum quantities
+          acc[product.product_code].prepared_quantity += product.prepared_quantity;
+          acc[product.product_code].sold_quantity += product.sold_quantity;
+          
+          return acc;
+        }, {} as Record<string, LiveProduct & { earliest_created_at?: string }>);
+        
+        return Object.values(aggregated).map(({ earliest_created_at, ...product }) => product);
+      } else {
+        // Fetch products for single phase
+        const { data, error } = await supabase
+          .from("live_products")
+          .select("*")
+          .eq("live_phase_id", selectedPhase)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        return data as LiveProduct[];
+      }
     },
-    enabled: !!selectedPhase,
+    enabled: !!selectedPhase && !!selectedSession,
   });
 
-  // Fetch live orders for selected phase
+  // Fetch live orders for selected phase (or all phases if "all" selected)
   const { data: liveOrders = [] } = useQuery({
-    queryKey: ["live-orders", selectedPhase],
+    queryKey: ["live-orders", selectedPhase, selectedSession],
     queryFn: async () => {
       if (!selectedPhase) return [];
       
-      const { data, error } = await supabase
-        .from("live_orders")
-        .select("*")
-        .eq("live_phase_id", selectedPhase)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data as LiveOrder[];
+      if (selectedPhase === "all") {
+        // Fetch all orders for the session
+        const { data, error } = await supabase
+          .from("live_orders")
+          .select("*")
+          .eq("live_session_id", selectedSession)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        return data as LiveOrder[];
+      } else {
+        const { data, error } = await supabase
+          .from("live_orders")
+          .select("*")
+          .eq("live_phase_id", selectedPhase)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        return data as LiveOrder[];
+      }
     },
-    enabled: !!selectedPhase,
+    enabled: !!selectedPhase && !!selectedSession,
   });
 
-  // Fetch orders with product details for selected phase
+  // Fetch orders with product details for selected phase (or all phases if "all" selected)
   const { data: ordersWithProducts = [] } = useQuery({
-    queryKey: ["orders-with-products", selectedPhase],
+    queryKey: ["orders-with-products", selectedPhase, selectedSession],
     queryFn: async () => {
       if (!selectedPhase) return [];
       
-      const { data, error } = await supabase
-        .from("live_orders")
-        .select(`
-          *,
-          live_products (
-            product_code,
-            product_name
-          )
-        `)
-        .eq("live_phase_id", selectedPhase)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      
-      return data.map(order => ({
-        ...order,
-        product_code: order.live_products?.product_code || "",
-        product_name: order.live_products?.product_name || "",
-      })) as OrderWithProduct[];
+      if (selectedPhase === "all") {
+        // Fetch all orders for the session
+        const { data, error } = await supabase
+          .from("live_orders")
+          .select(`
+            *,
+            live_products (
+              product_code,
+              product_name
+            )
+          `)
+          .eq("live_session_id", selectedSession)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        
+        return data.map(order => ({
+          ...order,
+          product_code: order.live_products?.product_code || "",
+          product_name: order.live_products?.product_name || "",
+        })) as OrderWithProduct[];
+      } else {
+        const { data, error } = await supabase
+          .from("live_orders")
+          .select(`
+            *,
+            live_products (
+              product_code,
+              product_name
+            )
+          `)
+          .eq("live_phase_id", selectedPhase)
+          .order("created_at", { ascending: false });
+        
+        if (error) throw error;
+        
+        return data.map(order => ({
+          ...order,
+          product_code: order.live_products?.product_code || "",
+          product_name: order.live_products?.product_name || "",
+        })) as OrderWithProduct[];
+      }
     },
-    enabled: !!selectedPhase,
+    enabled: !!selectedPhase && !!selectedSession,
   });
 
   // Delete order item mutation (delete single product from order)
@@ -444,9 +525,6 @@ export default function LiveProducts() {
       return;
     }
 
-    const selectedPhaseData = livePhases.find(p => p.id === selectedPhase);
-    if (!selectedPhaseData) return;
-
     const csvData = liveProducts.map(product => ({
       "Mã sản phẩm": product.product_code,
       "Tên sản phẩm": product.product_name,
@@ -464,7 +542,21 @@ export default function LiveProducts() {
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
-    link.setAttribute("download", `danh-sach-san-pham-${format(new Date(selectedPhaseData.phase_date), "dd-MM-yyyy")}-${selectedPhaseData.phase_type}.csv`);
+    
+    // Generate filename based on selection
+    let filename = "";
+    if (selectedPhase === "all") {
+      const session = liveSessions.find(s => s.id === selectedSession);
+      const sessionName = session?.session_name || session?.supplier_name || "session";
+      filename = `tat-ca-phien-${sessionName}-${format(new Date(), "dd-MM-yyyy")}.csv`;
+    } else {
+      const selectedPhaseData = livePhases.find(p => p.id === selectedPhase);
+      if (selectedPhaseData) {
+        filename = `danh-sach-san-pham-${format(new Date(selectedPhaseData.phase_date), "dd-MM-yyyy")}-${selectedPhaseData.phase_type}.csv`;
+      }
+    }
+    
+    link.setAttribute("download", filename);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -556,7 +648,8 @@ export default function LiveProducts() {
                     <SelectTrigger>
                       <SelectValue placeholder="Chọn phiên live" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-background z-50">
+                      <SelectItem value="all">📊 Tất cả phiên live</SelectItem>
                       {livePhases.map((phase) => (
                         <SelectItem key={phase.id} value={phase.id}>
                           {getPhaseDisplayName(phase)}
@@ -636,7 +729,9 @@ export default function LiveProducts() {
                       variant="outline"
                       size="sm"
                       onClick={() => setIsAddProductOpen(true)}
+                      disabled={selectedPhase === "all"}
                       className="flex items-center gap-2"
+                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để thêm sản phẩm" : ""}
                     >
                       <Plus className="h-4 w-4" />
                       Thêm sản phẩm
@@ -698,27 +793,34 @@ export default function LiveProducts() {
                           <TableCell>
                             <div className="flex flex-wrap items-center gap-1">
                               {(() => {
-                                const productOrders = ordersWithProducts.filter(order => order.live_product_id === product.id);
+                                const productOrders = selectedPhase === "all"
+                                  ? ordersWithProducts.filter(order => order.product_code === product.product_code)
+                                  : ordersWithProducts.filter(order => order.live_product_id === product.id);
+                                
+                                // Get unique order codes
+                                const uniqueOrderCodes = [...new Set(productOrders.map(o => o.order_code))];
                                 
                                 return (
                                   <>
-                                    {productOrders.map(order => (
+                                    {uniqueOrderCodes.map(orderCode => (
                                       <Badge 
-                                        key={order.id} 
+                                        key={orderCode} 
                                         variant="secondary" 
                                         className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
                                       >
-                                        {order.order_code}
+                                        {orderCode}
                                       </Badge>
                                     ))}
-                                    <div className="flex items-center gap-2 ml-2">
-                                      <QuickAddOrder 
-                                        productId={product.id}
-                                        phaseId={selectedPhase}
-                                        sessionId={selectedSession}
-                                        availableQuantity={product.prepared_quantity - product.sold_quantity}
-                                      />
-                                    </div>
+                                    {selectedPhase !== "all" && (
+                                      <div className="flex items-center gap-2 ml-2">
+                                        <QuickAddOrder 
+                                          productId={product.id}
+                                          phaseId={selectedPhase}
+                                          sessionId={selectedSession}
+                                          availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                        />
+                                      </div>
+                                    )}
                                   </>
                                 );
                               })()}
@@ -730,6 +832,8 @@ export default function LiveProducts() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditProduct(product)}
+                                disabled={selectedPhase === "all"}
+                                title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
                               >
                                 <Edit className="h-4 w-4" />
                               </Button>
@@ -737,7 +841,9 @@ export default function LiveProducts() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleDeleteProduct(product.id)}
+                                disabled={selectedPhase === "all"}
                                 className="text-red-600 hover:text-red-700"
+                                title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
