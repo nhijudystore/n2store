@@ -767,11 +767,11 @@ export default function LiveProducts() {
 
                         return Object.entries(orderGroups).flatMap(([orderCode, orders], groupIndex) =>
                           orders.map((order, index) => (
-                            <TableRow key={order.id} className={`h-12 ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}>
+                            <TableRow key={order.id} className={`h-12 border-b ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}>
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={orders.length} 
-                                  className="text-center py-2 align-middle border-r"
+                                  className="text-center py-2 align-middle border-r border-l"
                                 >
                                   <Button
                                     variant="ghost"
@@ -793,13 +793,13 @@ export default function LiveProducts() {
                                   </Badge>
                                 </TableCell>
                               )}
-                              <TableCell className="py-2">
+                              <TableCell className="py-2 border-r">
                                 <div className="font-medium text-sm">{order.product_name}</div>
                               </TableCell>
-                              <TableCell className="py-2">
+                              <TableCell className="py-2 border-r">
                                 <code className="text-xs bg-muted px-2 py-1 rounded font-mono">{order.product_code}</code>
                               </TableCell>
-                              <TableCell className="text-center py-2">
+                              <TableCell className="text-center py-2 border-r">
                                 <span className="text-sm font-medium">{order.quantity}</span>
                               </TableCell>
                               {index === 0 && (
