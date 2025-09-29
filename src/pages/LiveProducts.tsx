@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
+import { EditProductDialog } from "@/components/live-products/EditProductDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { 
@@ -17,7 +18,8 @@ import {
   ShoppingCart,
   Trash2,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Edit
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -55,6 +57,13 @@ export default function LiveProducts() {
   // Removed expandedSessions state as we no longer need expand/collapse
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<{
+    id: string;
+    product_code: string;
+    product_name: string;
+    prepared_quantity: number;
+  } | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -241,6 +250,16 @@ export default function LiveProducts() {
     }
   };
 
+  const handleEditProduct = (product: LiveProduct) => {
+    setEditingProduct({
+      id: product.id,
+      product_code: product.product_code,
+      product_name: product.product_name,
+      prepared_quantity: product.prepared_quantity,
+    });
+    setIsEditProductOpen(true);
+  };
+
   // Removed toggleSessionExpansion function as we no longer need expand/collapse
 
   const exportToCSV = () => {
@@ -419,23 +438,31 @@ export default function LiveProducts() {
                             </div>
                           </div>
                           
-                          {/* Quick Add Order */}
-                           <div className="col-span-9 md:col-span-2">
-                             <QuickAddOrder sessionId={selectedSession} productId={product.id} />
-                           </div>
-                           
-                           {/* Delete Product Button */}
-                           <div className="col-span-3 md:col-span-1 flex justify-center">
-                             <Button
-                               variant="ghost"
-                               size="sm"
-                               onClick={() => handleDeleteProduct(product.id, product.product_name)}
-                               className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                               disabled={deleteProductMutation.isPending}
-                             >
-                               <Trash2 className="h-4 w-4" />
-                             </Button>
-                           </div>
+                           {/* Quick Add Order */}
+                            <div className="col-span-6 md:col-span-2">
+                              <QuickAddOrder sessionId={selectedSession} productId={product.id} />
+                            </div>
+                            
+                            {/* Edit and Delete Product Buttons */}
+                            <div className="col-span-6 md:col-span-1 flex justify-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditProduct(product)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteProduct(product.id, product.product_name)}
+                                className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
+                                disabled={deleteProductMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                         </div>
                       </div>
                     );
@@ -475,6 +502,12 @@ export default function LiveProducts() {
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
         sessionId={selectedSession}
+      />
+
+      <EditProductDialog
+        open={isEditProductOpen}
+        onOpenChange={setIsEditProductOpen}
+        product={editingProduct}
       />
 
     </div>
