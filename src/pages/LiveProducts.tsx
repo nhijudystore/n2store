@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
+import { EditLiveSessionDialog } from "@/components/live-products/EditLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
@@ -66,6 +67,7 @@ export default function LiveProducts() {
   const [activeTab, setActiveTab] = useState<string>("products");
   // Removed expandedSessions state as we no longer need expand/collapse
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
+  const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<{
@@ -74,6 +76,7 @@ export default function LiveProducts() {
     product_name: string;
     prepared_quantity: number;
   } | null>(null);
+  const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -313,6 +316,11 @@ export default function LiveProducts() {
     setIsEditProductOpen(true);
   };
 
+  const handleEditSession = (session: LiveSession) => {
+    setEditingSession(session);
+    setIsEditSessionOpen(true);
+  };
+
   // Removed toggleSessionExpansion function as we no longer need expand/collapse
 
   const exportToCSV = () => {
@@ -395,26 +403,39 @@ export default function LiveProducts() {
         <TabsList className="w-full justify-start overflow-x-auto">
           {liveSessions.map((session) => (
             <div key={session.id} className="relative inline-flex">
-              <TabsTrigger value={session.id} className="gap-2 pr-8">
+              <TabsTrigger value={session.id} className="gap-2 pr-16">
                 <Calendar className="w-4 h-4" />
                 {format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - {session.supplier_name}
               </TabsTrigger>
-              {liveSessions.length > 1 && (
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteSession(
-                      session.id, 
-                      `${format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - ${session.supplier_name}`
-                    );
+                    handleEditSession(session);
                   }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                  className="h-6 w-6 p-0 hover:bg-accent"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Edit className="h-3 w-3" />
                 </Button>
-              )}
+                {liveSessions.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteSession(
+                        session.id, 
+                        `${format(new Date(session.session_date), "dd/MM/yyyy", { locale: vi })} - ${session.supplier_name}`
+                      );
+                    }}
+                    className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
             </div>
           ))}
         </TabsList>
@@ -746,6 +767,12 @@ export default function LiveProducts() {
         onOpenChange={setIsCreateSessionOpen}
       />
 
+      <EditLiveSessionDialog
+        open={isEditSessionOpen}
+        onOpenChange={setIsEditSessionOpen}
+        session={editingSession}
+      />
+
       <AddProductToLiveDialog
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}
@@ -757,7 +784,6 @@ export default function LiveProducts() {
         onOpenChange={setIsEditProductOpen}
         product={editingProduct}
       />
-
     </div>
   );
 }
