@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import * as React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,9 @@ interface LivestreamReport {
 }
 
 const LivestreamReports = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [editingReport, setEditingReport] = useState<LivestreamReport | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false);
+  const [editingReport, setEditingReport] = React.useState<LivestreamReport | null>(null);
   const queryClient = useQueryClient();
 
   const { data: reports = [], isLoading } = useQuery({

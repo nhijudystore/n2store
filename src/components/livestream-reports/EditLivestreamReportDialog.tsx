@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -70,7 +70,7 @@ export const EditLivestreamReportDialog: React.FC<EditLivestreamReportDialogProp
     },
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (report) {
       form.reset({
         report_date: new Date(report.report_date),
