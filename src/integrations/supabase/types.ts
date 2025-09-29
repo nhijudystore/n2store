@@ -130,6 +130,48 @@ export type Database = {
         }
         Relationships: []
       }
+      livestream_reports: {
+        Row: {
+          created_at: string
+          evening_ad_cost: number | null
+          evening_duration: string | null
+          evening_live_orders: number | null
+          id: string
+          morning_ad_cost: number | null
+          morning_duration: string | null
+          morning_live_orders: number | null
+          report_date: string
+          total_inbox_orders: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          evening_ad_cost?: number | null
+          evening_duration?: string | null
+          evening_live_orders?: number | null
+          id?: string
+          morning_ad_cost?: number | null
+          morning_duration?: string | null
+          morning_live_orders?: number | null
+          report_date: string
+          total_inbox_orders?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          evening_ad_cost?: number | null
+          evening_duration?: string | null
+          evening_live_orders?: number | null
+          id?: string
+          morning_ad_cost?: number | null
+          morning_duration?: string | null
+          morning_live_orders?: number | null
+          report_date?: string
+          total_inbox_orders?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       purchase_order_items: {
         Row: {
           created_at: string

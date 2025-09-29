@@ -1,7 +1,8 @@
 import { 
   ShoppingCart, 
   Settings,
-  ShoppingBag
+  ShoppingBag,
+  BarChart3
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -27,6 +28,11 @@ const menuItems = [
     title: "Sản phẩm Live",
     url: "/live-products",
     icon: ShoppingCart,
+  },
+  {
+    title: "Báo Cáo Livestream",
+    url: "/livestream-reports",
+    icon: BarChart3,
   },
 ];
 
