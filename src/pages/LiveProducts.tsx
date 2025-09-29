@@ -558,7 +558,6 @@ export default function LiveProducts() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Mã đơn hàng</TableHead>
-                            <TableHead>Ngày đặt</TableHead>
                             <TableHead>Hình ảnh</TableHead>
                             <TableHead>Tên sản phẩm</TableHead>
                             <TableHead className="text-center">Số lượng</TableHead>
@@ -599,17 +598,6 @@ export default function LiveProducts() {
                                     </TableCell>
                                   ) : null}
                                   
-                                  {/* Date - only show for first row of each group */}
-                                  {index === 0 ? (
-                                    <TableCell rowSpan={orders.length} className="align-top border-r">
-                                      <div className="text-sm text-muted-foreground">
-                                        {format(new Date(firstOrder.order_date), "dd/MM/yyyy", { locale: vi })}
-                                      </div>
-                                      <div className="text-xs text-muted-foreground">
-                                        {format(new Date(firstOrder.order_date), "HH:mm", { locale: vi })}
-                                      </div>
-                                    </TableCell>
-                                  ) : null}
                                   
                                   {/* Product Image */}
                                   <TableCell>
@@ -674,19 +662,31 @@ export default function LiveProducts() {
                                   {/* Actions - only show for first row of each group */}
                                   {index === 0 ? (
                                     <TableCell rowSpan={orders.length} className="text-center align-top border-l">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          // Delete all orders with this order_code
-                                          if (confirm(`Bạn có chắc chắn muốn xóa tất cả sản phẩm trong đơn hàng ${orderCode}?`)) {
-                                            orders.forEach(o => handleDeleteOrder(o.id));
-                                          }
-                                        }}
-                                        className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
+                                      <div className="flex flex-col gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => {
+                                            toast.info("Chức năng chỉnh sửa đang được phát triển");
+                                          }}
+                                          className="h-8 w-8 p-0 hover:bg-primary/20 hover:text-primary"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            // Delete all orders with this order_code
+                                            if (confirm(`Bạn có chắc chắn muốn xóa tất cả sản phẩm trong đơn hàng ${orderCode}?`)) {
+                                              orders.forEach(o => handleDeleteOrder(o.id));
+                                            }
+                                          }}
+                                          className="h-8 w-8 p-0 hover:bg-destructive/20 hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
                                     </TableCell>
                                   ) : null}
                                 </TableRow>
