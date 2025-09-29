@@ -604,7 +604,7 @@ export default function LiveProducts() {
                 </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
-                  Đơn hàng ({liveOrders.length})
+                  Đơn hàng (theo mã đơn)
                 </TabsTrigger>
               </TabsList>
 
@@ -724,6 +724,86 @@ export default function LiveProducts() {
                           </TableCell>
                         </TableRow>
                       ))}
+                    </TableBody>
+                  </Table>
+                </Card>
+              )}
+            </TabsContent>
+
+            <TabsContent value="orders" className="space-y-4">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mã đơn hàng</TableHead>
+                        <TableHead>Sản phẩm</TableHead>
+                        <TableHead className="text-center">Số lượng</TableHead>
+                        <TableHead>Ngày đặt</TableHead>
+                        <TableHead className="text-center">Thao tác</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(() => {
+                        // Group orders by order_code
+                        const orderGroups = ordersWithProducts.reduce((groups, order) => {
+                          if (!groups[order.order_code]) {
+                            groups[order.order_code] = [];
+                          }
+                          groups[order.order_code].push(order);
+                          return groups;
+                        }, {} as Record<string, typeof ordersWithProducts>);
+
+                        return Object.entries(orderGroups).map(([orderCode, orders]) => {
+                          const totalQuantity = orders.reduce((sum, order) => sum + order.quantity, 0);
+                          const orderDate = orders[0]?.order_date;
+
+                          return (
+                            <TableRow key={orderCode}>
+                              <TableCell className="font-medium align-top">
+                                <Badge variant="default" className="text-sm">
+                                  {orderCode}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-2">
+                                  {orders.map(order => (
+                                    <div key={order.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-md">
+                                      <div className="flex-1">
+                                        <div className="font-medium">{order.product_name}</div>
+                                        <div className="text-sm text-muted-foreground">{order.product_code}</div>
+                                      </div>
+                                      <Badge variant="outline" className="text-xs">
+                                        x{order.quantity}
+                                      </Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center align-top">
+                                <Badge variant="secondary" className="text-sm">
+                                  {totalQuantity}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="align-top">
+                                {orderDate && format(new Date(orderDate), "dd/MM/yyyy HH:mm", { locale: vi })}
+                              </TableCell>
+                              <TableCell className="text-center align-top">
+                                <div className="flex flex-col gap-1">
+                                  {orders.map(order => (
+                                    <Button
+                                      key={order.id}
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteOrder(order.id)}
+                                      className="text-red-600 hover:text-red-700 h-6 w-6 p-0"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        });
+                      })()}
                     </TableBody>
                   </Table>
                 </Card>
