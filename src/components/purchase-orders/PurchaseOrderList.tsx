@@ -11,7 +11,7 @@ import { Pencil, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { PurchaseOrderDetailDialog } from "./PurchaseOrderDetailDialog";
+import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface PurchaseOrderItem {
@@ -34,19 +34,20 @@ interface PurchaseOrder {
   discount_amount: number;
   invoice_number: string | null;
   supplier_name: string | null;
+  supplier_id?: string | null;
   notes: string | null;
   invoice_date: string | null;
   invoice_images: string[] | null;
   created_at: string;
   updated_at: string;
-  items: PurchaseOrderItem[];
+  items?: PurchaseOrderItem[];
 }
 
 export function PurchaseOrderList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
   
@@ -180,9 +181,9 @@ export function PurchaseOrderList() {
     }).format(amount);
   };
 
-  const handleViewDetails = (order: PurchaseOrder) => {
-    setSelectedOrder(order);
-    setIsDetailDialogOpen(true);
+  const handleEditOrder = (order: PurchaseOrder) => {
+    setEditingOrder(order);
+    setIsEditDialogOpen(true);
   };
 
   const handleDeleteOrder = (order: PurchaseOrder) => {
@@ -426,7 +427,7 @@ export function PurchaseOrderList() {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => handleViewDetails(flatItem)}
+                            onClick={() => handleEditOrder(flatItem)}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -450,10 +451,10 @@ export function PurchaseOrderList() {
         </Table>
       </div>
 
-      <PurchaseOrderDetailDialog 
-        order={selectedOrder}
-        open={isDetailDialogOpen}
-        onOpenChange={setIsDetailDialogOpen}
+      <EditPurchaseOrderDialog 
+        order={editingOrder}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
       />
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
