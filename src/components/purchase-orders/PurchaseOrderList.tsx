@@ -242,7 +242,7 @@ export function PurchaseOrderList() {
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá mua</TableHead>
               <TableHead>Giá bán</TableHead>
-              <TableHead>Tổng tiền</TableHead>
+              <TableHead>Ghi chú</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Thao tác</TableHead>
             </TableRow>
@@ -404,14 +404,12 @@ export function PurchaseOrderList() {
                   {flatItem.isFirstItem && (
                     <>
                       <TableCell 
-                        className="font-medium border-l" 
+                        className="border-l max-w-xs" 
                         rowSpan={flatItem.itemCount}
                       >
-                        {formatCurrency(
-                          flatItem.items.reduce((sum, item) => 
-                            sum + ((item.unit_price || 0) * (item.quantity || 0)), 
-                          0)
-                        )}
+                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {flatItem.notes || "-"}
+                        </div>
                       </TableCell>
                       <TableCell 
                         className="border-l" 
