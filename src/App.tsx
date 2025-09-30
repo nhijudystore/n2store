@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
+import GoodsReceiving from "./pages/GoodsReceiving";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -54,6 +55,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <LivestreamReports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/goods-receiving" element={
+              <ProtectedRoute>
+                <Layout>
+                  <GoodsReceiving />
                 </Layout>
               </ProtectedRoute>
             } />

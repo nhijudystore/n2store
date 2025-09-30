@@ -14,6 +14,126 @@ export type Database = {
   }
   public: {
     Tables: {
+      goods_receiving: {
+        Row: {
+          created_at: string | null
+          has_discrepancy: boolean | null
+          id: string
+          notes: string | null
+          purchase_order_id: string
+          received_by_user_id: string
+          received_by_username: string
+          receiving_date: string
+          total_items_expected: number
+          total_items_received: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          has_discrepancy?: boolean | null
+          id?: string
+          notes?: string | null
+          purchase_order_id: string
+          received_by_user_id: string
+          received_by_username: string
+          receiving_date?: string
+          total_items_expected?: number
+          total_items_received?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          has_discrepancy?: boolean | null
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string
+          received_by_user_id?: string
+          received_by_username?: string
+          receiving_date?: string
+          total_items_expected?: number
+          total_items_received?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_receiving_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receiving_received_by_user_id_fkey"
+            columns: ["received_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      goods_receiving_items: {
+        Row: {
+          created_at: string | null
+          discrepancy_quantity: number | null
+          discrepancy_type: string | null
+          expected_quantity: number
+          goods_receiving_id: string
+          id: string
+          item_notes: string | null
+          product_code: string | null
+          product_condition: string | null
+          product_name: string
+          purchase_order_item_id: string
+          received_quantity: number
+          variant: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          discrepancy_quantity?: number | null
+          discrepancy_type?: string | null
+          expected_quantity: number
+          goods_receiving_id: string
+          id?: string
+          item_notes?: string | null
+          product_code?: string | null
+          product_condition?: string | null
+          product_name: string
+          purchase_order_item_id: string
+          received_quantity?: number
+          variant?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          discrepancy_quantity?: number | null
+          discrepancy_type?: string | null
+          expected_quantity?: number
+          goods_receiving_id?: string
+          id?: string
+          item_notes?: string | null
+          product_code?: string | null
+          product_condition?: string | null
+          product_name?: string
+          purchase_order_item_id?: string
+          received_quantity?: number
+          variant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goods_receiving_items_goods_receiving_id_fkey"
+            columns: ["goods_receiving_id"]
+            isOneToOne: false
+            referencedRelation: "goods_receiving"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goods_receiving_items_purchase_order_item_id_fkey"
+            columns: ["purchase_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       live_orders: {
         Row: {
           created_at: string
