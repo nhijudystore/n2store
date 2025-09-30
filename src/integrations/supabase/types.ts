@@ -256,6 +256,7 @@ export type Database = {
           quantity: number
           total_price: number | null
           unit_price: number | null
+          variant: string | null
         }
         Insert: {
           created_at?: string
@@ -268,6 +269,7 @@ export type Database = {
           quantity?: number
           total_price?: number | null
           unit_price?: number | null
+          variant?: string | null
         }
         Update: {
           created_at?: string
@@ -280,6 +282,7 @@ export type Database = {
           quantity?: number
           total_price?: number | null
           unit_price?: number | null
+          variant?: string | null
         }
         Relationships: [
           {
