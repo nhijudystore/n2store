@@ -454,7 +454,7 @@ export function PurchaseOrderList({
                               key={index}
                               src={imageUrl}
                               alt={`Giá mua ${index + 1}`}
-                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
+                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:scale-150 hover:z-10 transition-all duration-300 ease-in-out relative"
                               onClick={() => window.open(imageUrl, '_blank')}
                             />
                           ))}
@@ -479,7 +479,7 @@ export function PurchaseOrderList({
                               key={index}
                               src={imageUrl}
                               alt={`Sản phẩm ${index + 1}`}
-                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
+                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:scale-150 hover:z-10 transition-all duration-300 ease-in-out relative"
                               onClick={() => window.open(imageUrl, '_blank')}
                             />
                           ))}
