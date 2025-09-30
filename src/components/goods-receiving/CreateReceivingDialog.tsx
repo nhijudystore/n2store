@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Package, AlertCircle, CheckCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { Package, AlertCircle, CheckCircle } from "lucide-react";
 import { ReceivingItemRow } from "./ReceivingItemRow";
 
 interface CreateReceivingDialogProps {
@@ -24,10 +24,7 @@ interface CreateReceivingDialogProps {
   onSuccess: () => void;
 }
 
-type Step = "confirm" | "inspect";
-
 export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: CreateReceivingDialogProps) {
-  const [step, setStep] = useState<Step>("confirm");
   const [items, setItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,7 +34,6 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (open && order) {
-      setStep(order.hasReceiving ? "inspect" : "confirm");
       setItems(order.items?.map((item: any) => ({
         ...item,
         received_quantity: item.quantity,
@@ -172,58 +168,14 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            {step === "confirm" ? "Xác nhận đơn hàng" : "Kiểm hàng chi tiết"}
+            Kiểm hàng chi tiết
           </DialogTitle>
           <DialogDescription>
-            {step === "confirm" 
-              ? "Xem lại thông tin đơn hàng trước khi kiểm"
-              : "Nhập số lượng thực nhận cho từng sản phẩm"
-            }
+            Nhập số lượng thực nhận cho từng sản phẩm
           </DialogDescription>
         </DialogHeader>
 
-        {step === "confirm" ? (
-          <div className="space-y-4">
-            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Nhà cung cấp:</span>
-                <span className="font-medium">{order.supplier_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Ngày đặt:</span>
-                <span className="font-medium">
-                  {format(new Date(order.order_date), 'dd/MM/yyyy', { locale: vi })}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Số hóa đơn:</span>
-                <span className="font-medium">{order.invoice_number || '-'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tổng sản phẩm:</span>
-                <span className="font-medium">{order.items?.length || 0} items</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tổng số lượng:</span>
-                <span className="font-medium">{totalExpected} cái</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tổng tiền:</span>
-                <span className="font-medium text-lg">{order.final_amount?.toLocaleString('vi-VN')}đ</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                Hủy
-              </Button>
-              <Button onClick={() => setStep("inspect")}>
-                Tiếp tục <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-4">
+        <div className="space-y-4">
             {/* Summary */}
             <div className="bg-muted/50 rounded-lg p-3 flex justify-between items-center">
               <div className="text-sm">
@@ -283,16 +235,15 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
               />
             </div>
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setStep("confirm")}>
-                <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại
-              </Button>
-              <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Hủy
+            </Button>
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
+            </Button>
           </div>
-        )}
+        </div>
       </DialogContent>
     </Dialog>
   );
