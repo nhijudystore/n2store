@@ -20,6 +20,7 @@ interface PurchaseOrderItem {
   unit_price: number;
   total_price: number;
   product_images: string[];
+  price_images: string[];
 }
 
 interface CreatePurchaseOrderDialogProps {
@@ -40,7 +41,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
-    { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }
+    { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [], price_images: [] }
   ]);
 
 
@@ -111,7 +112,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       invoice_amount: 0
     });
     setItems([
-      { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }
+      { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [], price_images: [] }
     ]);
   };
 
@@ -127,13 +128,14 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   };
 
   const addItem = () => {
-    setItems([...items, { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }]);
+    setItems([...items, { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [], price_images: [] }]);
   };
 
   const copyItem = (index: number) => {
     const itemToCopy = { ...items[index] };
-    // Deep copy the product_images array
+    // Deep copy the product_images and price_images arrays
     itemToCopy.product_images = [...itemToCopy.product_images];
+    itemToCopy.price_images = [...itemToCopy.price_images];
     
     const newItems = [...items];
     newItems.splice(index + 1, 0, itemToCopy);
@@ -145,7 +147,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       setItems(items.filter((_, i) => i !== index));
     } else {
       // Reset the last item to empty state instead of removing
-      setItems([{ product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }]);
+      setItems([{ product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [], price_images: [] }]);
     }
   };
 
@@ -224,7 +226,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                     <TableHead className="w-32">Số lượng</TableHead>
                     <TableHead className="w-40">Đơn giá (VNĐ)</TableHead>
                     <TableHead className="w-40">Thành tiền</TableHead>
-                    <TableHead className="w-32">Hình ảnh</TableHead>
+                    <TableHead className="w-32">Hình ảnh sản phẩm</TableHead>
+                    <TableHead className="w-32">Hình ảnh Giá mua</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -283,6 +286,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         <ImageUploadCell
                           images={item.product_images}
                           onImagesChange={(images) => updateItem(index, "product_images", images)}
+                          itemIndex={index}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <ImageUploadCell
+                          images={item.price_images}
+                          onImagesChange={(images) => updateItem(index, "price_images", images)}
                           itemIndex={index}
                         />
                       </TableCell>
