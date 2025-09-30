@@ -393,7 +393,7 @@ export function PurchaseOrderList({
                               sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                             0);
                             const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
-                            return hasMismatch ? 'bg-red-50' : '';
+                            return hasMismatch ? 'bg-red-100 border-2 border-red-300' : '';
                           })()
                         }`}
                         rowSpan={flatItem.itemCount}
@@ -410,12 +410,26 @@ export function PurchaseOrderList({
                             <div className="text-sm font-medium">
                               {flatItem.invoice_number || "Chưa có"}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {flatItem.invoice_date 
-                                ? format(new Date(flatItem.invoice_date), "dd/MM/yyyy")
-                                : "Chưa có ngày"
+                            {(() => {
+                              const calculatedTotal = flatItem.items.reduce((sum, item) => 
+                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                              0);
+                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                              const difference = calculatedTotal - (flatItem.final_amount || 0);
+                              
+                              if (hasMismatch) {
+                                return (
+                                  <div className="text-xs font-semibold text-red-600 space-y-0.5">
+                                    <div className="flex items-center gap-1">
+                                      <span>⚠️</span>
+                                      <span>Sai lệch giá</span>
+                                    </div>
+                                    <div>Chênh: {formatCurrency(Math.abs(difference))}</div>
+                                  </div>
+                                );
                               }
-                            </div>
+                              return null;
+                            })()}
                             <div className="text-xs font-medium text-green-600">
                               {formatCurrency(flatItem.final_amount || 0)}
                             </div>
@@ -502,14 +516,14 @@ export function PurchaseOrderList({
                         className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
-                        <div className="max-w-48">
-                          {flatItem.notes && (
+                        {flatItem.notes && (
+                          <div className="max-w-32">
                             <HoverCard>
                               <HoverCardTrigger asChild>
                                 <Button variant="ghost" size="sm" className="p-0 h-auto text-left justify-start">
-                                  <div className="truncate">
-                                    {flatItem.notes.substring(0, 30)}
-                                    {flatItem.notes.length > 30 && "..."}
+                                  <div className="truncate text-xs">
+                                    {flatItem.notes.substring(0, 20)}
+                                    {flatItem.notes.length > 20 && "..."}
                                   </div>
                                 </Button>
                               </HoverCardTrigger>
@@ -517,8 +531,8 @@ export function PurchaseOrderList({
                                 <div className="text-sm">{flatItem.notes}</div>
                               </HoverCardContent>
                             </HoverCard>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell 
                         className="border-r" 
