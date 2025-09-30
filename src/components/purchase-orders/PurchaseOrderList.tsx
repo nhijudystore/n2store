@@ -446,10 +446,54 @@ export function PurchaseOrderList({
                     {flatItem.item?.quantity || 0}
                   </TableCell>
                   <TableCell className="border-r text-right">
-                    {flatItem.item ? formatCurrency(flatItem.item.unit_price || 0) : "-"}
+                    <div className="flex flex-col items-end gap-1">
+                      {flatItem.item?.price_images && flatItem.item.price_images.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {flatItem.item.price_images.slice(0, 2).map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Giá mua ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                            />
+                          ))}
+                          {flatItem.item.price_images.length > 2 && (
+                            <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
+                              +{flatItem.item.price_images.length - 2}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Chưa có hình</span>
+                      )}
+                      <span>{flatItem.item ? formatCurrency(flatItem.item.unit_price || 0) : "-"}</span>
+                    </div>
                   </TableCell>
                   <TableCell className="border-r text-right">
-                    {flatItem.item ? formatCurrency(flatItem.item.selling_price || 0) : "-"}
+                    <div className="flex flex-col items-end gap-1">
+                      {flatItem.item?.product_images && flatItem.item.product_images.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {flatItem.item.product_images.slice(0, 2).map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Sản phẩm ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
+                              onClick={() => window.open(imageUrl, '_blank')}
+                            />
+                          ))}
+                          {flatItem.item.product_images.length > 2 && (
+                            <div className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
+                              +{flatItem.item.product_images.length - 2}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Chưa có hình</span>
+                      )}
+                      <span>{flatItem.item ? formatCurrency(flatItem.item.selling_price || 0) : "-"}</span>
+                    </div>
                   </TableCell>
                   
                   {flatItem.isFirstItem && (
