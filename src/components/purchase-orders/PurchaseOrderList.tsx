@@ -227,8 +227,8 @@ export function PurchaseOrderList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Ngày đặt</TableHead>
+              <TableHead>Nhà cung cấp</TableHead>
               <TableHead className="w-20">Hình ảnh</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Số lượng</TableHead>
@@ -252,19 +252,19 @@ export function PurchaseOrderList() {
                   {flatItem.isFirstItem && (
                     <>
                       <TableCell 
-                        className="font-medium border-r" 
-                        rowSpan={flatItem.itemCount}
-                      >
-                        {flatItem.supplier_name || "Chưa cập nhật"}
-                      </TableCell>
-                      <TableCell 
                         className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {format(new Date(flatItem.order_date), "dd/MM/yyyy", { locale: vi })}
+                          {format(new Date(flatItem.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
                         </div>
+                      </TableCell>
+                      <TableCell 
+                        className="font-medium border-r" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        {flatItem.supplier_name || "Chưa cập nhật"}
                       </TableCell>
                     </>
                   )}
@@ -407,7 +407,7 @@ export function PurchaseOrderList() {
               {orderToDelete && (
                 <div className="mt-2 p-2 bg-muted rounded text-sm">
                   <strong>Nhà cung cấp:</strong> {orderToDelete.supplier_name || "Chưa cập nhật"}<br/>
-                  <strong>Ngày đặt:</strong> {format(new Date(orderToDelete.order_date), "dd/MM/yyyy", { locale: vi })}
+                  <strong>Ngày đặt:</strong> {format(new Date(orderToDelete.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
                 </div>
               )}
             </AlertDialogDescription>
