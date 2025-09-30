@@ -36,6 +36,7 @@ interface PurchaseOrder {
   supplier_name: string | null;
   notes: string | null;
   invoice_date: string | null;
+  invoice_images: string[] | null;
   created_at: string;
   updated_at: string;
   items: PurchaseOrderItem[];
@@ -233,6 +234,7 @@ export function PurchaseOrderList() {
             <TableRow>
               <TableHead>Ngày đặt</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
+              <TableHead>Hóa đơn</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Mã sản phẩm</TableHead>
               <TableHead>Biến thể</TableHead>
@@ -247,7 +249,7 @@ export function PurchaseOrderList() {
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -271,6 +273,24 @@ export function PurchaseOrderList() {
                         rowSpan={flatItem.itemCount}
                       >
                         {flatItem.supplier_name || "Chưa cập nhật"}
+                      </TableCell>
+                      <TableCell 
+                        className="overflow-visible border-r" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        <div className="space-y-2 relative">
+                          {flatItem.invoice_images && flatItem.invoice_images.length > 0 && (
+                            <img 
+                              src={flatItem.invoice_images[0]}
+                              alt="Hóa đơn"
+                              className="w-20 h-20 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
+                              onClick={() => window.open(flatItem.invoice_images![0], '_blank')}
+                            />
+                          )}
+                          <div className="text-sm font-medium">
+                            {formatCurrency(flatItem.final_amount || 0)}
+                          </div>
+                        </div>
                       </TableCell>
                     </>
                   )}
