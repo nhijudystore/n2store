@@ -33,17 +33,21 @@ interface PurchaseOrder {
 
 interface PurchaseOrderStatsProps {
   filteredOrders: PurchaseOrder[];
+  allOrders: PurchaseOrder[];
   isLoading: boolean;
 }
 
-export function PurchaseOrderStats({ filteredOrders, isLoading }: PurchaseOrderStatsProps) {
-  // Calculate stats from filteredOrders prop instead of fetching independently
+export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: PurchaseOrderStatsProps) {
+  // Calculate stats from filteredOrders for filtered data
   const totalOrders = filteredOrders.length;
   const totalAmount = filteredOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
-  const todayOrders = filteredOrders.filter(order => 
+  
+  // Calculate today's stats from allOrders (unfiltered)
+  const todayOrders = allOrders.filter(order => 
     format(new Date(order.order_date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-  ).length;
-  const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
+  );
+  const todayOrdersCount = todayOrders.length;
+  const todayTotalAmount = todayOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -82,18 +86,18 @@ export function PurchaseOrderStats({ filteredOrders, isLoading }: PurchaseOrderS
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : todayOrders}</div>
+          <div className="text-2xl font-bold">{isLoading ? "..." : todayOrdersCount}</div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Giá trị TB</CardTitle>
+          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isLoading ? "..." : formatCurrency(avgOrderValue)}
+            {isLoading ? "..." : formatCurrency(todayTotalAmount)}
           </div>
         </CardContent>
       </Card>

@@ -181,7 +181,11 @@ const PurchaseOrders = () => {
         </Button>
       </div>
 
-      <PurchaseOrderStats filteredOrders={filteredOrders} isLoading={isLoading} />
+      <PurchaseOrderStats 
+        filteredOrders={filteredOrders}
+        allOrders={orders || []}
+        isLoading={isLoading}
+      />
 
       <Tabs defaultValue="orders" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
