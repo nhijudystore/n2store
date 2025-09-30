@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText } from "lucide-react";
+import { Plus, Package, FileText, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
@@ -163,6 +164,48 @@ const PurchaseOrders = () => {
     return matchesSearch && matchesStatus;
   }) || [];
 
+  const handleExportExcel = () => {
+    // Flatten all items from filteredOrders
+    const products = filteredOrders.flatMap(order => 
+      (order.items || []).map(item => ({
+        ...item,
+        order_id: order.id,
+        order_date: order.order_date,
+        supplier_name: order.supplier_name,
+        notes: order.notes
+      }))
+    );
+
+    // Mapping according to the Excel template format (17 columns)
+    const excelData = products.map(item => ({
+      "Loại sản phẩm": "Có thể lưu trữ",
+      "Mã sản phẩm": item.product_code || "",
+      "Mã chốt đơn": "",
+      "Tên sản phẩm": item.product_name || "",
+      "Giá bán": item.selling_price || 0,
+      "Giá mua": item.unit_price || 0,
+      "Đơn vị": "CÁI",
+      "Nhóm sản phẩm": "QUẦN ÁO",
+      "Mã vạch": item.product_code || "",
+      "Khối lượng": "",
+      "Chiết khấu bán": "",
+      "Chiết khấu mua": "",
+      "Tồn kho": "",
+      "Giá vốn": "",
+      "Ghi chú": "",
+      "Cho phép bán ở công ty khác": "FALSE",
+      "Thuộc tính": ""
+    }));
+
+    // Create Excel file
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "San pham");
+    
+    const fileName = `san-pham-da-dat-${format(new Date(), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -230,10 +273,18 @@ const PurchaseOrders = () => {
         <TabsContent value="products" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Sản phẩm đã đặt</CardTitle>
-              <CardDescription>
-                Xem danh sách các sản phẩm đã đặt hàng từ nhà cung cấp
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sản phẩm đã đặt</CardTitle>
+                  <CardDescription>
+                    Xem danh sách các sản phẩm đã đặt hàng từ nhà cung cấp
+                  </CardDescription>
+                </div>
+                <Button onClick={handleExportExcel} variant="outline" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Xuất Excel
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-center py-12 text-muted-foreground">
