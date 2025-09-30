@@ -84,7 +84,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       setInvoiceNumber(order.invoice_number || "");
       setNotes(order.notes || "");
       setInvoiceImages(order.invoice_images || []);
-      setDiscountAmount(order.discount_amount || 0);
+      setDiscountAmount(order.discount_amount / 1000 || 0);
     }
   }, [order, open]);
 
@@ -98,9 +98,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         variant: item.variant || "",
         description: item.description || "",
         quantity: item.quantity || 1,
-        unit_price: Number(item.unit_price) || 0,
-        selling_price: Number(item.selling_price) || 0,
-        total_price: Number(item.total_price) || 0,
+        unit_price: Number(item.unit_price) / 1000 || 0,
+        selling_price: Number(item.selling_price) / 1000 || 0,
+        total_price: Number(item.total_price) / 1000 || 0,
         notes: item.notes || "",
         product_images: item.product_images || [],
         price_images: item.price_images || [],
@@ -194,8 +194,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         throw new Error("Vui lòng nhập tên nhà cung cấp");
       }
 
-      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
-      const finalAmount = totalAmount - discountAmount;
+      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0) * 1000;
+      const finalAmount = totalAmount - (discountAmount * 1000);
 
       // Update purchase order
       const { error: orderError } = await supabase
@@ -208,7 +208,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           notes: notes || null,
           invoice_images: invoiceImages.length > 0 ? invoiceImages : null,
           total_amount: totalAmount,
-          discount_amount: discountAmount,
+          discount_amount: discountAmount * 1000,
           final_amount: finalAmount,
         })
         .eq("id", order.id);
@@ -239,9 +239,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           variant: item.variant || null,
           description: item.description || null,
           quantity: item.quantity,
-          unit_price: item.unit_price,
-          selling_price: item.selling_price,
-          total_price: item.total_price,
+          unit_price: item.unit_price * 1000,
+          selling_price: item.selling_price * 1000,
+          total_price: item.total_price * 1000,
           notes: item.notes || null,
           product_images: item.product_images.length > 0 ? item.product_images : null,
           price_images: item.price_images.length > 0 ? item.price_images : null,
@@ -344,7 +344,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discountAmount">Số tiền giảm giá</Label>
+              <Label htmlFor="discountAmount">Số tiền giảm giá (x1000đ)</Label>
               <Input
                 id="discountAmount"
                 type="number"
@@ -393,9 +393,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                     <th className="p-2 text-left min-w-[100px]">Phân loại</th>
                     <th className="p-2 text-left min-w-[150px]">Mô tả</th>
                     <th className="p-2 text-left min-w-[80px]">SL</th>
-                    <th className="p-2 text-left min-w-[100px]">Đơn giá</th>
-                    <th className="p-2 text-left min-w-[100px]">Giá bán</th>
-                    <th className="p-2 text-left min-w-[100px]">Thành tiền</th>
+                    <th className="p-2 text-left min-w-[100px]">Đơn giá (x1000đ)</th>
+                    <th className="p-2 text-left min-w-[100px]">Giá bán (x1000đ)</th>
+                    <th className="p-2 text-left min-w-[100px]">Thành tiền (x1000đ)</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh SP</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh giá</th>
                     <th className="p-2 text-left min-w-[150px]">Ghi chú</th>
@@ -516,15 +516,15 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             <div className="space-y-1">
               <div className="flex gap-4">
                 <span className="font-medium">Tổng tiền:</span>
-                <span>{totalAmount.toLocaleString('vi-VN')} ₫</span>
+                <span>{totalAmount.toLocaleString('vi-VN')} (x1000đ)</span>
               </div>
               <div className="flex gap-4">
                 <span className="font-medium">Giảm giá:</span>
-                <span>{discountAmount.toLocaleString('vi-VN')} ₫</span>
+                <span>{discountAmount.toLocaleString('vi-VN')} (x1000đ)</span>
               </div>
               <div className="flex gap-4 text-lg font-bold">
                 <span>Thành tiền:</span>
-                <span>{finalAmount.toLocaleString('vi-VN')} ₫</span>
+                <span>{finalAmount.toLocaleString('vi-VN')} (x1000đ)</span>
               </div>
             </div>
           </div>

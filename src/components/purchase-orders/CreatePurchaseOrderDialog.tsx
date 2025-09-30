@@ -52,9 +52,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         throw new Error("Vui lòng nhập tên nhà cung cấp");
       }
 
-      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0) * 1000;
 
-      const finalAmount = formData.invoice_amount > 0 ? formData.invoice_amount : totalAmount;
+      const finalAmount = formData.invoice_amount > 0 ? formData.invoice_amount * 1000 : totalAmount;
 
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
@@ -75,7 +75,16 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         .filter(item => item.product_name.trim())
         .map(item => ({
           purchase_order_id: order.id,
-          ...item
+          product_name: item.product_name,
+          variant: item.variant,
+          product_code: item.product_code,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price * 1000,
+          selling_price: item.selling_price * 1000,
+          total_price: item.total_price * 1000,
+          product_images: item.product_images,
+          price_images: item.price_images
         }));
 
       if (orderItems.length > 0) {
@@ -184,7 +193,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoice_amount">Số tiền hóa đơn (VNĐ)</Label>
+              <Label htmlFor="invoice_amount">Số tiền hóa đơn (x1000đ)</Label>
               <Input
                 id="invoice_amount"
                 type="number"
@@ -219,9 +228,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                     <TableHead>Mã sản phẩm</TableHead>
                     <TableHead>Biến thể</TableHead>
                     <TableHead className="w-32">Số lượng</TableHead>
-                    <TableHead className="w-40">Giá mua (VNĐ)</TableHead>
-                    <TableHead className="w-40">Giá bán (VNĐ)</TableHead>
-                    <TableHead className="w-40">Thành tiền</TableHead>
+                    <TableHead className="w-40">Giá mua (x1000đ)</TableHead>
+                    <TableHead className="w-40">Giá bán (x1000đ)</TableHead>
+                    <TableHead className="w-40">Thành tiền (x1000đ)</TableHead>
                     <TableHead className="w-32">Hình ảnh sản phẩm</TableHead>
                     <TableHead className="w-32">Hình ảnh Giá mua</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
@@ -350,7 +359,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           <div className="border-t pt-4">
             <div className="flex justify-between items-center text-lg font-semibold">
               <span>Tổng cộng:</span>
-              <span>{new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(totalAmount)}</span>
+              <span>{new Intl.NumberFormat("vi-VN").format(totalAmount)} (x1000đ)</span>
             </div>
           </div>
 

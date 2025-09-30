@@ -89,10 +89,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND"
-    }).format(amount);
+    return new Intl.NumberFormat("vi-VN").format(amount);
   };
 
   return (
@@ -173,8 +170,8 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                         <TableHead className="w-20">Hình ảnh</TableHead>
                         <TableHead>Tên sản phẩm</TableHead>
                         <TableHead className="text-center">Số lượng</TableHead>
-                        <TableHead className="text-right">Đơn giá</TableHead>
-                        <TableHead className="text-right">Thành tiền</TableHead>
+                        <TableHead className="text-right">Đơn giá (x1000đ)</TableHead>
+                        <TableHead className="text-right">Thành tiền (x1000đ)</TableHead>
                       </TableRow>
                     </TableHeader>
                   <TableBody>
@@ -221,10 +218,10 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                            {item.quantity}
                          </TableCell>
                          <TableCell className="text-right">
-                           {formatCurrency(item.unit_price || 0)}
+                           {formatCurrency(item.unit_price / 1000 || 0)}
                          </TableCell>
                          <TableCell className="text-right font-medium">
-                           {formatCurrency(item.total_price || 0)}
+                           {formatCurrency(item.total_price / 1000 || 0)}
                          </TableCell>
                        </TableRow>
                      ))}
@@ -242,7 +239,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
               <div className="bg-muted/30 p-3 rounded-lg">
                 <div className="flex justify-between text-sm">
                   <span>Tổng từ chi tiết sản phẩm:</span>
-                  <span className="font-medium">{formatCurrency(itemsTotalAmount)}</span>
+                  <span className="font-medium">{formatCurrency(itemsTotalAmount / 1000)}</span>
                 </div>
                 {Math.abs(itemsTotalAmount - (order.total_amount || 0)) > 0.01 && (
                   <div className="text-xs text-destructive mt-1">
@@ -255,23 +252,22 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
 
           <Separator />
 
-          {/* Financial Info */}
-          <div className="space-y-4">
+            <div className="space-y-4">
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Thông tin tài chính</span>
+              <span className="text-sm font-medium">Thông tin tài chính (x1000đ)</span>
             </div>
             
             <div className="grid grid-cols-1 gap-3 bg-muted/50 p-4 rounded-lg">
               <div className="flex justify-between">
                 <span>Tổng tiền:</span>
-                <span className="font-medium">{formatCurrency(order.total_amount || 0)}</span>
+                <span className="font-medium">{formatCurrency(order.total_amount / 1000 || 0)}</span>
               </div>
               
               {(order.discount_amount || 0) > 0 && (
                 <div className="flex justify-between text-destructive">
                   <span>Giảm giá:</span>
-                  <span className="font-medium">-{formatCurrency(order.discount_amount || 0)}</span>
+                  <span className="font-medium">-{formatCurrency(order.discount_amount / 1000 || 0)}</span>
                 </div>
               )}
               
@@ -279,7 +275,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
               
               <div className="flex justify-between text-lg font-semibold">
                 <span>Thành tiền:</span>
-                <span className="text-primary">{formatCurrency(order.final_amount || 0)}</span>
+                <span className="text-primary">{formatCurrency(order.final_amount / 1000 || 0)}</span>
               </div>
             </div>
           </div>

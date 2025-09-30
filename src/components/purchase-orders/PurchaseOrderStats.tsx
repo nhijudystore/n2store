@@ -50,10 +50,7 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
   const todayTotalAmount = todayOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND"
-    }).format(amount);
+    return new Intl.NumberFormat("vi-VN").format(amount);
   };
 
   return (
@@ -70,12 +67,12 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị</CardTitle>
+          <CardTitle className="text-sm font-medium">Tổng giá trị (x1000đ)</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isLoading ? "..." : formatCurrency(totalAmount)}
+            {isLoading ? "..." : formatCurrency(totalAmount / 1000)}
           </div>
         </CardContent>
       </Card>
@@ -92,12 +89,12 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay</CardTitle>
+          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay (x1000đ)</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isLoading ? "..." : formatCurrency(todayTotalAmount)}
+            {isLoading ? "..." : formatCurrency(todayTotalAmount / 1000)}
           </div>
         </CardContent>
       </Card>
