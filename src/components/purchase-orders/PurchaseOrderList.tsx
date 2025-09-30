@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Eye, Search, Filter, Calendar, Trash2 } from "lucide-react";
+import { Pencil, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -428,7 +428,7 @@ export function PurchaseOrderList() {
                             size="sm"
                             onClick={() => handleViewDetails(flatItem)}
                           >
-                            <Eye className="w-4 h-4" />
+                            <Pencil className="w-4 h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
