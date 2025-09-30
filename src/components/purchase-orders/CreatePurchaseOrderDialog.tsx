@@ -181,12 +181,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoice_amount">Số tiền hóa đơn</Label>
+              <Label htmlFor="invoice_amount">Số tiền hóa đơn (VNĐ)</Label>
               <Input
                 id="invoice_amount"
                 type="number"
                 min="0"
-                placeholder="0"
+                placeholder="Nhập số tiền hóa đơn"
                 value={formData.invoice_amount || ""}
                 onChange={(e) => setFormData({...formData, invoice_amount: Number(e.target.value)})}
               />
@@ -194,11 +194,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
             <div className="space-y-2">
               <Label htmlFor="invoice_images">Ảnh hóa đơn</Label>
-              <ImageUploadCell
-                images={formData.invoice_images}
-                onImagesChange={(images) => setFormData({...formData, invoice_images: images})}
-                itemIndex={-1}
-              />
+              <div className="border rounded-md p-2 min-h-[42px] bg-background">
+                <ImageUploadCell
+                  images={formData.invoice_images}
+                  onImagesChange={(images) => setFormData({...formData, invoice_images: images})}
+                  itemIndex={-1}
+                />
+              </div>
             </div>
           </div>
 
