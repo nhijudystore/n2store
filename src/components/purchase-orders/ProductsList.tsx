@@ -66,14 +66,14 @@ export const ProductsList = ({ filteredOrders }: ProductsListProps) => {
     try {
       const excelData = products.map((item) => ({
         "Loại sản phẩm": "Có thể lưu trữ",
-        "Mã sản phẩm": item.product_code || undefined,
+        "Mã sản phẩm": String(item.product_code || ""),
         "Mã chốt đơn": undefined,
-        "Tên sản phẩm": item.product_name || undefined,
+        "Tên sản phẩm": String(item.product_name || ""),
         "Giá bán": item.selling_price || 0,
         "Giá mua": item.unit_price || 0,
         "Đơn vị": "CÁI",
         "Nhóm sản phẩm": "QUẦN ÁO",
-        "Mã vạch": item.product_code || undefined,
+        "Mã vạch": String(item.product_code || ""),
         "Khối lượng": undefined,
         "Chiết khấu bán": undefined,
         "Chiết khấu mua": undefined,
