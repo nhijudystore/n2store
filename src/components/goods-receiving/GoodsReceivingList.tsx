@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,106 +12,40 @@ import { CreateReceivingDialog } from "./CreateReceivingDialog";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
 
-export function GoodsReceivingList() {
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("needInspection");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [quickFilter, setQuickFilter] = useState<string>("all");
+interface GoodsReceivingListProps {
+  filteredOrders: any[];
+  isLoading: boolean;
+  statusFilter: StatusFilter;
+  setStatusFilter: (value: StatusFilter) => void;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
+  startDate: string;
+  setStartDate: (value: string) => void;
+  endDate: string;
+  setEndDate: (value: string) => void;
+  quickFilter: string;
+  applyQuickFilter: (filter: string) => void;
+  refetch: () => void;
+}
+
+export function GoodsReceivingList({ 
+  filteredOrders, 
+  isLoading, 
+  statusFilter, 
+  setStatusFilter,
+  searchQuery,
+  setSearchQuery,
+  startDate,
+  setStartDate,
+  endDate,
+  setEndDate,
+  quickFilter,
+  applyQuickFilter,
+  refetch
+}: GoodsReceivingListProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data: orders, isLoading, refetch } = useQuery({
-    queryKey: ['goods-receiving-orders', statusFilter, startDate, endDate],
-    queryFn: async () => {
-      let query = supabase
-        .from('purchase_orders')
-        .select(`
-          *,
-          items:purchase_order_items(*)
-        `)
-        .order('order_date', { ascending: false });
-
-      // Apply date filters
-      if (startDate) {
-        query = query.gte('order_date', startDate);
-      }
-      if (endDate) {
-        query = query.lte('order_date', endDate);
-      }
-
-      const { data: purchaseOrders } = await query;
-
-      // Get receiving records for each order
-      const ordersWithStatus = await Promise.all(
-        (purchaseOrders || []).map(async (order) => {
-          const { data: receiving } = await supabase
-            .from('goods_receiving')
-            .select('*')
-            .eq('purchase_order_id', order.id)
-            .maybeSingle();
-          
-          return { 
-            ...order, 
-            receiving,
-            hasReceiving: !!receiving 
-          };
-        })
-      );
-
-      // Apply status filter
-      if (statusFilter === "needInspection") {
-        return ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
-      } else if (statusFilter === "inspected") {
-        return ordersWithStatus.filter(o => o.hasReceiving);
-      }
-      
-      return ordersWithStatus;
-    }
-  });
-
-  // Apply quick filters
-  const applyQuickFilter = (filter: string) => {
-    setQuickFilter(filter);
-    const today = new Date();
-    
-    switch (filter) {
-      case "today":
-        setStartDate(format(today, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
-        break;
-      case "week":
-        const weekAgo = new Date(today);
-        weekAgo.setDate(today.getDate() - 7);
-        setStartDate(format(weekAgo, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
-        break;
-      case "month":
-        const monthAgo = new Date(today);
-        monthAgo.setMonth(today.getMonth() - 1);
-        setStartDate(format(monthAgo, 'yyyy-MM-dd'));
-        setEndDate(format(today, 'yyyy-MM-dd'));
-        break;
-      default:
-        setStartDate("");
-        setEndDate("");
-    }
-  };
-
-  // Filter by search query
-  const filteredOrders = orders?.filter(order => {
-    if (!searchQuery) return true;
-    
-    const query = searchQuery.toLowerCase();
-    const matchSupplier = order.supplier_name?.toLowerCase().includes(query);
-    const matchProduct = order.items?.some((item: any) => 
-      item.product_name?.toLowerCase().includes(query) ||
-      item.product_code?.toLowerCase().includes(query)
-    );
-    const matchDate = format(new Date(order.order_date), 'dd/MM/yyyy').includes(query);
-    
-    return matchSupplier || matchProduct || matchDate;
-  });
 
   const handleInspectClick = (order: any) => {
     setSelectedOrder(order);

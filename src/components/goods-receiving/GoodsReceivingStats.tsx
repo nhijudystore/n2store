@@ -1,89 +1,72 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, CheckCircle, AlertTriangle, Boxes } from "lucide-react";
-import { startOfDay, endOfDay } from "date-fns";
+import { Package, CheckCircle, AlertTriangle, Boxes, DollarSign } from "lucide-react";
+import { format } from "date-fns";
 
-export function GoodsReceivingStats() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['goods-receiving-stats'],
-    queryFn: async () => {
-      // Get confirmed purchase orders
-      const { data: confirmedOrders } = await supabase
-        .from('purchase_orders')
-        .select('id, purchase_order_items(quantity)')
-        .eq('status', 'confirmed');
+interface GoodsReceivingStatsProps {
+  filteredOrders: any[];
+  isLoading: boolean;
+}
 
-      // Get orders with receiving records
-      const ordersWithReceiving = await Promise.all(
-        (confirmedOrders || []).map(async (order) => {
-          const { data: receiving } = await supabase
-            .from('goods_receiving')
-            .select('id')
-            .eq('purchase_order_id', order.id)
-            .maybeSingle();
-          
-          return { ...order, hasReceiving: !!receiving };
-        })
-      );
+export function GoodsReceivingStats({ filteredOrders, isLoading }: GoodsReceivingStatsProps) {
+  // Calculate stats from filtered orders
+  const stats = {
+    totalOrders: filteredOrders.length,
+    totalValue: filteredOrders.reduce((sum, order) => 
+      sum + (order.final_amount || order.total_amount || 0), 0
+    ),
+    inspectedToday: filteredOrders.filter(order => {
+      if (!order.receiving?.receiving_date) return false;
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const receivingDate = format(new Date(order.receiving.receiving_date), 'yyyy-MM-dd');
+      return receivingDate === today;
+    }).length,
+    withDiscrepancy: filteredOrders.filter(order => 
+      order.receiving?.has_discrepancy === true
+    ).length,
+    totalProducts: filteredOrders.reduce((sum, order) => 
+      sum + (order.items?.reduce((s: number, i: any) => s + (i.quantity || 0), 0) || 0), 0
+    )
+  };
 
-      // Total orders needing inspection
-      const needInspection = ordersWithReceiving.filter(o => !o.hasReceiving);
-      const totalNeedInspection = needInspection.length;
-
-      // Inspected today
-      const today = new Date();
-      const { data: inspectedToday } = await supabase
-        .from('goods_receiving')
-        .select('id')
-        .gte('receiving_date', startOfDay(today).toISOString())
-        .lte('receiving_date', endOfDay(today).toISOString());
-
-      // Orders with discrepancy
-      const { data: withDiscrepancy } = await supabase
-        .from('goods_receiving')
-        .select('id')
-        .eq('has_discrepancy', true);
-
-      // Total products needing inspection
-      const totalProducts = needInspection.reduce((sum, order) => 
-        sum + (order.purchase_order_items?.reduce((s: number, i: any) => s + (i.quantity || 0), 0) || 0), 0
-      );
-
-      return {
-        totalNeedInspection,
-        inspectedToday: inspectedToday?.length || 0,
-        withDiscrepancy: withDiscrepancy?.length || 0,
-        totalProducts
-      };
-    }
-  });
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("vi-VN", {
+      style: "currency",
+      currency: "VND"
+    }).format(amount);
+  };
 
   const statsCards = [
     {
-      title: "Tổng đơn cần kiểm",
-      value: stats?.totalNeedInspection || 0,
+      title: "Tổng đơn hàng",
+      value: stats.totalOrders,
       icon: Package,
       color: "text-blue-600",
       bgColor: "bg-blue-50"
     },
     {
+      title: "Tổng giá trị",
+      value: formatCurrency(stats.totalValue),
+      icon: DollarSign,
+      color: "text-emerald-600",
+      bgColor: "bg-emerald-50"
+    },
+    {
       title: "Đã kiểm hôm nay",
-      value: stats?.inspectedToday || 0,
+      value: stats.inspectedToday,
       icon: CheckCircle,
       color: "text-green-600",
       bgColor: "bg-green-50"
     },
     {
       title: "Có chênh lệch",
-      value: stats?.withDiscrepancy || 0,
+      value: stats.withDiscrepancy,
       icon: AlertTriangle,
       color: "text-amber-600",
       bgColor: "bg-amber-50"
     },
     {
-      title: "Tổng SP cần kiểm",
-      value: stats?.totalProducts || 0,
+      title: "Tổng sản phẩm",
+      value: stats.totalProducts,
       icon: Boxes,
       color: "text-purple-600",
       bgColor: "bg-purple-50"
@@ -92,8 +75,8 @@ export function GoodsReceivingStats() {
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {[1, 2, 3, 4].map(i => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        {[1, 2, 3, 4, 5].map(i => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <div className="h-4 w-24 bg-muted animate-pulse rounded" />
@@ -108,7 +91,7 @@ export function GoodsReceivingStats() {
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       {statsCards.map((stat, index) => (
         <Card key={index}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
