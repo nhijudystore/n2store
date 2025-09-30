@@ -63,7 +63,7 @@ export function GoodsReceivingList() {
 
       // Apply status filter
       if (statusFilter === "needInspection") {
-        return ordersWithStatus.filter(o => o.status === 'confirmed' && !o.hasReceiving);
+        return ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
       } else if (statusFilter === "inspected") {
         return ordersWithStatus.filter(o => o.hasReceiving);
       }
@@ -226,7 +226,7 @@ export function GoodsReceivingList() {
                             <CheckCircle className="w-3 h-3 mr-1" />
                             Đã kiểm
                           </Badge>
-                        ) : order.status === 'confirmed' ? (
+                        ) : (order.status === 'confirmed' || order.status === 'pending') ? (
                           <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
                             <Package className="w-3 h-3 mr-1" />
                             Cần kiểm
@@ -236,7 +236,7 @@ export function GoodsReceivingList() {
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {!order.hasReceiving && order.status === 'confirmed' && (
+                        {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
                           <Button 
                             size="sm" 
                             onClick={() => handleInspectClick(order)}
