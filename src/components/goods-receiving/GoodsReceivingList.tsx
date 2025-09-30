@@ -129,7 +129,6 @@ export function GoodsReceivingList({
                 <TableRow>
                   <TableHead>Ngày đặt</TableHead>
                   <TableHead>Nhà cung cấp</TableHead>
-                  <TableHead>Số hóa đơn</TableHead>
                   <TableHead>Tổng SP</TableHead>
                   <TableHead>Tổng SL</TableHead>
                   <TableHead>Tổng tiền</TableHead>
@@ -148,7 +147,6 @@ export function GoodsReceivingList({
                         {format(new Date(order.order_date), 'dd/MM/yyyy', { locale: vi })}
                       </TableCell>
                       <TableCell className="font-medium">{order.supplier_name}</TableCell>
-                      <TableCell>{order.invoice_number || '-'}</TableCell>
                       <TableCell>{totalItems}</TableCell>
                       <TableCell>{totalQuantity}</TableCell>
                       <TableCell>{order.final_amount?.toLocaleString('vi-VN')}đ</TableCell>
