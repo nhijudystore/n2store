@@ -34,7 +34,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const [formData, setFormData] = useState({
     supplier_name: "",
     order_date: new Date().toISOString().split("T")[0],
-    notes: ""
+    notes: "",
+    invoice_images: [] as string[],
+    invoice_amount: 0
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
@@ -50,13 +52,16 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
 
+      const finalAmount = formData.invoice_amount > 0 ? formData.invoice_amount : totalAmount;
+
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
         .insert({
           supplier_name: formData.supplier_name.trim(),
           order_date: formData.order_date,
           total_amount: totalAmount,
-          final_amount: totalAmount,
+          final_amount: finalAmount,
+          invoice_images: formData.invoice_images.length > 0 ? formData.invoice_images : null,
           notes: formData.notes
         })
         .select()
@@ -101,7 +106,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     setFormData({
       supplier_name: "",
       order_date: new Date().toISOString().split("T")[0],
-      notes: ""
+      notes: "",
+      invoice_images: [],
+      invoice_amount: 0
     });
     setItems([
       { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }
@@ -152,7 +159,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplier">Nhà cung cấp *</Label>
               <Input
@@ -170,6 +177,27 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 type="date"
                 value={formData.order_date}
                 onChange={(e) => setFormData({...formData, order_date: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="invoice_images">Ảnh hóa đơn</Label>
+              <ImageUploadCell
+                images={formData.invoice_images}
+                onImagesChange={(images) => setFormData({...formData, invoice_images: images})}
+                itemIndex={-1}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="invoice_amount">Số tiền hóa đơn</Label>
+              <Input
+                id="invoice_amount"
+                type="number"
+                min="0"
+                placeholder="0"
+                value={formData.invoice_amount || ""}
+                onChange={(e) => setFormData({...formData, invoice_amount: Number(e.target.value)})}
               />
             </div>
           </div>
