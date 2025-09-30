@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 
 interface PurchaseOrderItem {
   product_name: string;
+  product_code: string | null;
+  variant: string | null;
   quantity: number;
   unit_price: number;
   product_images: string[] | null;
@@ -101,7 +103,7 @@ export function PurchaseOrderList() {
         (ordersData || []).map(async (order: any) => {
           const { data: items } = await supabase
             .from("purchase_order_items")
-            .select("product_name, quantity, unit_price, product_images")
+            .select("product_name, product_code, variant, quantity, unit_price, product_images")
             .eq("purchase_order_id", order.id);
 
           return {
@@ -231,6 +233,8 @@ export function PurchaseOrderList() {
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead className="w-20">Hình ảnh</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
+              <TableHead>Mã sản phẩm</TableHead>
+              <TableHead>Biến thể</TableHead>
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá</TableHead>
               <TableHead>Tổng tiền</TableHead>
@@ -241,7 +245,7 @@ export function PurchaseOrderList() {
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -326,6 +330,22 @@ export function PurchaseOrderList() {
                       <div className="text-sm">{flatItem.item.product_name}</div>
                     ) : (
                       <span className="text-muted-foreground text-sm">Chưa có sản phẩm</span>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {flatItem.item ? (
+                      <div className="text-sm">{flatItem.item.product_code || "-"}</div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {flatItem.item ? (
+                      <div className="text-sm">{flatItem.item.variant || "-"}</div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
                     )}
                   </TableCell>
                   
