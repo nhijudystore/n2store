@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 
@@ -121,9 +121,22 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     setItems([...items, { product_name: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }]);
   };
 
+  const copyItem = (index: number) => {
+    const itemToCopy = { ...items[index] };
+    // Deep copy the product_images array
+    itemToCopy.product_images = [...itemToCopy.product_images];
+    
+    const newItems = [...items];
+    newItems.splice(index + 1, 0, itemToCopy);
+    setItems(newItems);
+  };
+
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
+    } else {
+      // Reset the last item to empty state instead of removing
+      setItems([{ product_name: "", description: "", quantity: 1, unit_price: 0, total_price: 0, product_images: [] }]);
     }
   };
 
@@ -224,16 +237,26 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         />
                       </TableCell>
                       <TableCell className="text-center">
-                        {items.length > 1 && (
+                        <div className="flex items-center justify-center gap-1">
+                          <Button 
+                            onClick={() => copyItem(index)} 
+                            size="sm" 
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:bg-accent"
+                            title="Sao chép dòng"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
                           <Button 
                             onClick={() => removeItem(index)} 
                             size="sm" 
                             variant="ghost"
                             className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                            title="Xóa dòng"
                           >
                             <X className="w-4 h-4" />
                           </Button>
-                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
