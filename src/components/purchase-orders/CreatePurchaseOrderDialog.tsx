@@ -208,13 +208,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
-              <Button onClick={addItem} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Thêm sản phẩm
-              </Button>
-            </div>
+            <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
 
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -222,8 +216,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                   <TableRow>
                     <TableHead className="w-16">STT</TableHead>
                     <TableHead>Tên sản phẩm</TableHead>
-                    <TableHead>Biến thể</TableHead>
                     <TableHead>Mã sản phẩm</TableHead>
+                    <TableHead>Biến thể</TableHead>
                     <TableHead className="w-32">Số lượng</TableHead>
                     <TableHead className="w-40">Giá mua (VNĐ)</TableHead>
                     <TableHead className="w-40">Giá bán (VNĐ)</TableHead>
@@ -249,17 +243,17 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                       </TableCell>
                       <TableCell>
                         <Input
-                          placeholder="Nhập biến thể"
-                          value={item.variant}
-                          onChange={(e) => updateItem(index, "variant", e.target.value)}
+                          placeholder="Nhập mã sản phẩm"
+                          value={item.product_code}
+                          onChange={(e) => updateItem(index, "product_code", e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          placeholder="Nhập mã sản phẩm"
-                          value={item.product_code}
-                          onChange={(e) => updateItem(index, "product_code", e.target.value)}
+                          placeholder="Nhập biến thể"
+                          value={item.variant}
+                          onChange={(e) => updateItem(index, "variant", e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2"
                         />
                       </TableCell>
@@ -333,6 +327,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                   ))}
                 </TableBody>
               </Table>
+            </div>
+
+            <div className="flex justify-center">
+              <Button onClick={addItem} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Thêm sản phẩm
+              </Button>
             </div>
           </div>
 
