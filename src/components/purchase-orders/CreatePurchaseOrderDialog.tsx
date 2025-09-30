@@ -36,7 +36,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   const [formData, setFormData] = useState({
     supplier_name: "",
-    order_date: new Date().toISOString().split("T")[0],
+    order_date: new Date().toISOString(),
     notes: "",
     invoice_images: [] as string[],
     invoice_amount: 0
@@ -117,7 +117,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const resetForm = () => {
     setFormData({
       supplier_name: "",
-      order_date: new Date().toISOString().split("T")[0],
+      order_date: new Date().toISOString(),
       notes: "",
       invoice_images: [],
       invoice_amount: 0
@@ -187,7 +187,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               <Label htmlFor="order_date">Ngày đặt hàng</Label>
               <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{format(new Date(), "dd/MM/yyyy")}</span>
+                <span>{format(new Date(), "dd/MM/yyyy HH:mm")}</span>
               </div>
             </div>
 

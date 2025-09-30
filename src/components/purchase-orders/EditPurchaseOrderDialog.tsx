@@ -52,7 +52,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const queryClient = useQueryClient();
 
   const [supplierName, setSupplierName] = useState("");
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().split('T')[0]);
+  const [orderDate, setOrderDate] = useState(new Date().toISOString());
   const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
@@ -126,7 +126,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
   const resetForm = () => {
     setSupplierName("");
-    setOrderDate(new Date().toISOString().split('T')[0]);
+    setOrderDate(new Date().toISOString());
     setInvoiceDate("");
     setInvoiceNumber("");
     setNotes("");
@@ -203,7 +203,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         .from("purchase_orders")
         .update({
           supplier_name: supplierName,
-          order_date: new Date().toISOString().split('T')[0],
+          order_date: new Date().toISOString(),
           invoice_date: invoiceDate || null,
           invoice_number: invoiceNumber || null,
           notes: notes || null,
@@ -318,7 +318,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <Label htmlFor="orderDate">Ngày đặt hàng</Label>
               <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{format(new Date(), "dd/MM/yyyy")}</span>
+                <span>{format(new Date(), "dd/MM/yyyy HH:mm")}</span>
               </div>
             </div>
 
