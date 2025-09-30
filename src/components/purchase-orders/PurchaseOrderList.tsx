@@ -16,6 +16,7 @@ import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useToast } from "@/hooks/use-toast";
+import { formatVND } from "@/lib/currency-utils";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -343,13 +344,13 @@ export function PurchaseOrderList({
             <TableRow>
               <TableHead>Ngày đặt</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
-              <TableHead>Hóa đơn (x1000đ)</TableHead>
+              <TableHead>Hóa đơn (VND)</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Mã sản phẩm</TableHead>
               <TableHead>Biến thể</TableHead>
               <TableHead>Số lượng</TableHead>
-              <TableHead>Giá mua (x1000đ)</TableHead>
-              <TableHead>Giá bán (x1000đ)</TableHead>
+              <TableHead>Giá mua (VND)</TableHead>
+              <TableHead>Giá bán (VND)</TableHead>
               <TableHead>Ghi chú</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Thao tác</TableHead>
@@ -387,9 +388,9 @@ export function PurchaseOrderList({
                         className={`overflow-visible border-r ${
                           (() => {
                             const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                              sum + ((item.unit_price / 1000 || 0) * (item.quantity || 0)), 
+                              sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                             0);
-                            const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount / 1000 || 0)) > 0.01;
+                            const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
                             return hasMismatch ? 'bg-red-100 border-2 border-red-300' : '';
                           })()
                         }`}
@@ -405,18 +406,18 @@ export function PurchaseOrderList({
                           )}
                           <div className="space-y-1">
                             <div className="text-sm font-semibold text-blue-600">
-                              {formatCurrency(flatItem.final_amount / 1000 || 0)}
+                              {formatVND(flatItem.final_amount || 0)}
                             </div>
                             {(() => {
                               const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                                sum + ((item.unit_price / 1000 || 0) * (item.quantity || 0)), 
+                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                               0);
-                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount / 1000 || 0)) > 0.01;
+                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
                               
                               if (hasMismatch) {
                                 return (
                                   <div className="text-xs font-semibold text-red-600">
-                                    Tổng tính: {formatCurrency(calculatedTotal)}
+                                    Tổng tính: {formatVND(calculatedTotal)}
                                   </div>
                                 );
                               }
@@ -465,7 +466,7 @@ export function PurchaseOrderList({
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
                       )}
-                      <span>{flatItem.item ? formatCurrency(flatItem.item.unit_price / 1000 || 0) : "-"}</span>
+                      <span>{flatItem.item ? formatVND(flatItem.item.unit_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="border-r text-right">
@@ -490,7 +491,7 @@ export function PurchaseOrderList({
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
                       )}
-                      <span>{flatItem.item ? formatCurrency(flatItem.item.selling_price / 1000 || 0) : "-"}</span>
+                      <span>{flatItem.item ? formatVND(flatItem.item.selling_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
                   

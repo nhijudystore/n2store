@@ -11,6 +11,7 @@ import { Plus, X, Copy, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { format } from "date-fns";
+import { formatVND } from "@/lib/currency-utils";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -192,12 +193,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoice_amount">Số tiền hóa đơn (x1000đ)</Label>
+              <Label htmlFor="invoice_amount">Số tiền hóa đơn (VND)</Label>
               <Input
                 id="invoice_amount"
                 type="number"
                 min="0"
-                placeholder="Nhập số tiền hóa đơn"
+                placeholder="Nhập số tiền VND"
                 value={formData.invoice_amount || ""}
                 onChange={(e) => setFormData({...formData, invoice_amount: Number(e.target.value)})}
               />
@@ -227,9 +228,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                     <TableHead>Mã sản phẩm</TableHead>
                     <TableHead>Biến thể</TableHead>
                     <TableHead className="w-32">Số lượng</TableHead>
-                    <TableHead className="w-40">Giá mua (x1000đ)</TableHead>
-                    <TableHead className="w-40">Giá bán (x1000đ)</TableHead>
-                    <TableHead className="w-40">Thành tiền (x1000đ)</TableHead>
+                    <TableHead className="w-40">Giá mua (VND)</TableHead>
+                    <TableHead className="w-40">Giá bán (VND)</TableHead>
+                    <TableHead className="w-40">Thành tiền (VND)</TableHead>
                     <TableHead className="w-32">Hình ảnh sản phẩm</TableHead>
                     <TableHead className="w-32">Hình ảnh Giá mua</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
@@ -293,7 +294,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {new Intl.NumberFormat("vi-VN").format(item.total_price)}
+                        {formatVND(item.total_price * 1000)}
                       </TableCell>
                       <TableCell>
                         <ImageUploadCell
@@ -358,7 +359,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           <div className="border-t pt-4">
             <div className="flex justify-between items-center text-lg font-semibold">
               <span>Tổng cộng:</span>
-              <span>{new Intl.NumberFormat("vi-VN").format(totalAmount)} (x1000đ)</span>
+              <span>{formatVND(totalAmount * 1000)}</span>
             </div>
           </div>
 

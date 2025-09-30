@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, DollarSign, TrendingUp, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { formatVND } from "@/lib/currency-utils";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -49,9 +50,6 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
   const todayOrdersCount = todayOrders.length;
   const todayTotalAmount = todayOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN").format(amount);
-  };
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -67,12 +65,12 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị (x1000đ)</CardTitle>
+          <CardTitle className="text-sm font-medium">Tổng giá trị (VND)</CardTitle>
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isLoading ? "..." : formatCurrency(totalAmount / 1000)}
+            {isLoading ? "..." : formatVND(totalAmount)}
           </div>
         </CardContent>
       </Card>
@@ -89,12 +87,12 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay (x1000đ)</CardTitle>
+          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay (VND)</CardTitle>
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {isLoading ? "..." : formatCurrency(todayTotalAmount / 1000)}
+            {isLoading ? "..." : formatVND(todayTotalAmount)}
           </div>
         </CardContent>
       </Card>

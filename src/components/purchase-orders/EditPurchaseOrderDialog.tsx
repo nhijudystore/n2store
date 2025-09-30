@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { Plus, Copy, Trash2, Calendar } from "lucide-react";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { format } from "date-fns";
+import { formatVND } from "@/lib/currency-utils";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -343,7 +344,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discountAmount">Số tiền giảm giá (x1000đ)</Label>
+              <Label htmlFor="discountAmount">Số tiền giảm giá (VND)</Label>
               <Input
                 id="discountAmount"
                 type="number"
@@ -392,9 +393,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                     <th className="p-2 text-left min-w-[100px]">Phân loại</th>
                     <th className="p-2 text-left min-w-[150px]">Mô tả</th>
                     <th className="p-2 text-left min-w-[80px]">SL</th>
-                    <th className="p-2 text-left min-w-[100px]">Đơn giá (x1000đ)</th>
-                    <th className="p-2 text-left min-w-[100px]">Giá bán (x1000đ)</th>
-                    <th className="p-2 text-left min-w-[100px]">Thành tiền (x1000đ)</th>
+                    <th className="p-2 text-left min-w-[100px]">Đơn giá (VND)</th>
+                    <th className="p-2 text-left min-w-[100px]">Giá bán (VND)</th>
+                    <th className="p-2 text-left min-w-[100px]">Thành tiền (VND)</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh SP</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh giá</th>
                     <th className="p-2 text-left min-w-[150px]">Ghi chú</th>
@@ -515,15 +516,15 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             <div className="space-y-1">
               <div className="flex gap-4">
                 <span className="font-medium">Tổng tiền:</span>
-                <span>{totalAmount.toLocaleString('vi-VN')} (x1000đ)</span>
+                <span>{formatVND(totalAmount * 1000)}</span>
               </div>
               <div className="flex gap-4">
                 <span className="font-medium">Giảm giá:</span>
-                <span>{discountAmount.toLocaleString('vi-VN')} (x1000đ)</span>
+                <span>{formatVND(discountAmount * 1000)}</span>
               </div>
               <div className="flex gap-4 text-lg font-bold">
                 <span>Thành tiền:</span>
-                <span>{finalAmount.toLocaleString('vi-VN')} (x1000đ)</span>
+                <span>{formatVND(finalAmount * 1000)}</span>
               </div>
             </div>
           </div>
