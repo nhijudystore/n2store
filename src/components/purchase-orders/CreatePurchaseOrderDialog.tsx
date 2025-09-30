@@ -35,7 +35,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   const [formData, setFormData] = useState({
     supplier_name: "",
-    order_date: new Date().toISOString().split("T")[0],
+    order_date: new Date().toISOString().slice(0, 16),
     notes: "",
     invoice_images: [] as string[],
     invoice_amount: 0
@@ -107,7 +107,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const resetForm = () => {
     setFormData({
       supplier_name: "",
-      order_date: new Date().toISOString().split("T")[0],
+      order_date: new Date().toISOString().slice(0, 16),
       notes: "",
       invoice_images: [],
       invoice_amount: 0
@@ -164,22 +164,22 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         <div className="space-y-6">
           <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
+              <Label htmlFor="order_date">Ngày đặt hàng</Label>
+              <Input
+                id="order_date"
+                type="datetime-local"
+                value={formData.order_date}
+                onChange={(e) => setFormData({...formData, order_date: e.target.value})}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="supplier">Nhà cung cấp *</Label>
               <Input
                 id="supplier"
                 placeholder="Nhập tên nhà cung cấp"
                 value={formData.supplier_name}
                 onChange={(e) => setFormData({...formData, supplier_name: e.target.value})}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="order_date">Ngày đặt hàng</Label>
-              <Input
-                id="order_date"
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => setFormData({...formData, order_date: e.target.value})}
               />
             </div>
 
