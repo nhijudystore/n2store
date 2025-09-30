@@ -5,9 +5,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
+import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -23,18 +26,43 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <TooltipProvider>
-        <Layout>
+        <AuthProvider>
           <Routes>
-            <Route path="/" element={<PurchaseOrders />} />
-            <Route path="/purchase-orders" element={<PurchaseOrders />} />
-            <Route path="/live-products" element={<LiveProducts />} />
-            <Route path="/livestream-reports" element={<LivestreamReports />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/purchase-orders" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/live-products" element={
+              <ProtectedRoute>
+                <Layout>
+                  <LiveProducts />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/livestream-reports" element={
+              <ProtectedRoute>
+                <Layout>
+                  <LivestreamReports />
+                </Layout>
+              </ProtectedRoute>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </Layout>
-        <Toaster />
-        <Sonner />
+          <Toaster />
+          <Sonner />
+        </AuthProvider>
       </TooltipProvider>
     </BrowserRouter>
   </QueryClientProvider>
