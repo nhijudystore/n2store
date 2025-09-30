@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, Users, FileText } from "lucide-react";
+import { Plus, Package, FileText } from "lucide-react";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
-import { SupplierManagement } from "@/components/purchase-orders/SupplierManagement";
+
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 
 const PurchaseOrders = () => {
@@ -32,14 +32,10 @@ const PurchaseOrders = () => {
       <PurchaseOrderStats />
 
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="orders" className="gap-2">
             <FileText className="w-4 h-4" />
             Đơn đặt hàng
-          </TabsTrigger>
-          <TabsTrigger value="suppliers" className="gap-2">
-            <Users className="w-4 h-4" />
-            Nhà cung cấp
           </TabsTrigger>
           <TabsTrigger value="products" className="gap-2">
             <Package className="w-4 h-4" />
@@ -61,19 +57,6 @@ const PurchaseOrders = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="suppliers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quản lý nhà cung cấp</CardTitle>
-              <CardDescription>
-                Thêm, sửa và quản lý thông tin nhà cung cấp
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SupplierManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="products" className="space-y-4">
           <Card>
