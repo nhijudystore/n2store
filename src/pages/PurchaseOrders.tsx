@@ -179,14 +179,14 @@ const PurchaseOrders = () => {
     // Mapping according to the Excel template format (17 columns)
     const excelData = products.map(item => ({
       "Loại sản phẩm": "Có thể lưu trữ",
-      "Mã sản phẩm": item.product_code || "",
+      "Mã sản phẩm": String(item.product_code || ""),
       "Mã chốt đơn": "",
-      "Tên sản phẩm": item.product_name || "",
+      "Tên sản phẩm": String(item.product_name || ""),
       "Giá bán": item.selling_price || 0,
       "Giá mua": item.unit_price || 0,
       "Đơn vị": "CÁI",
       "Nhóm sản phẩm": "QUẦN ÁO",
-      "Mã vạch": item.product_code || "",
+      "Mã vạch": String(item.product_code || ""),
       "Khối lượng": "",
       "Chiết khấu bán": "",
       "Chiết khấu mua": "",
