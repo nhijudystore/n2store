@@ -85,7 +85,33 @@ export function PurchaseOrderList({
 
   const deletePurchaseOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
-      // First delete all purchase order items
+      // Step 1: Get all purchase_order_item IDs
+      const { data: itemIds } = await supabase
+        .from("purchase_order_items")
+        .select("id")
+        .eq("purchase_order_id", orderId);
+
+      if (itemIds && itemIds.length > 0) {
+        const itemIdList = itemIds.map(item => item.id);
+        
+        // Step 2: Delete goods_receiving_items first
+        const { error: receivingItemsError } = await supabase
+          .from("goods_receiving_items")
+          .delete()
+          .in("purchase_order_item_id", itemIdList);
+
+        if (receivingItemsError) throw receivingItemsError;
+      }
+
+      // Step 3: Delete goods_receiving records
+      const { error: receivingError } = await supabase
+        .from("goods_receiving")
+        .delete()
+        .eq("purchase_order_id", orderId);
+
+      if (receivingError) throw receivingError;
+
+      // Step 4: Delete purchase_order_items
       const { error: itemsError } = await supabase
         .from("purchase_order_items")
         .delete()
@@ -93,7 +119,7 @@ export function PurchaseOrderList({
 
       if (itemsError) throw itemsError;
 
-      // Then delete the purchase order
+      // Step 5: Delete purchase_order
       const { error: orderError } = await supabase
         .from("purchase_orders")
         .delete()
