@@ -20,6 +20,7 @@ interface PurchaseOrderItem {
   variant: string | null;
   quantity: number;
   unit_price: number;
+  selling_price: number;
   product_images: string[] | null;
 }
 
@@ -103,7 +104,7 @@ export function PurchaseOrderList() {
         (ordersData || []).map(async (order: any) => {
           const { data: items } = await supabase
             .from("purchase_order_items")
-            .select("product_name, product_code, variant, quantity, unit_price, product_images")
+            .select("product_name, product_code, variant, quantity, unit_price, selling_price, product_images")
             .eq("purchase_order_id", order.id);
 
           return {
@@ -236,7 +237,8 @@ export function PurchaseOrderList() {
               <TableHead>Mã sản phẩm</TableHead>
               <TableHead>Biến thể</TableHead>
               <TableHead>Số lượng</TableHead>
-              <TableHead>Giá</TableHead>
+              <TableHead>Giá mua</TableHead>
+              <TableHead>Giá bán</TableHead>
               <TableHead>Tổng tiền</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>Thao tác</TableHead>
@@ -245,7 +247,7 @@ export function PurchaseOrderList() {
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -360,6 +362,14 @@ export function PurchaseOrderList() {
                   <TableCell>
                     {flatItem.item ? (
                       <div className="text-sm">{formatCurrency(flatItem.item.unit_price || 0)}</div>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  
+                  <TableCell>
+                    {flatItem.item ? (
+                      <div className="text-sm">{formatCurrency(flatItem.item.selling_price || 0)}</div>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
