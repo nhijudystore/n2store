@@ -275,7 +275,15 @@ export function PurchaseOrderList() {
                         {flatItem.supplier_name || "Chưa cập nhật"}
                       </TableCell>
                       <TableCell 
-                        className="overflow-visible border-r" 
+                        className={`overflow-visible border-r ${
+                          (() => {
+                            const calculatedTotal = flatItem.items.reduce((sum, item) => 
+                              sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                            0);
+                            const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                            return hasMismatch ? 'bg-red-50' : '';
+                          })()
+                        }`}
                         rowSpan={flatItem.itemCount}
                       >
                         <div className="space-y-2 relative">
@@ -283,12 +291,39 @@ export function PurchaseOrderList() {
                             <img 
                               src={flatItem.invoice_images[0]}
                               alt="Hóa đơn"
-                              className="w-20 h-20 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
+                              className={`w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg ${
+                                (() => {
+                                  const calculatedTotal = flatItem.items.reduce((sum, item) => 
+                                    sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                                  0);
+                                  const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                                  return hasMismatch ? 'border-red-500 border-2' : 'border';
+                                })()
+                              }`}
                               onClick={() => window.open(flatItem.invoice_images![0], '_blank')}
                             />
                           )}
-                          <div className="text-sm font-medium">
+                          <div className={`text-sm font-medium ${
+                            (() => {
+                              const calculatedTotal = flatItem.items.reduce((sum, item) => 
+                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                              0);
+                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                              return hasMismatch ? 'text-red-600' : '';
+                            })()
+                          }`}>
                             {formatCurrency(flatItem.final_amount || 0)}
+                            {(() => {
+                              const calculatedTotal = flatItem.items.reduce((sum, item) => 
+                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                              0);
+                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                              return hasMismatch ? (
+                                <span className="block text-xs text-red-500 mt-1">
+                                  ⚠ Sai lệch: {formatCurrency(Math.abs(calculatedTotal - (flatItem.final_amount || 0)))}
+                                </span>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       </TableCell>
