@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,12 +46,35 @@ interface PurchaseOrder {
   items?: PurchaseOrderItem[];
 }
 
-export function PurchaseOrderList() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [quickFilter, setQuickFilter] = useState<string>("all");
+interface PurchaseOrderListProps {
+  filteredOrders: PurchaseOrder[];
+  isLoading: boolean;
+  searchTerm: string;
+  setSearchTerm: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  dateFrom: Date | undefined;
+  setDateFrom: (date: Date | undefined) => void;
+  dateTo: Date | undefined;
+  setDateTo: (date: Date | undefined) => void;
+  quickFilter: string;
+  applyQuickFilter: (type: string) => void;
+}
+
+export function PurchaseOrderList({
+  filteredOrders,
+  isLoading,
+  searchTerm,
+  setSearchTerm,
+  statusFilter,
+  setStatusFilter,
+  dateFrom,
+  setDateFrom,
+  dateTo,
+  setDateTo,
+  quickFilter,
+  applyQuickFilter
+}: PurchaseOrderListProps) {
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -59,52 +82,6 @@ export function PurchaseOrderList() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const applyQuickFilter = (filterType: string) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    switch(filterType) {
-      case "today":
-        setDateFrom(today);
-        setDateTo(new Date());
-        break;
-      case "yesterday":
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        setDateFrom(yesterday);
-        setDateTo(yesterday);
-        break;
-      case "7days":
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        setDateFrom(sevenDaysAgo);
-        setDateTo(new Date());
-        break;
-      case "30days":
-        const thirtyDaysAgo = new Date(today);
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        setDateFrom(thirtyDaysAgo);
-        setDateTo(new Date());
-        break;
-      case "thisMonth":
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        setDateFrom(firstDayOfMonth);
-        setDateTo(new Date());
-        break;
-      case "lastMonth":
-        const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
-        setDateFrom(firstDayOfLastMonth);
-        setDateTo(lastDayOfLastMonth);
-        break;
-      case "all":
-        setDateFrom(undefined);
-        setDateTo(undefined);
-        break;
-    }
-    setQuickFilter(filterType);
-  };
 
   const deletePurchaseOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -141,72 +118,6 @@ export function PurchaseOrderList() {
       });
       console.error("Error deleting purchase order:", error);
     }
-  });
-
-  const { data: orders, isLoading } = useQuery({
-    queryKey: ["purchase-orders"],
-    queryFn: async () => {
-      // Get all purchase orders first
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("purchase_orders")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (ordersError) throw ordersError;
-
-      // Get items for each order
-      const ordersWithItems = await Promise.all(
-        (ordersData || []).map(async (order: any) => {
-          const { data: items } = await supabase
-            .from("purchase_order_items")
-            .select("product_name, product_code, variant, quantity, unit_price, selling_price, product_images, price_images")
-            .eq("purchase_order_id", order.id);
-
-          return {
-            ...order,
-            items: items || []
-          };
-        })
-      );
-
-      return ordersWithItems as PurchaseOrder[];
-    }
-  });
-
-  const filteredOrders = orders?.filter(order => {
-    // Date range filter
-    if (dateFrom || dateTo) {
-      const orderDate = new Date(order.order_date);
-      orderDate.setHours(0, 0, 0, 0);
-      
-      if (dateFrom) {
-        const fromDate = new Date(dateFrom);
-        fromDate.setHours(0, 0, 0, 0);
-        if (orderDate < fromDate) return false;
-      }
-      
-      if (dateTo) {
-        const toDate = new Date(dateTo);
-        toDate.setHours(23, 59, 59, 999);
-        if (orderDate > toDate) return false;
-      }
-    }
-    
-    // Enhanced search - bao gồm search theo định dạng ngày dd/mm
-    const matchesSearch = searchTerm === "" || 
-      order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      format(new Date(order.order_date), "dd/MM").includes(searchTerm) ||
-      format(new Date(order.order_date), "dd/MM/yyyy").includes(searchTerm) ||
-      order.items?.some(item => 
-        item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    
-    // Status filter
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
   });
 
   // Flatten items for rowSpan structure
@@ -366,7 +277,7 @@ export function PurchaseOrderList() {
               onClick={() => {
                 setDateFrom(undefined);
                 setDateTo(undefined);
-                setQuickFilter("all");
+                applyQuickFilter("all");
               }}
               className="text-muted-foreground"
             >
@@ -466,148 +377,98 @@ export function PurchaseOrderList() {
                             <img 
                               src={flatItem.invoice_images[0]}
                               alt="Hóa đơn"
-                              className={`w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg ${
-                                (() => {
-                                  const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                                    sum + ((item.unit_price || 0) * (item.quantity || 0)), 
-                                  0);
-                                  const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
-                                  return hasMismatch ? 'border-red-500 border-2' : 'border';
-                                })()
-                              }`}
-                              onClick={() => window.open(flatItem.invoice_images![0], '_blank')}
+                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
                             />
                           )}
-                          <div className={`text-sm font-medium ${
-                            (() => {
-                              const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
-                              0);
-                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
-                              return hasMismatch ? 'text-red-600' : '';
-                            })()
-                          }`}>
-                            {formatCurrency(flatItem.final_amount || 0)}
-                            {(() => {
-                              const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
-                              0);
-                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
-                              return hasMismatch ? (
-                                <span className="block text-xs text-red-500 mt-1">
-                                  ⚠ Sai lệch: {formatCurrency(Math.abs(calculatedTotal - (flatItem.final_amount || 0)))}
-                                </span>
-                              ) : null;
-                            })()}
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium">
+                              {flatItem.invoice_number || "Chưa có"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {flatItem.invoice_date 
+                                ? format(new Date(flatItem.invoice_date), "dd/MM/yyyy")
+                                : "Chưa có ngày"
+                              }
+                            </div>
+                            <div className="text-xs font-medium text-green-600">
+                              {formatCurrency(flatItem.final_amount || 0)}
+                            </div>
+                            {flatItem.discount_amount && flatItem.discount_amount > 0 && (
+                              <div className="text-xs text-orange-600">
+                                Giảm: {formatCurrency(flatItem.discount_amount)}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </TableCell>
                     </>
                   )}
                   
-                  {/* Product-level columns - show for each item */}
-                  <TableCell className="max-w-xs">
-                    {flatItem.item ? (
-                      <div className="text-sm">{flatItem.item.product_name}</div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">Chưa có sản phẩm</span>
-                    )}
+                  {/* Item-level columns */}
+                  <TableCell className="border-r">
+                    <div className="font-medium">
+                      {flatItem.item?.product_name || "Không có sản phẩm"}
+                    </div>
+                  </TableCell>
+                  <TableCell className="border-r">
+                    {flatItem.item?.product_code || "-"}
+                  </TableCell>
+                  <TableCell className="border-r">
+                    {flatItem.item?.variant || "-"}
+                  </TableCell>
+                  <TableCell className="border-r text-center">
+                    {flatItem.item?.quantity || 0}
+                  </TableCell>
+                  <TableCell className="border-r text-right">
+                    {flatItem.item ? formatCurrency(flatItem.item.unit_price || 0) : "-"}
+                  </TableCell>
+                  <TableCell className="border-r text-right">
+                    {flatItem.item ? formatCurrency(flatItem.item.selling_price || 0) : "-"}
                   </TableCell>
                   
-                  <TableCell>
-                    {flatItem.item ? (
-                      <div className="text-sm">{flatItem.item.product_code || "-"}</div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell>
-                    {flatItem.item ? (
-                      <div className="text-sm">{flatItem.item.variant || "-"}</div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell>
-                    {flatItem.item ? (
-                      <div className="text-sm">{flatItem.item.quantity}</div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell className="overflow-visible">
-                    {flatItem.item ? (
-                      <div className="space-y-2 relative">
-                        {flatItem.item.price_images && flatItem.item.price_images.length > 0 && (
-                          <img 
-                            src={flatItem.item.price_images[0]}
-                            alt="Giá mua"
-                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
-                            onClick={() => window.open(flatItem.item.price_images![0], '_blank')}
-                          />
-                        )}
-                        <div className="text-sm font-medium">{formatCurrency(flatItem.item.unit_price || 0)}</div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  
-                  <TableCell className="overflow-visible">
-                    {flatItem.item ? (
-                      <div className="space-y-2 relative">
-                        {flatItem.item.product_images && flatItem.item.product_images.length > 0 && (
-                          <img 
-                            src={flatItem.item.product_images[0]}
-                            alt="Sản phẩm"
-                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
-                            onClick={() => window.open(flatItem.item.product_images![0], '_blank')}
-                          />
-                        )}
-                        <div className="text-sm font-medium">{formatCurrency(flatItem.item.selling_price || 0)}</div>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
-                  </TableCell>
-                  
-                  {/* Order-level columns with rowSpan - only show on first item */}
                   {flatItem.isFirstItem && (
                     <>
                       <TableCell 
-                        className="border-l max-w-xs" 
+                        className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
-                        <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {flatItem.notes || "-"}
+                        <div className="max-w-48">
+                          {flatItem.notes && (
+                            <HoverCard>
+                              <HoverCardTrigger asChild>
+                                <Button variant="ghost" size="sm" className="p-0 h-auto text-left justify-start">
+                                  <div className="truncate">
+                                    {flatItem.notes.substring(0, 30)}
+                                    {flatItem.notes.length > 30 && "..."}
+                                  </div>
+                                </Button>
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-80">
+                                <div className="text-sm">{flatItem.notes}</div>
+                              </HoverCardContent>
+                            </HoverCard>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell 
-                        className="border-l" 
+                        className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
                         {getStatusBadge(flatItem.status)}
                       </TableCell>
-                      <TableCell 
-                        className="border-l" 
-                        rowSpan={flatItem.itemCount}
-                      >
-                        <div className="flex items-center gap-1">
-                          <Button 
-                            variant="ghost" 
+                      <TableCell rowSpan={flatItem.itemCount}>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleEditOrder(flatItem)}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => handleDeleteOrder(flatItem)}
-                            disabled={flatItem.status !== 'pending' || deletePurchaseOrderMutation.isPending}
                             className="text-destructive hover:text-destructive"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -623,7 +484,7 @@ export function PurchaseOrderList() {
         </Table>
       </div>
 
-      <EditPurchaseOrderDialog 
+      <EditPurchaseOrderDialog
         order={editingOrder}
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
@@ -632,25 +493,19 @@ export function PurchaseOrderList() {
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa đơn hàng</AlertDialogTitle>
+            <AlertDialogTitle>Xác nhận xóa</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa đơn hàng này không? Hành động này không thể hoàn tác.
-              {orderToDelete && (
-                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                  <strong>Nhà cung cấp:</strong> {orderToDelete.supplier_name || "Chưa cập nhật"}<br/>
-                  <strong>Ngày đặt:</strong> {format(new Date(orderToDelete.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
-                </div>
-              )}
+              Bạn có chắc chắn muốn xóa đơn hàng này? Tất cả sản phẩm trong đơn hàng cũng sẽ bị xóa. 
+              Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction 
+            <AlertDialogAction
               onClick={confirmDelete}
-              disabled={deletePurchaseOrderMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deletePurchaseOrderMutation.isPending ? "Đang xóa..." : "Xóa"}
+              Xóa
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

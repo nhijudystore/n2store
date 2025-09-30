@@ -1,33 +1,49 @@
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { FileText, DollarSign, TrendingUp, Clock } from "lucide-react";
+import { format } from "date-fns";
 
-export function PurchaseOrderStats() {
-  const { data: stats } = useQuery({
-    queryKey: ["purchase-order-stats"],
-    queryFn: async () => {
-      const [ordersResult, totalAmountResult, todayOrdersResult] = await Promise.all([
-        supabase.from("purchase_orders").select("*", { count: "exact" }),
-        supabase.from("purchase_orders").select("final_amount"),
-        supabase
-          .from("purchase_orders")
-          .select("*", { count: "exact" })
-          .eq("order_date", new Date().toISOString().split("T")[0])
-      ]);
+interface PurchaseOrderItem {
+  product_name: string;
+  product_code: string | null;
+  variant: string | null;
+  quantity: number;
+  unit_price: number;
+  selling_price: number;
+  product_images: string[] | null;
+  price_images: string[] | null;
+}
 
-      const totalOrders = ordersResult.count || 0;
-      const totalAmount = totalAmountResult.data?.reduce((sum, order) => sum + Number(order.final_amount || 0), 0) || 0;
-      const todayOrders = todayOrdersResult.count || 0;
+interface PurchaseOrder {
+  id: string;
+  order_date: string;
+  status: string;
+  total_amount: number;
+  final_amount: number;
+  discount_amount: number;
+  invoice_number: string | null;
+  supplier_name: string | null;
+  supplier_id?: string | null;
+  notes: string | null;
+  invoice_date: string | null;
+  invoice_images: string[] | null;
+  created_at: string;
+  updated_at: string;
+  items?: PurchaseOrderItem[];
+}
 
-      return {
-        totalOrders,
-        totalAmount,
-        todayOrders,
-        avgOrderValue: totalOrders > 0 ? totalAmount / totalOrders : 0
-      };
-    }
-  });
+interface PurchaseOrderStatsProps {
+  filteredOrders: PurchaseOrder[];
+  isLoading: boolean;
+}
+
+export function PurchaseOrderStats({ filteredOrders, isLoading }: PurchaseOrderStatsProps) {
+  // Calculate stats from filteredOrders prop instead of fetching independently
+  const totalOrders = filteredOrders.length;
+  const totalAmount = filteredOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
+  const todayOrders = filteredOrders.filter(order => 
+    format(new Date(order.order_date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+  ).length;
+  const avgOrderValue = totalOrders > 0 ? totalAmount / totalOrders : 0;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -44,7 +60,7 @@ export function PurchaseOrderStats() {
           <FileText className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.totalOrders || 0}</div>
+          <div className="text-2xl font-bold">{isLoading ? "..." : totalOrders}</div>
         </CardContent>
       </Card>
 
@@ -55,7 +71,7 @@ export function PurchaseOrderStats() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(stats?.totalAmount || 0)}
+            {isLoading ? "..." : formatCurrency(totalAmount)}
           </div>
         </CardContent>
       </Card>
@@ -66,7 +82,7 @@ export function PurchaseOrderStats() {
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{stats?.todayOrders || 0}</div>
+          <div className="text-2xl font-bold">{isLoading ? "..." : todayOrders}</div>
         </CardContent>
       </Card>
 
@@ -77,7 +93,7 @@ export function PurchaseOrderStats() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(stats?.avgOrderValue || 0)}
+            {isLoading ? "..." : formatCurrency(avgOrderValue)}
           </div>
         </CardContent>
       </Card>
