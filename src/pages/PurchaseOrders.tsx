@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText } from "lucide-react";
+import { Plus, Package, FileText, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
@@ -40,6 +42,7 @@ interface PurchaseOrder {
 }
 
 const PurchaseOrders = () => {
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   
   // Filter states moved from PurchaseOrderList
@@ -163,6 +166,71 @@ const PurchaseOrders = () => {
     return matchesSearch && matchesStatus;
   }) || [];
 
+  const handleExportExcel = () => {
+    // Flatten all items from filteredOrders
+    const products = filteredOrders.flatMap(order => 
+      (order.items || []).map(item => ({
+        ...item,
+        order_id: order.id,
+        order_date: order.order_date,
+        supplier_name: order.supplier_name,
+        order_notes: order.notes
+      }))
+    );
+
+    if (products.length === 0) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Không có sản phẩm nào để xuất",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Mapping according to the Excel template format (17 columns)
+      const excelData = products.map(item => ({
+        "Loại sản phẩm": "Có thể lưu trữ",
+        "Mã sản phẩm": item.product_code?.toString() || undefined,
+        "Mã chốt đơn": undefined,
+        "Tên sản phẩm": item.product_name?.toString() || undefined,
+        "Giá bán": item.selling_price || 0,
+        "Giá mua": item.unit_price || 0,
+        "Đơn vị": "CÁI",
+        "Nhóm sản phẩm": "QUẦN ÁO",
+        "Mã vạch": item.product_code?.toString() || undefined,
+        "Khối lượng": undefined,
+        "Chiết khấu bán": undefined,
+        "Chiết khấu mua": undefined,
+        "Tồn kho": undefined,
+        "Giá vốn": undefined,
+        "Ghi chú": undefined,
+        "Cho phép bán ở công ty khác": "FALSE",
+        "Thuộc tính": undefined,
+      }));
+
+      // Create Excel file
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Đặt Hàng");
+      
+      const fileName = `DatHang_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      toast({
+        title: "Xuất Excel thành công!",
+        description: `Đã tạo file ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast({
+        title: "Lỗi khi xuất Excel!",
+        description: "Vui lòng thử lại",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -203,10 +271,18 @@ const PurchaseOrders = () => {
         <TabsContent value="orders" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Danh sách đơn đặt hàng</CardTitle>
-              <CardDescription>
-                Xem và quản lý tất cả đơn đặt hàng với nhà cung cấp
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Danh sách đơn đặt hàng</CardTitle>
+                  <CardDescription>
+                    Xem và quản lý tất cả đơn đặt hàng với nhà cung cấp
+                  </CardDescription>
+                </div>
+                <Button onClick={handleExportExcel} variant="outline" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Xuất Excel
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <PurchaseOrderList 
