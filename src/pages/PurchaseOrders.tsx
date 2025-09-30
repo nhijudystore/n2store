@@ -8,6 +8,7 @@ import { Plus, Package, FileText } from "lucide-react";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
+import { ProductsList } from "@/components/purchase-orders/ProductsList";
 import { format } from "date-fns";
 
 interface PurchaseOrderItem {
@@ -236,10 +237,7 @@ const PurchaseOrders = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Chức năng đang phát triển</p>
-              </div>
+              <ProductsList filteredOrders={filteredOrders} />
             </CardContent>
           </Card>
         </TabsContent>
