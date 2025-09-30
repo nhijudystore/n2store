@@ -156,7 +156,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Tạo đơn đặt hàng mới</DialogTitle>
         </DialogHeader>
