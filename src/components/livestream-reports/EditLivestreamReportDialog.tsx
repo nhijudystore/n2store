@@ -19,7 +19,7 @@ import { formatTimeRangeForStorage, parseTimeRangeForEdit } from "@/lib/time-uti
 
 const formSchema = z.object({
   report_date: z.date({
-    required_error: "Vui lòng chọn ngày báo cáo",
+    message: "Vui lòng chọn ngày báo cáo",
   }),
   morning_ad_cost: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),
   evening_ad_cost: z.number().min(0, "Giá trị phải lớn hơn hoặc bằng 0"),

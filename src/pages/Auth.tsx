@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,12 +7,23 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { z } from 'zod';
 
-const authSchema = z.object({
-  username: z.string().trim().min(1, { message: "Username không được để trống" }).max(50, { message: "Username không được quá 50 ký tự" }),
-  password: z.string().min(6, { message: "Mật khẩu phải có ít nhất 6 ký tự" }).max(100, { message: "Mật khẩu không được quá 100 ký tự" })
-});
+// Simple validation without zod to avoid compilation conflicts
+const validateInput = (username: string, password: string) => {
+  if (!username.trim()) {
+    return { error: "Username không được để trống" };
+  }
+  if (username.length > 50) {
+    return { error: "Username không được quá 50 ký tự" };
+  }
+  if (password.length < 6) {
+    return { error: "Mật khẩu phải có ít nhất 6 ký tự" };
+  }
+  if (password.length > 100) {
+    return { error: "Mật khẩu không được quá 100 ký tự" };
+  }
+  return { error: null };
+};
 
 export default function Auth() {
   const { user, signIn, signUp, loading } = useAuth();
@@ -32,19 +43,18 @@ export default function Auth() {
   const handleSubmit = async (action: 'signin' | 'signup') => {
     try {
       // Validate input
-      const validation = authSchema.safeParse(formData);
-      if (!validation.success) {
-        const firstError = validation.error.errors[0];
+      const validation = validateInput(formData.username, formData.password);
+      if (validation.error) {
         toast({
           title: "Lỗi nhập liệu",
-          description: firstError.message,
+          description: validation.error,
           variant: "destructive",
         });
         return;
       }
 
       setIsLoading(true);
-      const { username, password } = validation.data;
+      const { username, password } = formData;
       
       let error;
       if (action === 'signin') {
