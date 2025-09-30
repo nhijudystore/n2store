@@ -371,7 +371,11 @@ export function PurchaseOrderList() {
                         className="font-medium border-l" 
                         rowSpan={flatItem.itemCount}
                       >
-                        {formatCurrency(flatItem.final_amount || 0)}
+                        {formatCurrency(
+                          flatItem.items.reduce((sum, item) => 
+                            sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                          0)
+                        )}
                       </TableCell>
                       <TableCell 
                         className="border-l" 
