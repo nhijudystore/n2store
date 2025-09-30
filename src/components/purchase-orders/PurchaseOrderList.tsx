@@ -407,37 +407,24 @@ export function PurchaseOrderList({
                             />
                           )}
                           <div className="space-y-1">
-                            <div className="text-sm font-medium">
-                              {flatItem.invoice_number || "Chưa có"}
+                            <div className="text-sm font-semibold text-blue-600">
+                              {formatCurrency(flatItem.final_amount || 0)}
                             </div>
                             {(() => {
                               const calculatedTotal = flatItem.items.reduce((sum, item) => 
                                 sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                               0);
                               const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
-                              const difference = calculatedTotal - (flatItem.final_amount || 0);
                               
                               if (hasMismatch) {
                                 return (
-                                  <div className="text-xs font-semibold text-red-600 space-y-0.5">
-                                    <div className="flex items-center gap-1">
-                                      <span>⚠️</span>
-                                      <span>Sai lệch giá</span>
-                                    </div>
-                                    <div>Chênh: {formatCurrency(Math.abs(difference))}</div>
+                                  <div className="text-xs font-semibold text-red-600">
+                                    Tổng tính: {formatCurrency(calculatedTotal)}
                                   </div>
                                 );
                               }
                               return null;
                             })()}
-                            <div className="text-xs font-medium text-green-600">
-                              {formatCurrency(flatItem.final_amount || 0)}
-                            </div>
-                            {flatItem.discount_amount && flatItem.discount_amount > 0 && (
-                              <div className="text-xs text-orange-600">
-                                Giảm: {formatCurrency(flatItem.discount_amount)}
-                              </div>
-                            )}
                           </div>
                         </div>
                       </TableCell>
