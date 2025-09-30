@@ -308,14 +308,14 @@ export function PurchaseOrderList() {
                     )}
                   </TableCell>
                   
-                  <TableCell>
+                  <TableCell className="overflow-visible">
                     {flatItem.item ? (
                       <div className="space-y-2 relative">
                         {flatItem.item.price_images && flatItem.item.price_images.length > 0 && (
                           <img 
                             src={flatItem.item.price_images[0]}
                             alt="Giá mua"
-                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-200 hover:z-50 hover:shadow-lg"
+                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
                             onClick={() => window.open(flatItem.item.price_images![0], '_blank')}
                           />
                         )}
@@ -326,14 +326,14 @@ export function PurchaseOrderList() {
                     )}
                   </TableCell>
                   
-                  <TableCell>
+                  <TableCell className="overflow-visible">
                     {flatItem.item ? (
                       <div className="space-y-2 relative">
                         {flatItem.item.product_images && flatItem.item.product_images.length > 0 && (
                           <img 
                             src={flatItem.item.product_images[0]}
                             alt="Sản phẩm"
-                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-200 hover:z-50 hover:shadow-lg"
+                            className="w-16 h-16 object-cover rounded cursor-pointer border transition-transform duration-200 hover:scale-250 hover:z-50 hover:shadow-lg"
                             onClick={() => window.open(flatItem.item.product_images![0], '_blank')}
                           />
                         )}
