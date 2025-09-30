@@ -7,8 +7,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Plus, Copy, Trash2 } from "lucide-react";
+import { Plus, Copy, Trash2, Calendar } from "lucide-react";
 import { ImageUploadCell } from "./ImageUploadCell";
+import { format } from "date-fns";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -202,7 +203,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         .from("purchase_orders")
         .update({
           supplier_name: supplierName,
-          order_date: orderDate,
+          order_date: new Date().toISOString().split('T')[0],
           invoice_date: invoiceDate || null,
           invoice_number: invoiceNumber || null,
           notes: notes || null,
@@ -315,12 +316,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
             <div className="space-y-2">
               <Label htmlFor="orderDate">Ngày đặt hàng</Label>
-              <Input
-                id="orderDate"
-                type="date"
-                value={orderDate}
-                onChange={(e) => setOrderDate(e.target.value)}
-              />
+              <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(), "dd/MM/yyyy")}</span>
+              </div>
             </div>
 
             <div className="space-y-2">

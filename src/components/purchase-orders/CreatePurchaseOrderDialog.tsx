@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, X, Copy } from "lucide-react";
+import { Plus, X, Copy, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
+import { format } from "date-fns";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -184,12 +185,10 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
             <div className="space-y-2">
               <Label htmlFor="order_date">Ngày đặt hàng</Label>
-              <Input
-                id="order_date"
-                type="date"
-                value={formData.order_date}
-                onChange={(e) => setFormData({...formData, order_date: e.target.value})}
-              />
+              <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
+                <Calendar className="h-4 w-4" />
+                <span>{format(new Date(), "dd/MM/yyyy")}</span>
+              </div>
             </div>
 
             <div className="space-y-2">
