@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Pencil, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,6 +49,9 @@ interface PurchaseOrder {
 export function PurchaseOrderList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [quickFilter, setQuickFilter] = useState<string>("all");
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -53,6 +59,52 @@ export function PurchaseOrderList() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const applyQuickFilter = (filterType: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    switch(filterType) {
+      case "today":
+        setDateFrom(today);
+        setDateTo(new Date());
+        break;
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        setDateFrom(yesterday);
+        setDateTo(yesterday);
+        break;
+      case "7days":
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        setDateFrom(sevenDaysAgo);
+        setDateTo(new Date());
+        break;
+      case "30days":
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        setDateFrom(thirtyDaysAgo);
+        setDateTo(new Date());
+        break;
+      case "thisMonth":
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        setDateFrom(firstDayOfMonth);
+        setDateTo(new Date());
+        break;
+      case "lastMonth":
+        const firstDayOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDayOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        setDateFrom(firstDayOfLastMonth);
+        setDateTo(lastDayOfLastMonth);
+        break;
+      case "all":
+        setDateFrom(undefined);
+        setDateTo(undefined);
+        break;
+    }
+    setQuickFilter(filterType);
+  };
 
   const deletePurchaseOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -122,11 +174,36 @@ export function PurchaseOrderList() {
   });
 
   const filteredOrders = orders?.filter(order => {
-    const matchesSearch = 
+    // Date range filter
+    if (dateFrom || dateTo) {
+      const orderDate = new Date(order.order_date);
+      orderDate.setHours(0, 0, 0, 0);
+      
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        if (orderDate < fromDate) return false;
+      }
+      
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (orderDate > toDate) return false;
+      }
+    }
+    
+    // Enhanced search - bao gồm search theo định dạng ngày dd/mm
+    const matchesSearch = searchTerm === "" || 
       order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.items?.some(item => item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+      format(new Date(order.order_date), "dd/MM").includes(searchTerm) ||
+      format(new Date(order.order_date), "dd/MM/yyyy").includes(searchTerm) ||
+      order.items?.some(item => 
+        item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     
+    // Status filter
     const matchesStatus = statusFilter === "all" || order.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -203,30 +280,127 @@ export function PurchaseOrderList() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Tìm kiếm đơn hàng..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+      <div className="space-y-4">
+        {/* Row 1: Date Range Filters + Quick Filter */}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Từ ngày */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium whitespace-nowrap">Từ ngày:</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[180px] justify-start text-left font-normal",
+                    !dateFrom && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Chọn ngày"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Đến ngày */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium whitespace-nowrap">Đến ngày:</label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-[180px] justify-start text-left font-normal",
+                    !dateTo && "text-muted-foreground"
+                  )}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {dateTo ? format(dateTo, "dd/MM/yyyy") : "Chọn ngày"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Lọc nhanh */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium whitespace-nowrap">Lọc nhanh:</label>
+            <Select value={quickFilter} onValueChange={applyQuickFilter}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Chọn thời gian" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="today">Hôm nay</SelectItem>
+                <SelectItem value="yesterday">Hôm qua</SelectItem>
+                <SelectItem value="7days">7 ngày qua</SelectItem>
+                <SelectItem value="30days">30 ngày qua</SelectItem>
+                <SelectItem value="thisMonth">Tháng này</SelectItem>
+                <SelectItem value="lastMonth">Tháng trước</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Clear filters button */}
+          {(dateFrom || dateTo) && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                setDateFrom(undefined);
+                setDateTo(undefined);
+                setQuickFilter("all");
+              }}
+              className="text-muted-foreground"
+            >
+              Xóa lọc ngày
+            </Button>
+          )}
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Lọc theo trạng thái" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tất cả trạng thái</SelectItem>
-            <SelectItem value="pending">Đang chờ</SelectItem>
-            <SelectItem value="confirmed">Đã xác nhận</SelectItem>
-            <SelectItem value="received">Đã nhận hàng</SelectItem>
-            <SelectItem value="completed">Hoàn thành</SelectItem>
-            <SelectItem value="cancelled">Đã hủy</SelectItem>
-          </SelectContent>
-        </Select>
+
+        {/* Row 2: Search Box + Status Filter */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Tìm nhà cung cấp, tên/mã sản phẩm, ngày (dd/mm)..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-48">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Lọc theo trạng thái" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tất cả trạng thái</SelectItem>
+              <SelectItem value="pending">Đang chờ</SelectItem>
+              <SelectItem value="confirmed">Đã xác nhận</SelectItem>
+              <SelectItem value="received">Đã nhận hàng</SelectItem>
+              <SelectItem value="completed">Hoàn thành</SelectItem>
+              <SelectItem value="cancelled">Đã hủy</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="rounded-md border">
