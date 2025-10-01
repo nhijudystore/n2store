@@ -216,6 +216,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          image_url: string | null
           live_phase_id: string | null
           live_session_id: string
           prepared_quantity: number
@@ -228,6 +229,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          image_url?: string | null
           live_phase_id?: string | null
           live_session_id: string
           prepared_quantity?: number
@@ -240,6 +242,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          image_url?: string | null
           live_phase_id?: string | null
           live_session_id?: string
           prepared_quantity?: number

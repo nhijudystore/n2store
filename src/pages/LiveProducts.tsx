@@ -61,6 +61,7 @@ interface LiveProduct {
   variant?: string | null;
   prepared_quantity: number;
   sold_quantity: number;
+  image_url?: string;
   created_at?: string;
 }
 
@@ -96,6 +97,7 @@ export default function LiveProducts() {
     prepared_quantity: number;
     live_phase_id?: string;
     live_session_id?: string;
+    image_url?: string;
   } | null>(null);
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [isEditOrderItemOpen, setIsEditOrderItemOpen] = useState(false);
@@ -838,6 +840,7 @@ export default function LiveProducts() {
                       <TableRow>
                         <TableHead>Mã SP</TableHead>
                         <TableHead>Tên sản phẩm</TableHead>
+                        <TableHead>Hình ảnh</TableHead>
                         <TableHead>Biến thể</TableHead>
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
@@ -881,6 +884,22 @@ export default function LiveProducts() {
                                     className="align-top border-r"
                                   >
                                     {group.product_name}
+                                  </TableCell>
+                                  <TableCell 
+                                    rowSpan={group.products.length}
+                                    className="align-top border-r"
+                                  >
+                                    {product.image_url ? (
+                                      <img 
+                                        src={product.image_url} 
+                                        alt={group.product_name}
+                                        className="w-12 h-12 object-cover rounded"
+                                      />
+                                    ) : (
+                                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                        <Package className="h-6 w-6 text-muted-foreground" />
+                                      </div>
+                                    )}
                                   </TableCell>
                                 </>
                               )}

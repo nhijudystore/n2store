@@ -19,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ImagePlus, X } from "lucide-react";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -35,6 +36,9 @@ interface FormData {
 
 export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId }: AddProductToLiveDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
@@ -49,6 +53,28 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     mutationFn: async (data: FormData) => {
       const productCode = data.product_code.trim() || "N/A";
       const productName = data.product_name.trim() || "Không có";
+      
+      // Upload image if exists
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        setIsUploading(true);
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `live-products/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('purchase-images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('purchase-images')
+          .getPublicUrl(filePath);
+
+        imageUrl = urlData.publicUrl;
+        setIsUploading(false);
+      }
       
       // Check for duplicates for each variant
       for (const variant of data.variants) {
@@ -77,6 +103,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
         variant: variant.name.trim() || null,
         prepared_quantity: variant.quantity,
         sold_quantity: 0,
+        image_url: imageUrl,
       }));
 
       const { error } = await supabase
@@ -89,6 +116,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       queryClient.invalidateQueries({ queryKey: ["live-products", phaseId] });
       toast.success("Đã thêm sản phẩm vào phiên live thành công");
       form.reset();
+      setImageFile(null);
+      setImagePreview("");
       onOpenChange(false);
     },
     onError: (error) => {
@@ -144,6 +173,27 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error("Vui lòng chọn file hình ảnh");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -186,6 +236,39 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                 </FormItem>
               )}
             />
+
+            <div>
+              <FormLabel>Hình ảnh sản phẩm</FormLabel>
+              {imagePreview ? (
+                <div className="mt-2 relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Preview" 
+                    className="w-32 h-32 object-cover rounded border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={removeImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="mt-2 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded cursor-pointer hover:bg-muted/50">
+                  <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Chọn hình ảnh</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                </label>
+              )}
+            </div>
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -265,10 +348,10 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting || !phaseId}
+                disabled={isSubmitting || isUploading || !phaseId}
                 className="flex-1"
               >
-                {isSubmitting ? "Đang thêm..." : "Thêm sản phẩm"}
+                {isUploading ? "Đang tải ảnh..." : isSubmitting ? "Đang thêm..." : "Thêm sản phẩm"}
               </Button>
             </div>
           </form>

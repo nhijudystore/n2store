@@ -7,7 +7,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { AlertCircle, Trash2 } from "lucide-react";
+import { AlertCircle, Trash2, ImagePlus, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EditProductDialogProps {
@@ -21,6 +21,7 @@ interface EditProductDialogProps {
     prepared_quantity: number;
     live_phase_id?: string;
     live_session_id?: string;
+    image_url?: string;
   } | null;
 }
 
@@ -39,6 +40,9 @@ interface FormData {
 export function EditProductDialog({ open, onOpenChange, product }: EditProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const [isUploading, setIsUploading] = useState(false);
   const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
@@ -57,7 +61,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       
       const { data, error } = await supabase
         .from("live_products")
-        .select("id, variant, prepared_quantity")
+        .select("id, variant, prepared_quantity, image_url")
         .eq("live_phase_id", product.live_phase_id)
         .eq("product_code", product.product_code)
         .order("variant");
@@ -83,6 +87,8 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
         variants: variants.length > 0 ? variants : [{ name: "", quantity: 0 }],
       });
       setDuplicateWarning("");
+      setImagePreview(allVariants[0]?.image_url || "");
+      setImageFile(null);
     }
   }, [allVariants, product?.product_code, open, form]);
 
@@ -104,6 +110,31 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     }
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Lỗi",
+          description: "Vui lòng chọn file hình ảnh",
+          variant: "destructive",
+        });
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+  };
+
   const updateProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
       if (!product?.live_phase_id || !product?.live_session_id) {
@@ -112,6 +143,28 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
 
       const productCode = data.product_code.trim();
       const productName = data.product_name.trim();
+      
+      // Upload new image if exists
+      let imageUrl: string | undefined = imagePreview;
+      if (imageFile) {
+        setIsUploading(true);
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `live-products/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('purchase-images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) throw uploadError;
+
+        const { data: urlData } = supabase.storage
+          .from('purchase-images')
+          .getPublicUrl(filePath);
+
+        imageUrl = urlData.publicUrl;
+        setIsUploading(false);
+      }
       
       // Get current variants from database
       const existingVariantIds = allVariants?.map(v => v.id) || [];
@@ -138,6 +191,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
               product_name: productName,
               variant: variant.name.trim() || null,
               prepared_quantity: variant.quantity,
+              image_url: imageUrl,
             })
             .eq("id", variant.id);
           
@@ -171,6 +225,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
           variant: variant.name.trim() || null,
           prepared_quantity: variant.quantity,
           sold_quantity: 0,
+          image_url: imageUrl,
         }));
 
         const { error: insertError } = await supabase
@@ -314,6 +369,39 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
               )}
             />
 
+            <div>
+              <FormLabel>Hình ảnh sản phẩm</FormLabel>
+              {imagePreview ? (
+                <div className="mt-2 relative inline-block">
+                  <img 
+                    src={imagePreview} 
+                    alt="Product preview" 
+                    className="w-32 h-32 object-cover rounded border"
+                  />
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                    onClick={removeImage}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <label className="mt-2 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded cursor-pointer hover:bg-muted/50">
+                  <ImagePlus className="h-8 w-8 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">Chọn hình ảnh</span>
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                  />
+                </label>
+              )}
+            </div>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <FormLabel>Danh sách biến thể</FormLabel>
@@ -393,10 +481,10 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
               </Button>
               <Button 
                 type="submit" 
-                disabled={isSubmitting}
+                disabled={isSubmitting || isUploading}
                 className="flex-1"
               >
-                {isSubmitting ? "Đang cập nhật..." : "Cập nhật sản phẩm"}
+                {isUploading ? "Đang tải ảnh..." : isSubmitting ? "Đang cập nhật..." : "Cập nhật sản phẩm"}
               </Button>
             </div>
           </form>
