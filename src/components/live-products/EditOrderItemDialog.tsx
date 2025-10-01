@@ -188,57 +188,86 @@ export function EditOrderItemDialog({
 
   const deleteOrderItemMutation = useMutation({
     mutationFn: async () => {
-      if (!orderItem) return;
+      if (!orderItem || !orderItem.orders || orderItem.orders.length === 0) return;
 
       const productId = orderItem.product_id;
-      const orderCode = orderItem.orders && orderItem.orders.length > 0 
-        ? orderItem.orders[0].order_code 
-        : null;
+      const isSingleOrder = orderItem.orders.length === 1;
 
-      if (!orderCode || !productId) {
-        throw new Error("Không tìm thấy thông tin đơn hàng");
+      // Single order (clicked on specific badge)
+      if (isSingleOrder) {
+        const order = orderItem.orders[0];
+        
+        // Delete this specific order
+        const { error: deleteError } = await supabase
+          .from("live_orders")
+          .delete()
+          .eq("id", order.id);
+
+        if (deleteError) throw deleteError;
+
+        // Update sold_quantity for this product
+        const { data: product, error: productFetchError } = await supabase
+          .from("live_products")
+          .select("sold_quantity")
+          .eq("id", productId)
+          .single();
+
+        if (productFetchError) throw productFetchError;
+
+        const { error: productUpdateError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity - order.quantity)
+          })
+          .eq("id", productId);
+
+        if (productUpdateError) throw productUpdateError;
+      } 
+      // Aggregated orders (clicked edit in table)
+      else {
+        const orderCode = orderItem.orders[0].order_code;
+
+        // Get all orders for this specific product with this order_code
+        const { data: ordersToDelete, error: fetchError } = await supabase
+          .from("live_orders")
+          .select("id, quantity")
+          .eq("order_code", orderCode)
+          .eq("live_product_id", productId);
+
+        if (fetchError) throw fetchError;
+
+        if (!ordersToDelete || ordersToDelete.length === 0) return;
+
+        // Calculate total quantity to subtract for this product only
+        const totalQuantity = ordersToDelete.reduce((sum, order) => sum + order.quantity, 0);
+
+        // Update sold_quantity for this product only
+        const { data: product, error: productFetchError } = await supabase
+          .from("live_products")
+          .select("sold_quantity")
+          .eq("id", productId)
+          .single();
+
+        if (productFetchError) throw productFetchError;
+
+        const { error: productUpdateError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity - totalQuantity)
+          })
+          .eq("id", productId);
+
+        if (productUpdateError) throw productUpdateError;
+
+        // Delete only orders for this specific product with this order_code
+        const { error: deleteError } = await supabase
+          .from("live_orders")
+          .delete()
+          .eq("order_code", orderCode)
+          .eq("live_product_id", productId);
+
+        if (deleteError) throw deleteError;
       }
-
-      // Get all orders for this specific product with this order_code
-      const { data: ordersToDelete, error: fetchError } = await supabase
-        .from("live_orders")
-        .select("id, quantity")
-        .eq("order_code", orderCode)
-        .eq("live_product_id", productId);
-
-      if (fetchError) throw fetchError;
-
-      if (!ordersToDelete || ordersToDelete.length === 0) return;
-
-      // Calculate total quantity to subtract for this product only
-      const totalQuantity = ordersToDelete.reduce((sum, order) => sum + order.quantity, 0);
-
-      // Update sold_quantity for this product only
-      const { data: product, error: productFetchError } = await supabase
-        .from("live_products")
-        .select("sold_quantity")
-        .eq("id", productId)
-        .single();
-
-      if (productFetchError) throw productFetchError;
-
-      const { error: productUpdateError } = await supabase
-        .from("live_products")
-        .update({ 
-          sold_quantity: Math.max(0, product.sold_quantity - totalQuantity)
-        })
-        .eq("id", productId);
-
-      if (productUpdateError) throw productUpdateError;
-
-      // Delete only orders for this specific product with this order_code
-      const { error: deleteError } = await supabase
-        .from("live_orders")
-        .delete()
-        .eq("order_code", orderCode)
-        .eq("live_product_id", productId);
-
-      if (deleteError) throw deleteError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["live-orders", phaseId] });
@@ -271,6 +300,9 @@ export function EditOrderItemDialog({
   const orderCode = orderItem?.orders && orderItem.orders.length > 0 
     ? orderItem.orders[0].order_code 
     : "";
+  
+  const isSingleOrder = orderItem?.orders && orderItem.orders.length === 1;
+  const singleOrderQuantity = isSingleOrder ? orderItem.orders[0].quantity : 0;
 
   return (
     <>
@@ -327,7 +359,16 @@ export function EditOrderItemDialog({
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận xóa sản phẩm</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có muốn xóa sản phẩm <strong>{orderItem?.product_name}</strong> khỏi đơn hàng <strong>{orderCode}</strong> không? Hành động này không thể hoàn tác.
+              {isSingleOrder ? (
+                <>
+                  Bạn có muốn xóa sản phẩm <strong>{orderItem?.product_name}</strong> với số lượng <strong>{singleOrderQuantity}</strong> khỏi đơn hàng <strong>{orderCode}</strong> không?
+                </>
+              ) : (
+                <>
+                  Bạn có muốn xóa tất cả sản phẩm <strong>{orderItem?.product_name}</strong> khỏi đơn hàng <strong>{orderCode}</strong> không?
+                </>
+              )}
+              {" "}Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
