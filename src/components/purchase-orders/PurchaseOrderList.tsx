@@ -401,7 +401,7 @@ export function PurchaseOrderList({
                             <img 
                               src={flatItem.invoice_images[0]}
                               alt="Hóa đơn"
-                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[8] hover:z-20 relative"
+                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[6] hover:z-20 relative"
                             />
                           )}
                           <div className="space-y-1">
