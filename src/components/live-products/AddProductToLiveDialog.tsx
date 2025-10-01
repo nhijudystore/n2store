@@ -30,8 +30,7 @@ interface AddProductToLiveDialogProps {
 interface FormData {
   product_code: string;
   product_name: string;
-  variant: string;
-  prepared_quantity: number;
+  variants: { name: string; quantity: number }[];
 }
 
 export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId }: AddProductToLiveDialogProps) {
@@ -42,38 +41,47 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     defaultValues: {
       product_code: "",
       product_name: "",
-      variant: "",
-      prepared_quantity: 0,
+      variants: [{ name: "", quantity: 0 }],
     },
   });
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      // Check for duplicate product_code + variant in the same phase
-      const { data: existingProducts, error: checkError } = await supabase
-        .from("live_products")
-        .select("id")
-        .eq("live_phase_id", phaseId)
-        .eq("product_code", data.product_code.trim() || "N/A")
-        .eq("variant", data.variant.trim() || null);
+      const productCode = data.product_code.trim() || "N/A";
+      const productName = data.product_name.trim() || "Không có";
+      
+      // Check for duplicates for each variant
+      for (const variant of data.variants) {
+        const variantName = variant.name.trim() || null;
+        
+        const { data: existingProducts, error: checkError } = await supabase
+          .from("live_products")
+          .select("id")
+          .eq("live_phase_id", phaseId)
+          .eq("product_code", productCode)
+          .eq("variant", variantName);
 
-      if (checkError) throw checkError;
+        if (checkError) throw checkError;
 
-      if (existingProducts && existingProducts.length > 0) {
-        throw new Error("Sản phẩm với mã và biến thể này đã tồn tại trong phiên live");
+        if (existingProducts && existingProducts.length > 0) {
+          throw new Error(`Biến thể "${variant.name || '(Không có)'}" đã tồn tại cho sản phẩm này`);
+        }
       }
+
+      // Insert all variants
+      const insertData = data.variants.map(variant => ({
+        live_session_id: sessionId,
+        live_phase_id: phaseId,
+        product_code: productCode,
+        product_name: productName,
+        variant: variant.name.trim() || null,
+        prepared_quantity: variant.quantity,
+        sold_quantity: 0,
+      }));
 
       const { error } = await supabase
         .from("live_products")
-        .insert([{
-          live_session_id: sessionId,
-          live_phase_id: phaseId,
-          product_code: data.product_code.trim() || "N/A",
-          product_name: data.product_name.trim() || "Không có",
-          variant: data.variant.trim() || null,
-          prepared_quantity: data.prepared_quantity,
-          sold_quantity: 0,
-        }]);
+        .insert(insertData);
       
       if (error) throw error;
     },
@@ -85,7 +93,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     },
     onError: (error) => {
       console.error("Error adding product to live:", error);
-      toast.error("Có lỗi xảy ra khi thêm sản phẩm");
+      toast.error(error.message || "Có lỗi xảy ra khi thêm sản phẩm");
     },
   });
 
@@ -95,8 +103,24 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       return;
     }
 
-    if (data.prepared_quantity < 0) {
-      toast.error("Số lượng chuẩn bị phải lớn hơn hoặc bằng 0");
+    // Validate variants
+    if (data.variants.length === 0) {
+      toast.error("Vui lòng thêm ít nhất một biến thể");
+      return;
+    }
+
+    for (const variant of data.variants) {
+      if (variant.quantity < 0) {
+        toast.error("Số lượng phải lớn hơn hoặc bằng 0");
+        return;
+      }
+    }
+
+    // Check for duplicate variant names
+    const variantNames = data.variants.map(v => v.name.trim().toLowerCase()).filter(n => n);
+    const duplicates = variantNames.filter((name, index) => variantNames.indexOf(name) !== index);
+    if (duplicates.length > 0) {
+      toast.error("Có biến thể bị trùng lặp");
       return;
     }
 
@@ -105,6 +129,18 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       await addProductMutation.mutateAsync(data);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const addVariant = () => {
+    const currentVariants = form.getValues("variants");
+    form.setValue("variants", [...currentVariants, { name: "", quantity: 0 }]);
+  };
+
+  const removeVariant = (index: number) => {
+    const currentVariants = form.getValues("variants");
+    if (currentVariants.length > 1) {
+      form.setValue("variants", currentVariants.filter((_, i) => i !== index));
     }
   };
 
@@ -151,42 +187,72 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="variant"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Biến thể</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Nhập biến thể (không bắt buộc)"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FormLabel>Biến thể</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addVariant}
+                >
+                  + Thêm biến thể
+                </Button>
+              </div>
 
-            <FormField
-              control={form.control}
-              name="prepared_quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Số lượng chuẩn bị</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              {form.watch("variants").map((_, index) => (
+                <div key={index} className="flex gap-2 items-start">
+                  <FormField
+                    control={form.control}
+                    name={`variants.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        {index === 0 && <FormLabel className="sr-only">Tên biến thể</FormLabel>}
+                        <FormControl>
+                          <Input 
+                            placeholder="Tên biến thể (không bắt buộc)"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`variants.${index}.quantity`}
+                    render={({ field }) => (
+                      <FormItem className="w-32">
+                        {index === 0 && <FormLabel className="sr-only">Số lượng</FormLabel>}
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            placeholder="Số lượng"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("variants").length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeVariant(index)}
+                      className="mt-0"
+                    >
+                      ×
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
 
             <div className="flex gap-2 pt-4">
               <Button
