@@ -86,6 +86,24 @@ interface OrderWithProduct extends LiveOrder {
   product_images?: string[];
 }
 
+// Helper function to calculate oversell status dynamically
+const calculateIsOversell = (
+  productId: string,
+  liveProducts: LiveProduct[],
+  ordersWithProducts: OrderWithProduct[]
+): boolean => {
+  const product = liveProducts.find(p => p.id === productId);
+  if (!product) return false;
+
+  const productOrders = ordersWithProducts.filter(
+    order => order.live_product_id === productId
+  );
+  
+  const totalSold = productOrders.reduce((sum, order) => sum + order.quantity, 0);
+  
+  return totalSold > product.prepared_quantity;
+};
+
 export default function LiveProducts() {
   const [selectedSession, setSelectedSession] = useState<string>("");
   const [selectedPhase, setSelectedPhase] = useState<string>("");
@@ -967,41 +985,49 @@ export default function LiveProducts() {
                                     
                                     return (
                                       <>
-                                        {ordersReversed.map(order => (
-                                          <TooltipProvider key={order.id}>
-                                            <Tooltip>
-                                              <TooltipTrigger asChild>
-                                                <Badge
-                                                  variant={order.is_oversell ? "destructive" : "secondary"}
-                                                  className={`text-xs cursor-pointer hover:scale-105 transition-transform ${
-                                                    order.is_oversell
-                                                      ? "bg-destructive text-destructive-foreground font-bold shadow-md"
-                                                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                                  }`}
-                                                  onClick={() => {
-                                                    // Handle edit order
-                                                    const aggregatedProduct = {
-                                                      product_code: order.product_code,
-                                                      product_name: order.product_name,
-                                                      live_product_id: order.live_product_id,
-                                                      total_quantity: order.quantity,
-                                                      orders: [order]
-                                                    };
-                                                    handleEditOrderItem(aggregatedProduct);
-                                                  }}
-                                                >
-                                                  {order.is_oversell && (
-                                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                                  )}
-                                                  {order.order_code}
-                                                </Badge>
-                                              </TooltipTrigger>
-                                              <TooltipContent>
-                                                <p>{order.is_oversell ? "⚠️ Đơn quá số" : `Đơn hàng: ${order.order_code}`}</p>
-                                              </TooltipContent>
-                                            </Tooltip>
-                                          </TooltipProvider>
-                                        ))}
+                                        {ordersReversed.map(order => {
+                                          const isOversell = calculateIsOversell(
+                                            order.live_product_id,
+                                            liveProducts || [],
+                                            ordersWithProducts
+                                          );
+                                          
+                                          return (
+                                            <TooltipProvider key={order.id}>
+                                              <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                  <Badge
+                                                    variant={isOversell ? "destructive" : "secondary"}
+                                                    className={`text-xs cursor-pointer hover:scale-105 transition-transform ${
+                                                      isOversell
+                                                        ? "bg-destructive text-destructive-foreground font-bold shadow-md"
+                                                        : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                    }`}
+                                                    onClick={() => {
+                                                      // Handle edit order
+                                                      const aggregatedProduct = {
+                                                        product_code: order.product_code,
+                                                        product_name: order.product_name,
+                                                        live_product_id: order.live_product_id,
+                                                        total_quantity: order.quantity,
+                                                        orders: [order]
+                                                      };
+                                                      handleEditOrderItem(aggregatedProduct);
+                                                    }}
+                                                  >
+                                                    {isOversell && (
+                                                      <AlertTriangle className="h-3 w-3 mr-1" />
+                                                    )}
+                                                    {order.order_code} x{order.quantity}
+                                                  </Badge>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                  <p>{isOversell ? "⚠️ Đơn quá số" : `Đơn hàng: ${order.order_code} - Số lượng: ${order.quantity}`}</p>
+                                                </TooltipContent>
+                                              </Tooltip>
+                                            </TooltipProvider>
+                                          );
+                                        })}
                                         {selectedPhase !== "all" && (
                                           <div className="flex items-center gap-2 ml-2">
                                             <QuickAddOrder 
