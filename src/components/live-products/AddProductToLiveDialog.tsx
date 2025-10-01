@@ -52,8 +52,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
         .insert([{
           live_session_id: sessionId,
           live_phase_id: phaseId,
-          product_code: data.product_code.trim(),
-          product_name: data.product_name.trim(),
+          product_code: data.product_code.trim() || "N/A",
+          product_name: data.product_name.trim() || "Không có",
           prepared_quantity: data.prepared_quantity,
           sold_quantity: 0,
         }]);
@@ -75,11 +75,6 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   const onSubmit = async (data: FormData) => {
     if (!phaseId) {
       toast.error("Vui lòng chọn một phiên live");
-      return;
-    }
-
-    if (!data.product_code.trim() || !data.product_name.trim()) {
-      toast.error("Vui lòng điền đầy đủ thông tin sản phẩm");
       return;
     }
 
@@ -110,10 +105,10 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               name="product_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mã sản phẩm *</FormLabel>
+                  <FormLabel>Mã sản phẩm</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Nhập mã sản phẩm"
+                      placeholder="Nhập mã sản phẩm (không bắt buộc)"
                       {...field}
                     />
                   </FormControl>
@@ -127,10 +122,10 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               name="product_name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tên sản phẩm *</FormLabel>
+                  <FormLabel>Tên sản phẩm</FormLabel>
                   <FormControl>
                     <Input 
-                      placeholder="Nhập tên sản phẩm"
+                      placeholder="Nhập tên sản phẩm (không bắt buộc)"
                       {...field}
                     />
                   </FormControl>
