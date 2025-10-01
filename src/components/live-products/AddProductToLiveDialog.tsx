@@ -30,6 +30,7 @@ interface AddProductToLiveDialogProps {
 interface FormData {
   product_code: string;
   product_name: string;
+  variant: string;
   prepared_quantity: number;
 }
 
@@ -41,6 +42,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     defaultValues: {
       product_code: "",
       product_name: "",
+      variant: "",
       prepared_quantity: 0,
     },
   });
@@ -54,6 +56,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
           live_phase_id: phaseId,
           product_code: data.product_code.trim() || "N/A",
           product_name: data.product_name.trim() || "Không có",
+          variant: data.variant.trim() || null,
           prepared_quantity: data.prepared_quantity,
           sold_quantity: 0,
         }]);
@@ -126,6 +129,23 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                   <FormControl>
                     <Input 
                       placeholder="Nhập tên sản phẩm (không bắt buộc)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="variant"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Biến thể</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Nhập biến thể (không bắt buộc)"
                       {...field}
                     />
                   </FormControl>

@@ -58,6 +58,7 @@ interface LiveProduct {
   live_phase_id?: string;
   product_code: string;
   product_name: string;
+  variant?: string | null;
   prepared_quantity: number;
   sold_quantity: number;
   created_at?: string;
@@ -585,6 +586,7 @@ export default function LiveProducts() {
     const csvData = liveProducts.map(product => ({
       "Mã sản phẩm": product.product_code,
       "Tên sản phẩm": product.product_name,
+      "Biến thể": product.variant || "",
       "Số lượng chuẩn bị": product.prepared_quantity,
       "Số lượng đã bán": product.sold_quantity,
       "Còn lại": product.prepared_quantity - product.sold_quantity,
@@ -826,10 +828,11 @@ export default function LiveProducts() {
               ) : (
                 <Card>
                   <Table>
-                    <TableHeader>
+                     <TableHeader>
                       <TableRow>
                         <TableHead>Mã SP</TableHead>
                         <TableHead>Tên sản phẩm</TableHead>
+                        <TableHead>Biến thể</TableHead>
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
                         <TableHead className="text-center">Số đơn</TableHead>
@@ -838,87 +841,131 @@ export default function LiveProducts() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {liveProducts.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell className="font-medium">{product.product_code}</TableCell>
-                          <TableCell>{product.product_name}</TableCell>
-                          <TableCell className="text-center">{product.prepared_quantity}</TableCell>
-                          <TableCell className="text-center">{product.sold_quantity}</TableCell>
-                          <TableCell className="text-center">
-                            {ordersWithProducts.filter(order => order.live_product_id === product.id).length}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap items-center gap-1">
-                              {(() => {
-                                const productOrders = selectedPhase === "all"
-                                  ? ordersWithProducts.filter(order => order.product_code === product.product_code)
-                                  : ordersWithProducts.filter(order => order.live_product_id === product.id);
-                                
-                                // Đếm số lần xuất hiện của mỗi order_code
-                                const orderCodeCounts = productOrders.reduce((acc, order) => {
-                                  acc[order.order_code] = (acc[order.order_code] || 0) + 1;
-                                  return acc;
-                                }, {} as Record<string, number>);
-                                
-                                // Lấy unique order codes để hiển thị
-                                const uniqueOrderCodes = Object.keys(orderCodeCounts);
-                                
-                                return (
-                                  <>
-                                    {uniqueOrderCodes.map(orderCode => {
-                                      const count = orderCodeCounts[orderCode];
-                                      const displayText = count > 1 ? `${orderCode} x${count}` : orderCode;
-                                      
-                                      return (
-                                        <Badge 
-                                          key={orderCode} 
-                                          variant="secondary" 
-                                          className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
-                                        >
-                                          {displayText}
-                                        </Badge>
-                                      );
-                                    })}
-                                    {selectedPhase !== "all" && (
-                                      <div className="flex items-center gap-2 ml-2">
-                                        <QuickAddOrder 
-                                          productId={product.id}
-                                          phaseId={selectedPhase}
-                                          sessionId={selectedSession}
-                                          availableQuantity={product.prepared_quantity - product.sold_quantity}
-                                        />
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditProduct(product)}
-                                disabled={selectedPhase === "all"}
-                                title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteProduct(product.id)}
-                                disabled={selectedPhase === "all"}
-                                className="text-red-600 hover:text-red-700"
-                                title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {(() => {
+                        // Group products by product_code and product_name
+                        const productGroups = liveProducts.reduce((groups, product) => {
+                          const key = `${product.product_code}_${product.product_name}`;
+                          if (!groups[key]) {
+                            groups[key] = {
+                              product_code: product.product_code,
+                              product_name: product.product_name,
+                              variants: []
+                            };
+                          }
+                          groups[key].variants.push(product);
+                          return groups;
+                        }, {} as Record<string, {
+                          product_code: string;
+                          product_name: string;
+                          variants: LiveProduct[];
+                        }>);
+
+                        return Object.values(productGroups).flatMap((group) => {
+                          return group.variants.map((product, variantIndex) => (
+                            <TableRow key={product.id}>
+                              {variantIndex === 0 && (
+                                <>
+                                  <TableCell 
+                                    rowSpan={group.variants.length} 
+                                    className="font-medium align-top border-r"
+                                  >
+                                    {group.product_code}
+                                  </TableCell>
+                                  <TableCell 
+                                    rowSpan={group.variants.length} 
+                                    className="align-top border-r"
+                                  >
+                                    {group.product_name}
+                                  </TableCell>
+                                </>
+                              )}
+                              <TableCell className="text-muted-foreground">
+                                {product.variant || "-"}
+                              </TableCell>
+                              <TableCell className="text-center">{product.prepared_quantity}</TableCell>
+                              <TableCell className="text-center">{product.sold_quantity}</TableCell>
+                              <TableCell className="text-center">
+                                {ordersWithProducts.filter(order => order.live_product_id === product.id).length}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {(() => {
+                                    const productOrders = selectedPhase === "all"
+                                      ? ordersWithProducts.filter(order => order.product_code === product.product_code)
+                                      : ordersWithProducts.filter(order => order.live_product_id === product.id);
+                                    
+                                    // Đếm số lần xuất hiện của mỗi order_code
+                                    const orderCodeCounts = productOrders.reduce((acc, order) => {
+                                      acc[order.order_code] = (acc[order.order_code] || 0) + 1;
+                                      return acc;
+                                    }, {} as Record<string, number>);
+                                    
+                                    // Lấy unique order codes để hiển thị
+                                    const uniqueOrderCodes = Object.keys(orderCodeCounts);
+                                    
+                                    return (
+                                      <>
+                                        {uniqueOrderCodes.map(orderCode => {
+                                          const count = orderCodeCounts[orderCode];
+                                          const displayText = count > 1 ? `${orderCode} x${count}` : orderCode;
+                                          
+                                          return (
+                                            <Badge 
+                                              key={orderCode} 
+                                              variant="secondary" 
+                                              className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
+                                            >
+                                              {displayText}
+                                            </Badge>
+                                          );
+                                        })}
+                                        {selectedPhase !== "all" && (
+                                          <div className="flex items-center gap-2 ml-2">
+                                            <QuickAddOrder 
+                                              productId={product.id}
+                                              phaseId={selectedPhase}
+                                              sessionId={selectedSession}
+                                              availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                            />
+                                          </div>
+                                        )}
+                                      </>
+                                    );
+                                  })()}
+                                </div>
+                              </TableCell>
+                              {variantIndex === 0 && (
+                                <TableCell 
+                                  rowSpan={group.variants.length} 
+                                  className="text-center align-top border-l"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditProduct(product)}
+                                      disabled={selectedPhase === "all"}
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteProduct(product.id)}
+                                      disabled={selectedPhase === "all"}
+                                      className="text-red-600 hover:text-red-700"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cúthể để xóa" : ""}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          ));
+                        });
+                      })()}
                     </TableBody>
                   </Table>
                 </Card>

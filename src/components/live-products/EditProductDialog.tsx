@@ -15,6 +15,7 @@ interface EditProductDialogProps {
     id: string;
     product_code: string;
     product_name: string;
+    variant?: string;
     prepared_quantity: number;
   } | null;
 }
@@ -22,6 +23,7 @@ interface EditProductDialogProps {
 interface FormData {
   product_code: string;
   product_name: string;
+  variant: string;
   prepared_quantity: number;
 }
 
@@ -33,6 +35,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     defaultValues: {
       product_code: "",
       product_name: "",
+      variant: "",
       prepared_quantity: 0,
     },
   });
@@ -43,6 +46,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       form.reset({
         product_code: product.product_code,
         product_name: product.product_name,
+        variant: product.variant || "",
         prepared_quantity: product.prepared_quantity,
       });
     }
@@ -57,6 +61,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
         .update({
           product_code: data.product_code,
           product_name: data.product_name,
+          variant: data.variant.trim() || null,
           prepared_quantity: data.prepared_quantity,
         })
         .eq("id", product.id);
@@ -144,6 +149,19 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                   <FormLabel>Tên sản phẩm</FormLabel>
                   <FormControl>
                     <Input placeholder="Nhập tên sản phẩm" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="variant"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Biến thể</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nhập biến thể (không bắt buộc)" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
