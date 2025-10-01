@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -297,12 +297,22 @@ export function EditOrderItemDialog({
     deleteOrderItemMutation.mutate();
   };
 
-  const orderCode = orderItem?.orders && orderItem.orders.length > 0 
-    ? orderItem.orders[0].order_code 
-    : "";
+  const orderCode = useMemo(() => 
+    orderItem?.orders && orderItem.orders.length > 0 
+      ? orderItem.orders[0].order_code 
+      : "",
+    [orderItem]
+  );
   
-  const isSingleOrder = orderItem?.orders && orderItem.orders.length === 1;
-  const singleOrderQuantity = isSingleOrder ? orderItem.orders[0].quantity : 0;
+  const isSingleOrder = useMemo(() => 
+    orderItem?.orders && orderItem.orders.length === 1,
+    [orderItem]
+  );
+  
+  const singleOrderQuantity = useMemo(() => 
+    isSingleOrder && orderItem?.orders ? orderItem.orders[0].quantity : 0,
+    [isSingleOrder, orderItem]
+  );
 
   return (
     <>
