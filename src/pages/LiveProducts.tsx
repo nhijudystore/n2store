@@ -656,7 +656,7 @@ export default function LiveProducts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Live Products</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Order Live</h1>
           <p className="text-muted-foreground">
             Quản lý các phiên live, sản phẩm và đơn hàng
           </p>
@@ -841,7 +841,6 @@ export default function LiveProducts() {
                         <TableHead>Biến thể</TableHead>
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
-                        <TableHead className="text-center">Số đơn</TableHead>
                         <TableHead>Mã đơn hàng</TableHead>
                         <TableHead className="text-center">Thao tác</TableHead>
                       </TableRow>
@@ -890,9 +889,6 @@ export default function LiveProducts() {
                               </TableCell>
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                               <TableCell className="text-center">{product.sold_quantity}</TableCell>
-                              <TableCell className="text-center">
-                                {ordersWithProducts.filter(order => order.live_product_id === product.id).length}
-                              </TableCell>
                               <TableCell>
                                 <div className="flex flex-wrap items-center gap-1">
                                   {(() => {

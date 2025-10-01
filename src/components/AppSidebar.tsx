@@ -31,7 +31,7 @@ const menuItems = [
     icon: Package,
   },
   {
-    title: "Sản phẩm Live",
+    title: "Order Live",
     url: "/live-products",
     icon: ShoppingCart,
   },
