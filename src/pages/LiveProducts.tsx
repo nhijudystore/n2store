@@ -30,22 +30,6 @@ import {
   AlertTriangle
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { 
-  ContextMenu, 
-  ContextMenuContent, 
-  ContextMenuItem, 
-  ContextMenuTrigger 
-} from "@/components/ui/context-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
@@ -168,11 +152,6 @@ export default function LiveProducts() {
     quantity: number;
     orders?: OrderWithProduct[];
   } | null>(null);
-  const [deleteOrderDialog, setDeleteOrderDialog] = useState<{
-    isOpen: boolean;
-    orderCode: string;
-    orders: OrderWithProduct[];
-  }>({ isOpen: false, orderCode: "", orders: [] });
   
   const queryClient = useQueryClient();
 
@@ -546,55 +525,6 @@ export default function LiveProducts() {
     onError: (error) => {
       console.error("Error deleting live session:", error);
       toast.error("Có lỗi xảy ra khi xóa đợt live");
-    },
-  });
-
-  // Delete all orders by order_code
-  const deleteOrderByCodeMutation = useMutation({
-    mutationFn: async ({ orderCode, orders }: { orderCode: string; orders: OrderWithProduct[] }) => {
-      // Group orders by product to calculate quantity reductions
-      const productQuantities = new Map<string, number>();
-      orders.forEach(order => {
-        const currentQty = productQuantities.get(order.live_product_id) || 0;
-        productQuantities.set(order.live_product_id, currentQty + order.quantity);
-      });
-
-      // Update sold_quantity for each affected product
-      for (const [productId, totalQty] of productQuantities.entries()) {
-        const { data: product, error: fetchError } = await supabase
-          .from("live_products")
-          .select("sold_quantity")
-          .eq("id", productId)
-          .single();
-        
-        if (fetchError) throw fetchError;
-        
-        const { error: updateError } = await supabase
-          .from("live_products")
-          .update({ sold_quantity: Math.max(0, product.sold_quantity - totalQty) })
-          .eq("id", productId);
-        
-        if (updateError) throw updateError;
-      }
-
-      // Delete all orders with this order_code
-      const { error: deleteError } = await supabase
-        .from("live_orders")
-        .delete()
-        .eq("order_code", orderCode);
-      
-      if (deleteError) throw deleteError;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["live-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["live-products"] });
-      queryClient.invalidateQueries({ queryKey: ["orders-with-products"] });
-      toast.success("Đã xóa đơn hàng thành công");
-      setDeleteOrderDialog({ isOpen: false, orderCode: "", orders: [] });
-    },
-    onError: (error) => {
-      console.error("Error deleting order by code:", error);
-      toast.error("Có lỗi xảy ra khi xóa đơn hàng");
     },
   });
 
@@ -1275,41 +1205,13 @@ export default function LiveProducts() {
                                     {hasOversell && (
                                       <AlertTriangle className="h-5 w-5 text-red-500" />
                                     )}
-                                    <ContextMenu>
-                                      <ContextMenuTrigger
-                                        onContextMenu={(e) => {
-                                          e.preventDefault();
-                                          console.log('Context menu triggered for order:', orderCode);
-                                        }}
-                                      >
-                                        <Badge className={`text-base font-bold font-mono px-3 py-1.5 cursor-context-menu ${
-                                          hasOversell 
-                                            ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
-                                            : 'bg-primary text-primary-foreground'
-                                        }`}>
-                                          {orderCode}
-                                        </Badge>
-                                      </ContextMenuTrigger>
-                                      <ContextMenuContent className="z-[9999]">
-                                        <ContextMenuItem
-                                          className="text-red-600 focus:text-red-600 cursor-pointer"
-                                          onClick={() => {
-                                            console.log('Delete menu item clicked for order:', orderCode);
-                                            const ordersForCode = ordersWithProducts.filter(
-                                              o => o.order_code === orderCode
-                                            );
-                                            setDeleteOrderDialog({
-                                              isOpen: true,
-                                              orderCode: orderCode,
-                                              orders: ordersForCode
-                                            });
-                                          }}
-                                        >
-                                          <Trash2 className="mr-2 h-4 w-4" />
-                                          Xóa đơn hàng
-                                        </ContextMenuItem>
-                                      </ContextMenuContent>
-                                    </ContextMenu>
+                                    <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
+                                      hasOversell 
+                                        ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
+                                        : 'bg-primary text-primary-foreground'
+                                    }`}>
+                                      {orderCode}
+                                    </Badge>
                                   </div>
                                 </TableCell>
                               )}
@@ -1453,60 +1355,6 @@ export default function LiveProducts() {
         orderItem={editingOrderItem}
         phaseId={selectedPhase}
       />
-
-      {/* Delete Order Confirmation Dialog */}
-      <AlertDialog open={deleteOrderDialog.isOpen} onOpenChange={(open) => 
-        setDeleteOrderDialog({ ...deleteOrderDialog, isOpen: open })
-      }>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa đơn hàng</AlertDialogTitle>
-            <AlertDialogDescription>
-              Bạn có chắc chắn muốn xóa toàn bộ đơn hàng <strong>#{deleteOrderDialog.orderCode}</strong>?
-              <div className="mt-4 space-y-2">
-                <p className="font-semibold text-foreground">Các sản phẩm sẽ bị xóa:</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {(() => {
-                    const productMap = new Map<string, { name: string; code: string; quantity: number }>();
-                    deleteOrderDialog.orders.forEach(order => {
-                      const key = order.live_product_id;
-                      const existing = productMap.get(key);
-                      if (existing) {
-                        existing.quantity += order.quantity;
-                      } else {
-                        productMap.set(key, {
-                          name: order.product_name,
-                          code: order.product_code,
-                          quantity: order.quantity
-                        });
-                      }
-                    });
-                    return Array.from(productMap.values()).map((product, idx) => (
-                      <li key={idx}>
-                        {product.name} ({product.code}) - SL: {product.quantity}
-                      </li>
-                    ));
-                  })()}
-                </ul>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                deleteOrderByCodeMutation.mutate({
-                  orderCode: deleteOrderDialog.orderCode,
-                  orders: deleteOrderDialog.orders
-                });
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Xóa đơn hàng
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
