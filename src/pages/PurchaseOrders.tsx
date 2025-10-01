@@ -257,17 +257,11 @@ const PurchaseOrders = () => {
     try {
       // Calculate discount percentage for each item
       const excelData = products.map(item => {
-        // Calculate discount percentage based on order discount
-        const itemTotal = (item.unit_price || 0) * (item.quantity || 0);
-        const orderTotal = item.total_amount || 0;
-        const orderDiscount = item.discount_amount || 0;
-        const discountPercent = orderTotal > 0 ? ((orderDiscount / orderTotal) * 100).toFixed(2) : "0";
-
         return {
           "Mã sản phẩm (*)": item.product_code?.toString() || "",
           "Số lượng (*)": item.quantity || 0,
           "Đơn giá": item.unit_price || 0,
-          "Chiết khấu (%)": discountPercent,
+          "Chiết khấu (%)": 0,
         };
       });
 
