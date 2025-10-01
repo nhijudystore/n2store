@@ -401,7 +401,7 @@ export function PurchaseOrderList({
                             <img 
                               src={flatItem.invoice_images[0]}
                               alt="Hóa đơn"
-                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[8] hover:z-20 relative"
                             />
                           )}
                           <div className="space-y-1">
@@ -453,7 +453,7 @@ export function PurchaseOrderList({
                               key={index}
                               src={imageUrl}
                               alt={`Giá mua ${index + 1}`}
-                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[12] hover:z-20 relative"
                             />
                           ))}
                         </div>
@@ -472,7 +472,7 @@ export function PurchaseOrderList({
                               key={index}
                               src={imageUrl}
                               alt={`Sản phẩm ${index + 1}`}
-                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[12] hover:z-20 relative"
                             />
                           ))}
                         </div>
