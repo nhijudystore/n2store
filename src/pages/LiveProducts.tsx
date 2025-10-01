@@ -842,13 +842,13 @@ export default function LiveProducts() {
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        // Group products by product_code and variant
+                        // Group products by product_code only
                         const productGroups = liveProducts.reduce((groups, product) => {
-                          const key = `${product.product_code}_${product.variant || 'no_variant'}`;
+                          const key = product.product_code;
                           if (!groups[key]) {
                             groups[key] = {
                               product_code: product.product_code,
-                              variant: product.variant,
+                              product_name: product.product_name,
                               products: []
                             };
                           }
@@ -856,7 +856,7 @@ export default function LiveProducts() {
                           return groups;
                         }, {} as Record<string, {
                           product_code: string;
-                          variant: string | null;
+                          product_name: string;
                           products: LiveProduct[];
                         }>);
 
@@ -871,19 +871,17 @@ export default function LiveProducts() {
                                   >
                                     {group.product_code}
                                   </TableCell>
+                                  <TableCell 
+                                    rowSpan={group.products.length}
+                                    className="align-top border-r"
+                                  >
+                                    {group.product_name}
+                                  </TableCell>
                                 </>
                               )}
-                              <TableCell>
-                                {product.product_name}
+                              <TableCell className="text-muted-foreground">
+                                {product.variant || "-"}
                               </TableCell>
-                              {productIndex === 0 && (
-                                <TableCell 
-                                  rowSpan={group.products.length}
-                                  className="text-muted-foreground align-top border-r"
-                                >
-                                  {group.variant || "-"}
-                                </TableCell>
-                              )}
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                               <TableCell className="text-center">{product.sold_quantity}</TableCell>
                               <TableCell className="text-center">
@@ -957,7 +955,7 @@ export default function LiveProducts() {
                                       onClick={() => handleDeleteProduct(product.id)}
                                       disabled={selectedPhase === "all"}
                                       className="text-red-600 hover:text-red-700"
-                                      title={selectedPhase === "all" ? "Chọn phiên live cúthể để xóa" : ""}
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
