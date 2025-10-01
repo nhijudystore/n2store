@@ -44,6 +44,23 @@ interface PurchaseOrder {
 const PurchaseOrders = () => {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+
+  // Helper function to format date as DD-MM
+  const formatDateDDMM = () => {
+    const date = new Date();
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    return `${day}-${month}`;
+  };
+
+  // Helper function to get supplier list
+  const getSupplierList = (orders: PurchaseOrder[]) => {
+    const suppliers = orders
+      .map(order => order.supplier_name)
+      .filter((name): name is string => name !== null && name !== undefined);
+    const uniqueSuppliers = Array.from(new Set(suppliers));
+    return uniqueSuppliers.join('-') || 'NoSupplier';
+  };
   
   // Filter states moved from PurchaseOrderList
   const [searchTerm, setSearchTerm] = useState("");
@@ -214,7 +231,7 @@ const PurchaseOrders = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Đặt Hàng");
       
-      const fileName = `DatHang_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}.xlsx`;
+      const fileName = `TaoMaSP_${formatDateDDMM()}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
       toast({
@@ -270,7 +287,7 @@ const PurchaseOrders = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Mua Hàng");
       
-      const fileName = `MuaHang_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}.xlsx`;
+      const fileName = `MuaHang_${getSupplierList(filteredOrders)}_${formatDateDDMM()}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
       toast({
