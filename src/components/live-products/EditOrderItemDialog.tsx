@@ -186,54 +186,57 @@ export function EditOrderItemDialog({
     },
   });
 
-  const deleteOrderByCodeMutation = useMutation({
+  const deleteOrderItemMutation = useMutation({
     mutationFn: async () => {
       if (!orderItem) return;
 
-      // Get order_code from the first order
+      const productId = orderItem.product_id;
       const orderCode = orderItem.orders && orderItem.orders.length > 0 
         ? orderItem.orders[0].order_code 
         : null;
 
-      if (!orderCode) {
-        throw new Error("Không tìm thấy mã đơn hàng");
+      if (!orderCode || !productId) {
+        throw new Error("Không tìm thấy thông tin đơn hàng");
       }
 
-      // Get all orders with this order_code
+      // Get all orders for this specific product with this order_code
       const { data: ordersToDelete, error: fetchError } = await supabase
         .from("live_orders")
-        .select("id, live_product_id, quantity")
-        .eq("order_code", orderCode);
+        .select("id, quantity")
+        .eq("order_code", orderCode)
+        .eq("live_product_id", productId);
 
       if (fetchError) throw fetchError;
 
       if (!ordersToDelete || ordersToDelete.length === 0) return;
 
-      // Update sold_quantity for each affected product
-      for (const order of ordersToDelete) {
-        const { data: product, error: productFetchError } = await supabase
-          .from("live_products")
-          .select("sold_quantity")
-          .eq("id", order.live_product_id)
-          .single();
+      // Calculate total quantity to subtract for this product only
+      const totalQuantity = ordersToDelete.reduce((sum, order) => sum + order.quantity, 0);
 
-        if (productFetchError) throw productFetchError;
+      // Update sold_quantity for this product only
+      const { data: product, error: productFetchError } = await supabase
+        .from("live_products")
+        .select("sold_quantity")
+        .eq("id", productId)
+        .single();
 
-        const { error: productUpdateError } = await supabase
-          .from("live_products")
-          .update({ 
-            sold_quantity: Math.max(0, product.sold_quantity - order.quantity)
-          })
-          .eq("id", order.live_product_id);
+      if (productFetchError) throw productFetchError;
 
-        if (productUpdateError) throw productUpdateError;
-      }
+      const { error: productUpdateError } = await supabase
+        .from("live_products")
+        .update({ 
+          sold_quantity: Math.max(0, product.sold_quantity - totalQuantity)
+        })
+        .eq("id", productId);
 
-      // Delete all orders with this order_code
+      if (productUpdateError) throw productUpdateError;
+
+      // Delete only orders for this specific product with this order_code
       const { error: deleteError } = await supabase
         .from("live_orders")
         .delete()
-        .eq("order_code", orderCode);
+        .eq("order_code", orderCode)
+        .eq("live_product_id", productId);
 
       if (deleteError) throw deleteError;
     },
@@ -241,14 +244,14 @@ export function EditOrderItemDialog({
       queryClient.invalidateQueries({ queryKey: ["live-orders", phaseId] });
       queryClient.invalidateQueries({ queryKey: ["live-products", phaseId] });
       queryClient.invalidateQueries({ queryKey: ["orders-with-products", phaseId] });
-      toast.success("Đã xóa đơn hàng thành công");
+      toast.success("Đã xóa sản phẩm khỏi đơn hàng thành công");
       onOpenChange(false);
       setShowDeleteConfirm(false);
       form.reset();
     },
     onError: (error) => {
-      console.error("Error deleting order:", error);
-      toast.error("Có lỗi xảy ra khi xóa đơn hàng");
+      console.error("Error deleting order item:", error);
+      toast.error("Có lỗi xảy ra khi xóa sản phẩm");
     },
   });
 
@@ -262,7 +265,7 @@ export function EditOrderItemDialog({
   };
 
   const handleDeleteConfirm = () => {
-    deleteOrderByCodeMutation.mutate();
+    deleteOrderItemMutation.mutate();
   };
 
   const orderCode = orderItem?.orders && orderItem.orders.length > 0 
@@ -322,9 +325,9 @@ export function EditOrderItemDialog({
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Xác nhận xóa đơn hàng</AlertDialogTitle>
+            <AlertDialogTitle>Xác nhận xóa sản phẩm</AlertDialogTitle>
             <AlertDialogDescription>
-              Bạn có muốn xóa đơn hàng <strong>{orderCode}</strong> không? Hành động này không thể hoàn tác.
+              Bạn có muốn xóa sản phẩm <strong>{orderItem?.product_name}</strong> khỏi đơn hàng <strong>{orderCode}</strong> không? Hành động này không thể hoàn tác.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -333,10 +336,10 @@ export function EditOrderItemDialog({
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteConfirm}
-              disabled={deleteOrderByCodeMutation.isPending}
+              disabled={deleteOrderItemMutation.isPending}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleteOrderByCodeMutation.isPending ? "Đang xóa..." : "Xóa đơn hàng"}
+              {deleteOrderItemMutation.isPending ? "Đang xóa..." : "Xóa sản phẩm"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
