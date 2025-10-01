@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "@/hooks/use-toast";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EditProductDialogProps {
   open: boolean;
@@ -17,6 +19,7 @@ interface EditProductDialogProps {
     product_name: string;
     variant?: string;
     prepared_quantity: number;
+    live_phase_id?: string;
   } | null;
 }
 
@@ -29,7 +32,9 @@ interface FormData {
 
 export function EditProductDialog({ open, onOpenChange, product }: EditProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string>("");
   const queryClient = useQueryClient();
+  const productCodeInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -49,8 +54,46 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
         variant: product.variant || "",
         prepared_quantity: product.prepared_quantity,
       });
+      setDuplicateWarning("");
+      // Auto-focus on product code field
+      setTimeout(() => productCodeInputRef.current?.focus(), 100);
     }
   }, [product?.id, open, form]);
+
+  // Check for duplicates when product_code or variant changes
+  const checkDuplicate = async (productCode: string, variant: string) => {
+    if (!product?.live_phase_id || !productCode.trim()) return false;
+
+    const { data, error } = await supabase
+      .from("live_products")
+      .select("id, product_code, variant")
+      .eq("live_phase_id", product.live_phase_id)
+      .eq("product_code", productCode)
+      .neq("id", product.id);
+
+    if (error) {
+      console.error("Error checking duplicates:", error);
+      return false;
+    }
+
+    const normalizedVariant = variant.trim().toLowerCase() || null;
+    const isDuplicate = data.some(p => {
+      const existingVariant = p.variant?.trim().toLowerCase() || null;
+      return existingVariant === normalizedVariant;
+    });
+
+    if (isDuplicate) {
+      setDuplicateWarning(
+        variant.trim() 
+          ? `Sản phẩm "${productCode}" với biến thể "${variant}" đã tồn tại trong phiên live này`
+          : `Sản phẩm "${productCode}" (không có biến thể) đã tồn tại trong phiên live này`
+      );
+      return true;
+    }
+
+    setDuplicateWarning("");
+    return false;
+  };
 
   const updateProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -88,7 +131,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     },
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     if (!product?.id) {
       toast({
         title: "Lỗi",
@@ -98,10 +141,19 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       return;
     }
 
-    if (!data.product_code.trim() || !data.product_name.trim()) {
+    if (!data.product_code.trim()) {
       toast({
         title: "Lỗi",
-        description: "Vui lòng điền đầy đủ thông tin sản phẩm",
+        description: "Mã sản phẩm không được để trống",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!data.product_name.trim()) {
+      toast({
+        title: "Lỗi",
+        description: "Tên sản phẩm không được để trống",
         variant: "destructive",
       });
       return;
@@ -111,6 +163,17 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       toast({
         title: "Lỗi",
         description: "Số lượng chuẩn bị phải lớn hơn hoặc bằng 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for duplicates before submitting
+    const isDuplicate = await checkDuplicate(data.product_code, data.variant);
+    if (isDuplicate) {
+      toast({
+        title: "Không thể cập nhật",
+        description: duplicateWarning,
         variant: "destructive",
       });
       return;
@@ -127,7 +190,22 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
           <DialogTitle>Chỉnh sửa sản phẩm</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form 
+            onSubmit={form.handleSubmit(onSubmit)} 
+            className="space-y-4"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                form.handleSubmit(onSubmit)();
+              }
+            }}
+          >
+            {duplicateWarning && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{duplicateWarning}</AlertDescription>
+              </Alert>
+            )}
             <FormField
               control={form.control}
               name="product_code"
@@ -135,7 +213,15 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                 <FormItem>
                   <FormLabel>Mã sản phẩm</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nhập mã sản phẩm" {...field} />
+                    <Input 
+                      placeholder="Nhập mã sản phẩm" 
+                      {...field}
+                      ref={productCodeInputRef}
+                      onBlur={() => {
+                        const variant = form.getValues("variant");
+                        checkDuplicate(field.value, variant);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -161,7 +247,14 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                 <FormItem>
                   <FormLabel>Biến thể</FormLabel>
                   <FormControl>
-                    <Input placeholder="Nhập biến thể (không bắt buộc)" {...field} />
+                    <Input 
+                      placeholder="Nhập biến thể (không bắt buộc)" 
+                      {...field}
+                      onBlur={() => {
+                        const productCode = form.getValues("product_code");
+                        checkDuplicate(productCode, field.value);
+                      }}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -194,7 +287,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
               >
                 Hủy
               </Button>
-              <Button type="submit" disabled={isSubmitting || !product?.id}>
+              <Button type="submit" disabled={isSubmitting || !product?.id || !!duplicateWarning}>
                 {isSubmitting ? "Đang cập nhật..." : "Cập nhật sản phẩm"}
               </Button>
             </div>
