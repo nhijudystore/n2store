@@ -144,6 +144,7 @@ export default function LiveProducts() {
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [isEditOrderItemOpen, setIsEditOrderItemOpen] = useState(false);
   const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
+  const [copyTotals, setCopyTotals] = useState<Record<string, number>>({});
   const [editingOrderItem, setEditingOrderItem] = useState<{
     id: string;
     product_id: string;
@@ -968,6 +969,11 @@ export default function LiveProducts() {
                                         qty,
                                         product.product_name
                                       );
+                                      // Update copy total
+                                      setCopyTotals(prev => ({
+                                        ...prev,
+                                        [product.id]: (prev[product.id] || 0) + qty
+                                      }));
                                     }}
                                     disabled={!product.image_url}
                                     title={product.image_url ? "Copy hình order" : "Chưa có hình ảnh"}
@@ -988,6 +994,11 @@ export default function LiveProducts() {
                                     className="w-12 h-6 text-center text-xs border rounded px-1"
                                     placeholder="SL"
                                   />
+                                  {copyTotals[product.id] > 0 && (
+                                    <div className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                      Đã copy: {copyTotals[product.id]}
+                                    </div>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
