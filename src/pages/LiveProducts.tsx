@@ -1018,7 +1018,7 @@ export default function LiveProducts() {
                                                     {isOversell && (
                                                       <AlertTriangle className="h-3 w-3 mr-1" />
                                                     )}
-                                                    {order.order_code} x{order.quantity}
+                                                    {order.quantity === 1 ? order.order_code : `${order.order_code} x${order.quantity}`}
                                                   </Badge>
                                                 </TooltipTrigger>
                                                 <TooltipContent>
