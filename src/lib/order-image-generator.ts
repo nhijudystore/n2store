@@ -22,10 +22,10 @@ export const generateOrderImage = async (
       img.src = imageUrl;
     });
 
-    // Calculate dimensions: image takes 65%, text takes 35%
-    const finalHeight = Math.floor(img.height * 2.0); // Total height - increased for better proportion
-    const imageAreaHeight = Math.floor(finalHeight * 0.65);
-    const textAreaHeight = Math.floor(finalHeight * 0.35);
+    // Calculate dimensions: image takes 2/3, text takes 1/3
+    const finalHeight = Math.floor(img.height * 1.5); // Total height
+    const imageAreaHeight = Math.floor(finalHeight * 2 / 3);
+    const textAreaHeight = Math.floor(finalHeight / 3);
     
     canvas.width = img.width;
     canvas.height = finalHeight;
@@ -46,26 +46,25 @@ export const generateOrderImage = async (
     const variantText = variant || "Không có biến thể";
     const text = `${variantText} - SL: ${quantity}`;
     
-    // Draw text background (35% bottom area)
+    // Draw text background (1/3 bottom area)
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, imageAreaHeight, canvas.width, textAreaHeight);
 
-    // Calculate maximum font size to fill both width and height
+    // Calculate maximum font size to fill width
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    let fontSize = 30; // Start with a larger base size
+    let fontSize = 20;
     const maxWidth = canvas.width * 0.9; // 90% of canvas width
-    const maxHeight = textAreaHeight * 0.7; // 70% of text area height
     
-    // Increase font size until text fills the available space
+    // Increase font size until text fills the width
     ctx.font = `bold ${fontSize}px Arial`;
-    while (ctx.measureText(text).width < maxWidth && fontSize < maxHeight && fontSize < 300) {
-      fontSize += 3;
+    while (ctx.measureText(text).width < maxWidth && fontSize < 200) {
+      fontSize += 2;
       ctx.font = `bold ${fontSize}px Arial`;
     }
     // Step back one size if we went over
-    if (ctx.measureText(text).width > maxWidth || fontSize > maxHeight) {
-      fontSize -= 3;
+    if (ctx.measureText(text).width > maxWidth) {
+      fontSize -= 2;
       ctx.font = `bold ${fontSize}px Arial`;
     }
 
