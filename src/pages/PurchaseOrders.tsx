@@ -249,8 +249,18 @@ const PurchaseOrders = () => {
   };
 
   const handleExportPurchaseExcel = () => {
+    // Validate that only one order is selected
+    if (filteredOrders.length !== 1) {
+      toast({
+        title: "Không thể xuất Excel",
+        description: "Đang lọc nhiều hơn 1 nhà cung cấp. Vui lòng chọn 1 đơn hàng để xuất.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Flatten all items from filteredOrders
-    const products = filteredOrders.flatMap(order => 
+    const products = filteredOrders.flatMap(order =>
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
