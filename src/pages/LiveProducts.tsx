@@ -26,7 +26,8 @@ import {
   Edit,
   ListOrdered,
   Pencil,
-  Copy
+  Copy,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
@@ -75,6 +76,7 @@ interface LiveOrder {
   order_code: string;
   quantity: number;
   order_date: string;
+  is_oversell?: boolean;
 }
 
 interface OrderWithProduct extends LiveOrder {
@@ -1098,6 +1100,11 @@ export default function LiveProducts() {
 
                           const aggregatedProducts = Object.values(productGroups);
 
+                          // Check if any order in this group is oversell
+                          const hasOversell = aggregatedProducts.some(p => 
+                            p.orders.some(order => order.is_oversell)
+                          );
+                          
                           return aggregatedProducts.map((product, index) => (
                             <TableRow 
                               key={`${orderCode}-${product.product_code}`}
@@ -1105,16 +1112,27 @@ export default function LiveProducts() {
                                 index === aggregatedProducts.length - 1 
                                   ? 'border-b-2 border-border/60' 
                                   : 'border-b border-border/20'
-                              } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''}`}
+                              } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''} ${
+                                hasOversell ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : ''
+                              }`}
                             >
                               {index === 0 && (
                                 <TableCell 
                                   rowSpan={aggregatedProducts.length} 
                                   className="font-medium align-middle border-r border-l text-center"
                                 >
-                                  <Badge className="text-base font-bold font-mono bg-primary text-primary-foreground px-3 py-1.5">
-                                    {orderCode}
-                                  </Badge>
+                                  <div className="flex items-center justify-center gap-2">
+                                    {hasOversell && (
+                                      <AlertTriangle className="h-5 w-5 text-red-500" />
+                                    )}
+                                    <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
+                                      hasOversell 
+                                        ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
+                                        : 'bg-primary text-primary-foreground'
+                                    }`}>
+                                      {orderCode}
+                                    </Badge>
+                                  </div>
                                 </TableCell>
                               )}
                               <TableCell className="py-2 border-r">

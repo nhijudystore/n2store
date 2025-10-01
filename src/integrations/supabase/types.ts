@@ -138,6 +138,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_oversell: boolean | null
           live_phase_id: string | null
           live_product_id: string
           live_session_id: string
@@ -148,6 +149,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_oversell?: boolean | null
           live_phase_id?: string | null
           live_product_id: string
           live_session_id: string
@@ -158,6 +160,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_oversell?: boolean | null
           live_phase_id?: string | null
           live_product_id?: string
           live_session_id?: string

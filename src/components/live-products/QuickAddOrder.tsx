@@ -19,7 +19,20 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
 
   const addOrderMutation = useMutation({
     mutationFn: async (orderCodeValue: string) => {
-      // Insert new order
+      // Get current product data to check if overselling
+      const { data: product, error: fetchError } = await supabase
+        .from('live_products')
+        .select('sold_quantity, prepared_quantity')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Check if this order will be an oversell
+      const newSoldQuantity = (product.sold_quantity || 0) + 1;
+      const isOversell = newSoldQuantity > product.prepared_quantity;
+
+      // Insert new order with oversell flag
       const { error: orderError } = await supabase
         .from('live_orders')
         .insert({
@@ -27,30 +40,23 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
           live_session_id: sessionId,
           live_phase_id: phaseId,
           live_product_id: productId,
-          quantity: 1
+          quantity: 1,
+          is_oversell: isOversell
         });
 
       if (orderError) throw orderError;
 
       // Update sold quantity
-      const { data: product, error: fetchError } = await supabase
-        .from('live_products')
-        .select('sold_quantity')
-        .eq('id', productId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
       const { error: updateError } = await supabase
         .from('live_products')
-        .update({ sold_quantity: (product.sold_quantity || 0) + 1 })
+        .update({ sold_quantity: newSoldQuantity })
         .eq('id', productId);
 
       if (updateError) throw updateError;
       
-      return orderCodeValue;
+      return { orderCodeValue, isOversell };
     },
-    onSuccess: (orderCodeValue) => {
+    onSuccess: ({ orderCodeValue, isOversell }) => {
       setOrderCode('');
       // Force refetch all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
@@ -63,8 +69,11 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       toast({
-        title: "Thành công",
-        description: `Đã thêm đơn hàng ${orderCodeValue}`,
+        title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
+        description: isOversell 
+          ? `Đã thêm đơn ${orderCodeValue} (vượt số lượng - đánh dấu đỏ)`
+          : `Đã thêm đơn hàng ${orderCodeValue}`,
+        variant: isOversell ? "destructive" : "default",
       });
     },
     onError: (error) => {
@@ -78,21 +87,23 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
   });
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && orderCode.trim() && availableQuantity > 0) {
+    if (e.key === 'Enter' && orderCode.trim()) {
       addOrderMutation.mutate(orderCode.trim());
     }
   };
 
+  const isOutOfStock = availableQuantity <= 0;
+  
   return (
     <div className="flex items-center gap-2 w-full">
-      <Plus className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <Plus className={`h-4 w-4 flex-shrink-0 ${isOutOfStock ? 'text-red-500' : 'text-muted-foreground'}`} />
       <Input
-        placeholder={availableQuantity > 0 ? "Nhập mã đơn + Enter" : "Hết hàng"}
+        placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn + Enter"}
         value={orderCode}
         onChange={(e) => setOrderCode(e.target.value)}
         onKeyPress={handleKeyPress}
-        disabled={addOrderMutation.isPending || availableQuantity <= 0}
-        className="flex-1 text-sm"
+        disabled={addOrderMutation.isPending}
+        className={`flex-1 text-sm ${isOutOfStock ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
       />
     </div>
   );
