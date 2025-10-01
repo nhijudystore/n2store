@@ -9,8 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { ImagePreviewModal } from "@/components/ui/image-preview-modal";
-import { Pencil, Search, Filter, Calendar, Trash2, Expand } from "lucide-react";
+import { Pencil, Search, Filter, Calendar, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -81,38 +80,9 @@ export function PurchaseOrderList({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null);
-  const [imagePreview, setImagePreview] = useState<{
-    isOpen: boolean;
-    images: string[];
-    initialIndex: number;
-    title: string;
-  }>({
-    isOpen: false,
-    images: [],
-    initialIndex: 0,
-    title: ""
-  });
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  const openImagePreview = (images: string[], initialIndex: number, title: string) => {
-    setImagePreview({
-      isOpen: true,
-      images,
-      initialIndex,
-      title
-    });
-  };
-
-  const closeImagePreview = () => {
-    setImagePreview({
-      isOpen: false,
-      images: [],
-      initialIndex: 0,
-      title: ""
-    });
-  };
 
   const deletePurchaseOrderMutation = useMutation({
     mutationFn: async (orderId: string) => {
@@ -428,17 +398,11 @@ export function PurchaseOrderList({
                       >
                         <div className="space-y-2 relative">
                           {flatItem.invoice_images && flatItem.invoice_images.length > 0 && (
-                            <div className="relative group">
-                              <img 
-                                src={flatItem.invoice_images[0]}
-                                alt="Hóa đơn"
-                                className="w-20 h-20 object-cover rounded cursor-pointer transition-all duration-200 hover:opacity-80"
-                                onClick={() => openImagePreview(flatItem.invoice_images, 0, "Hóa đơn")}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                                <Expand className="w-6 h-6 text-white drop-shadow-lg" />
-                              </div>
-                            </div>
+                            <img 
+                              src={flatItem.invoice_images[0]}
+                              alt="Hóa đơn"
+                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                            />
                           )}
                           <div className="space-y-1">
                             <div className="text-sm font-semibold text-blue-600">
@@ -480,31 +444,18 @@ export function PurchaseOrderList({
                   <TableCell className="border-r text-center">
                     {flatItem.item?.quantity || 0}
                   </TableCell>
-                  <TableCell className="border-r text-right">
+                  <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
                       {flatItem.item?.price_images && flatItem.item.price_images.length > 0 ? (
                         <div className="flex flex-wrap gap-1 justify-end">
-                          {flatItem.item.price_images.slice(0, 2).map((imageUrl, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={imageUrl}
-                                alt={`Giá mua ${index + 1}`}
-                                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80 transition-all duration-200"
-                                onClick={() => openImagePreview(flatItem.item.price_images, index, "Giá mua")}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                                <Expand className="w-3 h-3 text-white drop-shadow-lg" />
-                              </div>
-                            </div>
+                          {flatItem.item.price_images.map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Giá mua ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                            />
                           ))}
-                          {flatItem.item.price_images.length > 2 && (
-                            <div 
-                              className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/80"
-                              onClick={() => openImagePreview(flatItem.item.price_images, 2, "Giá mua")}
-                            >
-                              +{flatItem.item.price_images.length - 2}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
@@ -512,31 +463,18 @@ export function PurchaseOrderList({
                       <span>{flatItem.item ? formatVND(flatItem.item.unit_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="border-r text-right">
+                  <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
                       {flatItem.item?.product_images && flatItem.item.product_images.length > 0 ? (
                         <div className="flex flex-wrap gap-1 justify-end">
-                          {flatItem.item.product_images.slice(0, 2).map((imageUrl, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={imageUrl}
-                                alt={`Sản phẩm ${index + 1}`}
-                                className="w-8 h-8 object-cover rounded border cursor-pointer hover:opacity-80 transition-all duration-200"
-                                onClick={() => openImagePreview(flatItem.item.product_images, index, "Ảnh sản phẩm")}
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                                <Expand className="w-3 h-3 text-white drop-shadow-lg" />
-                              </div>
-                            </div>
+                          {flatItem.item.product_images.map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Sản phẩm ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[5] hover:z-20 relative"
+                            />
                           ))}
-                          {flatItem.item.product_images.length > 2 && (
-                            <div 
-                              className="w-8 h-8 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground cursor-pointer hover:bg-muted/80"
-                              onClick={() => openImagePreview(flatItem.item.product_images, 2, "Ảnh sản phẩm")}
-                            >
-                              +{flatItem.item.product_images.length - 2}
-                            </div>
-                          )}
                         </div>
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
@@ -629,14 +567,6 @@ export function PurchaseOrderList({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <ImagePreviewModal
-        isOpen={imagePreview.isOpen}
-        onClose={closeImagePreview}
-        images={imagePreview.images}
-        initialIndex={imagePreview.initialIndex}
-        title={imagePreview.title}
-      />
     </div>
   );
 }
