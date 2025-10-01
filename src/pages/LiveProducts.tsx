@@ -92,7 +92,10 @@ export default function LiveProducts() {
     id: string;
     product_code: string;
     product_name: string;
+    variant?: string;
     prepared_quantity: number;
+    live_phase_id?: string;
+    live_session_id?: string;
   } | null>(null);
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [isEditOrderItemOpen, setIsEditOrderItemOpen] = useState(false);
@@ -567,7 +570,10 @@ export default function LiveProducts() {
       id: product.id,
       product_code: product.product_code,
       product_name: product.product_name,
+      variant: product.variant || undefined,
       prepared_quantity: product.prepared_quantity,
+      live_phase_id: product.live_phase_id || selectedPhase,
+      live_session_id: product.live_session_id || selectedSession,
     });
     setIsEditProductOpen(true);
   };

@@ -3,11 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Trash2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EditProductDialogProps {
@@ -20,111 +20,181 @@ interface EditProductDialogProps {
     variant?: string;
     prepared_quantity: number;
     live_phase_id?: string;
+    live_session_id?: string;
   } | null;
+}
+
+interface VariantData {
+  id?: string;
+  name: string;
+  quantity: number;
 }
 
 interface FormData {
   product_code: string;
   product_name: string;
-  variant: string;
-  prepared_quantity: number;
+  variants: VariantData[];
 }
 
 export function EditProductDialog({ open, onOpenChange, product }: EditProductDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string>("");
   const queryClient = useQueryClient();
-  const productCodeInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormData>({
     defaultValues: {
       product_code: "",
       product_name: "",
-      variant: "",
-      prepared_quantity: 0,
+      variants: [{ name: "", quantity: 0 }],
     },
   });
 
-  // Reset form when product changes or dialog opens
+  // Load all variants of the same product_code
+  const { data: allVariants, isLoading } = useQuery({
+    queryKey: ["product-variants", product?.product_code, product?.live_phase_id],
+    queryFn: async () => {
+      if (!product?.product_code || !product?.live_phase_id) return [];
+      
+      const { data, error } = await supabase
+        .from("live_products")
+        .select("id, variant, prepared_quantity")
+        .eq("live_phase_id", product.live_phase_id)
+        .eq("product_code", product.product_code)
+        .order("variant");
+
+      if (error) throw error;
+      return data;
+    },
+    enabled: open && !!product?.product_code && !!product?.live_phase_id,
+  });
+
+  // Reset form when variants are loaded
   useEffect(() => {
-    if (product && open) {
+    if (product && open && allVariants) {
+      const variants = allVariants.map(v => ({
+        id: v.id,
+        name: v.variant || "",
+        quantity: v.prepared_quantity,
+      }));
+
       form.reset({
         product_code: product.product_code,
         product_name: product.product_name,
-        variant: product.variant || "",
-        prepared_quantity: product.prepared_quantity,
+        variants: variants.length > 0 ? variants : [{ name: "", quantity: 0 }],
       });
       setDuplicateWarning("");
-      // Auto-focus on product code field
-      setTimeout(() => productCodeInputRef.current?.focus(), 100);
     }
-  }, [product?.id, open, form]);
+  }, [allVariants, product?.product_code, open, form]);
 
-  // Check for duplicates when product_code or variant changes
-  const checkDuplicate = async (productCode: string, variant: string) => {
-    if (!product?.live_phase_id || !productCode.trim()) return false;
+  const addVariant = () => {
+    const currentVariants = form.getValues("variants");
+    form.setValue("variants", [...currentVariants, { name: "", quantity: 0 }]);
+  };
 
-    const { data, error } = await supabase
-      .from("live_products")
-      .select("id, product_code, variant")
-      .eq("live_phase_id", product.live_phase_id)
-      .eq("product_code", productCode)
-      .neq("id", product.id);
-
-    if (error) {
-      console.error("Error checking duplicates:", error);
-      return false;
+  const removeVariant = (index: number) => {
+    const currentVariants = form.getValues("variants");
+    if (currentVariants.length > 1) {
+      form.setValue("variants", currentVariants.filter((_, i) => i !== index));
+    } else {
+      toast({
+        title: "Không thể xóa",
+        description: "Phải có ít nhất một biến thể",
+        variant: "destructive",
+      });
     }
-
-    const normalizedVariant = variant.trim().toLowerCase() || null;
-    const isDuplicate = data.some(p => {
-      const existingVariant = p.variant?.trim().toLowerCase() || null;
-      return existingVariant === normalizedVariant;
-    });
-
-    if (isDuplicate) {
-      setDuplicateWarning(
-        variant.trim() 
-          ? `Sản phẩm "${productCode}" với biến thể "${variant}" đã tồn tại trong phiên live này`
-          : `Sản phẩm "${productCode}" (không có biến thể) đã tồn tại trong phiên live này`
-      );
-      return true;
-    }
-
-    setDuplicateWarning("");
-    return false;
   };
 
   const updateProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      if (!product?.id) throw new Error("No product selected");
-      
-      const { error } = await supabase
-        .from("live_products")
-        .update({
-          product_code: data.product_code,
-          product_name: data.product_name,
-          variant: data.variant.trim() || null,
-          prepared_quantity: data.prepared_quantity,
-        })
-        .eq("id", product.id);
+      if (!product?.live_phase_id || !product?.live_session_id) {
+        throw new Error("Missing phase or session ID");
+      }
 
-      if (error) throw error;
+      const productCode = data.product_code.trim();
+      const productName = data.product_name.trim();
+      
+      // Get current variants from database
+      const existingVariantIds = allVariants?.map(v => v.id) || [];
+      const formVariantIds = data.variants.map(v => v.id).filter(Boolean);
+      
+      // 1. Delete removed variants
+      const variantsToDelete = existingVariantIds.filter(id => !formVariantIds.includes(id));
+      if (variantsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from("live_products")
+          .delete()
+          .in("id", variantsToDelete);
+        
+        if (deleteError) throw deleteError;
+      }
+
+      // 2. Update existing variants and product info
+      for (const variant of data.variants) {
+        if (variant.id) {
+          const { error: updateError } = await supabase
+            .from("live_products")
+            .update({
+              product_code: productCode,
+              product_name: productName,
+              variant: variant.name.trim() || null,
+              prepared_quantity: variant.quantity,
+            })
+            .eq("id", variant.id);
+          
+          if (updateError) throw updateError;
+        }
+      }
+
+      // 3. Insert new variants
+      const newVariants = data.variants.filter(v => !v.id);
+      if (newVariants.length > 0) {
+        // Check for duplicates
+        for (const variant of newVariants) {
+          const variantName = variant.name.trim() || null;
+          const { data: existing } = await supabase
+            .from("live_products")
+            .select("id")
+            .eq("live_phase_id", product.live_phase_id)
+            .eq("product_code", productCode)
+            .eq("variant", variantName);
+
+          if (existing && existing.length > 0) {
+            throw new Error(`Biến thể "${variant.name || '(Không có)'}" đã tồn tại`);
+          }
+        }
+
+        const insertData = newVariants.map(variant => ({
+          live_session_id: product.live_session_id,
+          live_phase_id: product.live_phase_id,
+          product_code: productCode,
+          product_name: productName,
+          variant: variant.name.trim() || null,
+          prepared_quantity: variant.quantity,
+          sold_quantity: 0,
+        }));
+
+        const { error: insertError } = await supabase
+          .from("live_products")
+          .insert(insertData);
+        
+        if (insertError) throw insertError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["live-products"] });
+      queryClient.invalidateQueries({ queryKey: ["product-variants"] });
       toast({
         title: "Thành công",
-        description: "Đã cập nhật sản phẩm thành công",
+        description: "Đã cập nhật sản phẩm và biến thể thành công",
       });
       onOpenChange(false);
       setIsSubmitting(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error updating product:", error);
       toast({
         title: "Lỗi",
-        description: "Không thể cập nhật sản phẩm. Vui lòng thử lại.",
+        description: error.message || "Không thể cập nhật sản phẩm. Vui lòng thử lại.",
         variant: "destructive",
       });
       setIsSubmitting(false);
@@ -132,15 +202,6 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
   });
 
   const onSubmit = async (data: FormData) => {
-    if (!product?.id) {
-      toast({
-        title: "Lỗi",
-        description: "Không tìm thấy sản phẩm để cập nhật",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!data.product_code.trim()) {
       toast({
         title: "Lỗi",
@@ -159,21 +220,33 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       return;
     }
 
-    if (data.prepared_quantity < 0) {
+    if (data.variants.length === 0) {
       toast({
         title: "Lỗi",
-        description: "Số lượng chuẩn bị phải lớn hơn hoặc bằng 0",
+        description: "Phải có ít nhất một biến thể",
         variant: "destructive",
       });
       return;
     }
 
-    // Check for duplicates before submitting
-    const isDuplicate = await checkDuplicate(data.product_code, data.variant);
-    if (isDuplicate) {
+    for (const variant of data.variants) {
+      if (variant.quantity < 0) {
+        toast({
+          title: "Lỗi",
+          description: "Số lượng chuẩn bị phải lớn hơn hoặc bằng 0",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Check for duplicate variant names in form
+    const variantNames = data.variants.map(v => v.name.trim().toLowerCase()).filter(n => n);
+    const duplicates = variantNames.filter((name, index) => variantNames.indexOf(name) !== index);
+    if (duplicates.length > 0) {
       toast({
-        title: "Không thể cập nhật",
-        description: duplicateWarning,
+        title: "Lỗi",
+        description: "Có biến thể bị trùng lặp",
         variant: "destructive",
       });
       return;
@@ -183,29 +256,33 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     updateProductMutation.mutate(data);
   };
 
+  if (isLoading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex items-center justify-center p-6">
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Chỉnh sửa sản phẩm</DialogTitle>
+          <DialogTitle>Chỉnh sửa sản phẩm và biến thể</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form 
-            onSubmit={form.handleSubmit(onSubmit)} 
-            className="space-y-4"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                form.handleSubmit(onSubmit)();
-              }
-            }}
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {duplicateWarning && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{duplicateWarning}</AlertDescription>
               </Alert>
             )}
+
             <FormField
               control={form.control}
               name="product_code"
@@ -216,17 +293,13 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                     <Input 
                       placeholder="Nhập mã sản phẩm" 
                       {...field}
-                      ref={productCodeInputRef}
-                      onBlur={() => {
-                        const variant = form.getValues("variant");
-                        checkDuplicate(field.value, variant);
-                      }}
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="product_name"
@@ -240,54 +313,89 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="variant"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Biến thể</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Nhập biến thể (không bắt buộc)" 
-                      {...field}
-                      onBlur={() => {
-                        const productCode = form.getValues("product_code");
-                        checkDuplicate(productCode, field.value);
-                      }}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="prepared_quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Số lượng chuẩn bị</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="0" 
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex justify-end space-x-2">
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <FormLabel>Danh sách biến thể</FormLabel>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addVariant}
+                >
+                  + Thêm biến thể
+                </Button>
+              </div>
+
+              {form.watch("variants").map((_, index) => (
+                <div key={index} className="flex gap-2 items-start">
+                  <FormField
+                    control={form.control}
+                    name={`variants.${index}.name`}
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        {index === 0 && <FormLabel className="sr-only">Tên biến thể</FormLabel>}
+                        <FormControl>
+                          <Input 
+                            placeholder="Tên biến thể (không bắt buộc)"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name={`variants.${index}.quantity`}
+                    render={({ field }) => (
+                      <FormItem className="w-32">
+                        {index === 0 && <FormLabel className="sr-only">Số lượng chuẩn bị</FormLabel>}
+                        <FormControl>
+                          <Input 
+                            type="number"
+                            min="0"
+                            placeholder="Số lượng"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch("variants").length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeVariant(index)}
+                      className="mt-0 hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
                 disabled={isSubmitting}
+                className="flex-1"
               >
                 Hủy
               </Button>
-              <Button type="submit" disabled={isSubmitting || !product?.id || !!duplicateWarning}>
+              <Button 
+                type="submit" 
+                disabled={isSubmitting}
+                className="flex-1"
+              >
                 {isSubmitting ? "Đang cập nhật..." : "Cập nhật sản phẩm"}
               </Button>
             </div>
