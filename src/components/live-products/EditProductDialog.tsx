@@ -100,15 +100,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
 
   const removeVariant = (index: number) => {
     const currentVariants = form.getValues("variants");
-    if (currentVariants.length > 1) {
-      form.setValue("variants", currentVariants.filter((_, i) => i !== index));
-    } else {
-      toast({
-        title: "Không thể xóa",
-        description: "Phải có ít nhất một biến thể",
-        variant: "destructive",
-      });
-    }
+    form.setValue("variants", currentVariants.filter((_, i) => i !== index));
   };
 
   const handleImageChange = useMemo(() => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -187,16 +179,16 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       // 2. Update existing variants and product info
       for (const variant of data.variants) {
         if (variant.id) {
-          const { error: updateError } = await supabase
-            .from("live_products")
-            .update({
-              product_code: productCode,
-              product_name: productName,
-              variant: variant.name.trim() || null,
-              prepared_quantity: variant.quantity,
-              image_url: imageUrl,
-            })
-            .eq("id", variant.id);
+            const { error: updateError } = await supabase
+              .from("live_products")
+              .update({
+                product_code: productCode,
+                product_name: productName,
+                variant: variant.name?.trim() || null,
+                prepared_quantity: variant.quantity,
+                image_url: imageUrl,
+              })
+              .eq("id", variant.id);
           
           if (updateError) throw updateError;
         }
@@ -207,7 +199,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       if (newVariants.length > 0) {
         // Check for duplicates
         for (const variant of newVariants) {
-          const variantName = variant.name.trim() || null;
+          const variantName = variant.name?.trim() || null;
           const { data: existing } = await supabase
             .from("live_products")
             .select("id")
@@ -225,7 +217,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
           live_phase_id: product.live_phase_id,
           product_code: productCode,
           product_name: productName,
-          variant: variant.name.trim() || null,
+          variant: variant.name?.trim() || null,
           prepared_quantity: variant.quantity,
           sold_quantity: 0,
           image_url: imageUrl,
@@ -278,14 +270,6 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       return;
     }
 
-    if (data.variants.length === 0) {
-      toast({
-        title: "Lỗi",
-        description: "Phải có ít nhất một biến thể",
-        variant: "destructive",
-      });
-      return;
-    }
 
     for (const variant of data.variants) {
       if (variant.quantity < 0) {
@@ -299,7 +283,9 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     }
 
     // Check for duplicate variant names in form
-    const variantNames = data.variants.map(v => v.name.trim().toLowerCase()).filter(n => n);
+    const variantNames = data.variants
+      .map(v => v.name?.trim().toLowerCase())
+      .filter(n => n);
     const duplicates = variantNames.filter((name, index) => variantNames.indexOf(name) !== index);
     if (duplicates.length > 0) {
       toast({
@@ -437,8 +423,8 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                 </Button>
               </div>
 
-              {form.watch("variants").map((_, index) => (
-                <div key={index} className="flex gap-2 items-start">
+              {form.watch("variants").map((variant, index) => (
+                <div key={variant.id || `new-${index}`} className="flex gap-2 items-start">
                   <FormField
                     control={form.control}
                     name={`variants.${index}.name`}
@@ -476,17 +462,15 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
                     )}
                   />
 
-                  {form.watch("variants").length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeVariant(index)}
-                      className="mt-0 hover:bg-destructive/10 hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeVariant(index)}
+                    className="mt-0 hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               ))}
             </div>
