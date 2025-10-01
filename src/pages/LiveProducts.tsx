@@ -16,7 +16,6 @@ import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { 
   Plus, 
-  Download, 
   Calendar,
   Package,
   ShoppingCart,
@@ -644,51 +643,6 @@ export default function LiveProducts() {
     toast.success("Đã làm mới danh sách sản phẩm");
   };
 
-  const exportToCSV = () => {
-    if (!selectedPhase || liveProducts.length === 0) {
-      toast.error("Không có dữ liệu để xuất");
-      return;
-    }
-
-    const csvData = liveProducts.map(product => ({
-      "Mã sản phẩm": product.product_code,
-      "Tên sản phẩm": product.product_name,
-      "Biến thể": product.variant || "",
-      "Số lượng chuẩn bị": product.prepared_quantity,
-      "Số lượng đã bán": product.sold_quantity,
-      "Còn lại": product.prepared_quantity - product.sold_quantity,
-    }));
-
-    const csvContent = [
-      Object.keys(csvData[0]).join(","),
-      ...csvData.map(row => Object.values(row).join(","))
-    ].join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    
-    // Generate filename based on selection
-    let filename = "";
-    if (selectedPhase === "all") {
-      const session = liveSessions.find(s => s.id === selectedSession);
-      const sessionName = session?.session_name || session?.supplier_name || "session";
-      filename = `tat-ca-phien-${sessionName}-${format(new Date(), "dd-MM-yyyy")}.csv`;
-    } else {
-      const selectedPhaseData = livePhases.find(p => p.id === selectedPhase);
-      if (selectedPhaseData) {
-        filename = `danh-sach-san-pham-${format(new Date(selectedPhaseData.phase_date), "dd-MM-yyyy")}-${selectedPhaseData.phase_type}.csv`;
-      }
-    }
-    
-    link.setAttribute("download", filename);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
     const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -871,16 +825,6 @@ export default function LiveProducts() {
                     >
                       <RefreshCw className="h-4 w-4" />
                       Làm mới
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={exportToCSV}
-                      disabled={liveProducts.length === 0}
-                      className="flex items-center gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Xuất CSV
                     </Button>
                   </>
                 )}
