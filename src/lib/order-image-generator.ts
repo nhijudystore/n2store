@@ -43,8 +43,9 @@ export const generateOrderImage = async (
     ctx.drawImage(img, imageX, imageY, scaledWidth, scaledHeight);
 
     // Prepare text
-    const variantText = variant || "Không có biến thể";
-    const text = `${variantText} - SL: ${quantity}`;
+    const text = variant && variant.trim() 
+      ? `${variant} - SL: ${quantity}` 
+      : `SL: ${quantity}`;
     
     // Draw text background (1/3 bottom area)
     ctx.fillStyle = "#ffffff";
