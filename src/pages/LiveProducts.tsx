@@ -14,6 +14,7 @@ import { EditProductDialog } from "@/components/live-products/EditProductDialog"
 import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
+import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { 
   Plus, 
   Calendar,
@@ -27,7 +28,8 @@ import {
   Pencil,
   Copy,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  Maximize2
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -152,6 +154,7 @@ export default function LiveProducts() {
     quantity: number;
     orders?: OrderWithProduct[];
   } | null>(null);
+  const [isFullScreenProductViewOpen, setIsFullScreenProductViewOpen] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -806,6 +809,16 @@ export default function LiveProducts() {
                 {activeTab === "products" && (
                   <>
                     <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setIsFullScreenProductViewOpen(true)}
+                      disabled={liveProducts.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <Maximize2 className="h-4 w-4" />
+                      Xem toàn màn hình
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       onClick={() => setIsAddProductOpen(true)}
@@ -1316,6 +1329,15 @@ export default function LiveProducts() {
         onOpenChange={setIsEditOrderItemOpen}
         orderItem={editingOrderItem}
         phaseId={selectedPhase}
+      />
+
+      <FullScreenProductView
+        open={isFullScreenProductViewOpen}
+        onOpenChange={setIsFullScreenProductViewOpen}
+        products={liveProducts}
+        orders={ordersWithProducts}
+        selectedPhase={selectedPhase}
+        selectedSession={selectedSession}
       />
     </div>
   );
