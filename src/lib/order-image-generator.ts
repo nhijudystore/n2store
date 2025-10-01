@@ -22,34 +22,56 @@ export const generateOrderImage = async (
       img.src = imageUrl;
     });
 
-    // Set canvas dimensions (image + space for text)
-    const padding = 40;
-    const textHeight = 80;
+    // Calculate dimensions: image takes 2/3, text takes 1/3
+    const finalHeight = Math.floor(img.height * 1.5); // Total height
+    const imageAreaHeight = Math.floor(finalHeight * 2 / 3);
+    const textAreaHeight = Math.floor(finalHeight / 3);
+    
     canvas.width = img.width;
-    canvas.height = img.height + textHeight + padding;
+    canvas.height = finalHeight;
 
     // Fill background with white
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw the image
-    ctx.drawImage(img, 0, 0);
+    // Draw the image (scaled to fit 2/3 area)
+    const scale = Math.min(1, imageAreaHeight / img.height);
+    const scaledWidth = img.width * scale;
+    const scaledHeight = img.height * scale;
+    const imageX = (canvas.width - scaledWidth) / 2;
+    const imageY = 0;
+    ctx.drawImage(img, imageX, imageY, scaledWidth, scaledHeight);
 
     // Prepare text
     const variantText = variant || "Không có biến thể";
     const text = `${variantText} - SL: ${quantity}`;
     
-    // Draw text background
-    const textY = img.height + padding / 2;
-    ctx.fillStyle = "#f0f0f0";
-    ctx.fillRect(0, img.height, canvas.width, textHeight + padding);
+    // Draw text background (1/3 bottom area)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, imageAreaHeight, canvas.width, textAreaHeight);
 
-    // Draw text
-    ctx.fillStyle = "#000000";
-    ctx.font = "bold 24px Arial";
+    // Calculate maximum font size to fill width
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(text, canvas.width / 2, textY + textHeight / 2);
+    let fontSize = 20;
+    const maxWidth = canvas.width * 0.9; // 90% of canvas width
+    
+    // Increase font size until text fills the width
+    ctx.font = `bold ${fontSize}px Arial`;
+    while (ctx.measureText(text).width < maxWidth && fontSize < 200) {
+      fontSize += 2;
+      ctx.font = `bold ${fontSize}px Arial`;
+    }
+    // Step back one size if we went over
+    if (ctx.measureText(text).width > maxWidth) {
+      fontSize -= 2;
+      ctx.font = `bold ${fontSize}px Arial`;
+    }
+
+    // Draw text in red, bold, large
+    ctx.fillStyle = "#ff0000";
+    const textY = imageAreaHeight + textAreaHeight / 2;
+    ctx.fillText(text, canvas.width / 2, textY);
 
     // Convert to blob and copy to clipboard
     const blob = await new Promise<Blob>((resolve, reject) => {
