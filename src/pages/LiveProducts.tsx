@@ -155,6 +155,13 @@ export default function LiveProducts() {
   
   const queryClient = useQueryClient();
 
+  // Helper function to get color based on copy status
+  const getCopyStatusColor = (copyCount: number, soldQuantity: number) => {
+    if (copyCount < soldQuantity) return "text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950";
+    if (copyCount === soldQuantity) return "text-green-600 bg-green-50 dark:text-green-400 dark:bg-green-950";
+    return "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950";
+  };
+
   // Fetch live sessions
   const { data: liveSessions = [], isLoading } = useQuery({
     queryKey: ["live-sessions"],
@@ -995,7 +1002,7 @@ export default function LiveProducts() {
                                     placeholder="SL"
                                   />
                                   {copyTotals[product.id] > 0 && (
-                                    <div className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                    <div className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getCopyStatusColor(copyTotals[product.id], product.sold_quantity)}`}>
                                       Đã copy: {copyTotals[product.id]}
                                     </div>
                                   )}
