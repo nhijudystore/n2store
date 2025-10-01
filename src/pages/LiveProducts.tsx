@@ -29,6 +29,7 @@ import {
   Copy,
   AlertTriangle
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
@@ -955,37 +956,52 @@ export default function LiveProducts() {
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                               <TableCell className="text-center">{product.sold_quantity}</TableCell>
                               <TableCell>
-                                <div className="flex flex-wrap items-center gap-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                   {(() => {
                                     const productOrders = selectedPhase === "all"
                                       ? ordersWithProducts.filter(order => order.product_code === product.product_code)
                                       : ordersWithProducts.filter(order => order.live_product_id === product.id);
                                     
-                                    // Đếm số lần xuất hiện của mỗi order_code
-                                    const orderCodeCounts = productOrders.reduce((acc, order) => {
-                                      acc[order.order_code] = (acc[order.order_code] || 0) + 1;
-                                      return acc;
-                                    }, {} as Record<string, number>);
-                                    
-                                    // Lấy unique order codes để hiển thị
-                                    const uniqueOrderCodes = Object.keys(orderCodeCounts);
+                                    // Reverse to show newest on the right
+                                    const ordersReversed = [...productOrders].reverse();
                                     
                                     return (
                                       <>
-                                        {uniqueOrderCodes.map(orderCode => {
-                                          const count = orderCodeCounts[orderCode];
-                                          const displayText = count > 1 ? `${orderCode} x${count}` : orderCode;
-                                          
-                                          return (
-                                            <Badge 
-                                              key={orderCode} 
-                                              variant="secondary" 
-                                              className="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer"
-                                            >
-                                              {displayText}
-                                            </Badge>
-                                          );
-                                        })}
+                                        {ordersReversed.map(order => (
+                                          <TooltipProvider key={order.id}>
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Badge
+                                                  variant={order.is_oversell ? "destructive" : "secondary"}
+                                                  className={`text-xs cursor-pointer hover:scale-105 transition-transform ${
+                                                    order.is_oversell
+                                                      ? "bg-destructive text-destructive-foreground font-bold shadow-md"
+                                                      : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                                  }`}
+                                                  onClick={() => {
+                                                    // Handle edit order
+                                                    const aggregatedProduct = {
+                                                      product_code: order.product_code,
+                                                      product_name: order.product_name,
+                                                      live_product_id: order.live_product_id,
+                                                      total_quantity: order.quantity,
+                                                      orders: [order]
+                                                    };
+                                                    handleEditOrderItem(aggregatedProduct);
+                                                  }}
+                                                >
+                                                  {order.is_oversell && (
+                                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                                  )}
+                                                  {order.order_code}
+                                                </Badge>
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                <p>{order.is_oversell ? "⚠️ Đơn quá số" : `Đơn hàng: ${order.order_code}`}</p>
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          </TooltipProvider>
+                                        ))}
                                         {selectedPhase !== "all" && (
                                           <div className="flex items-center gap-2 ml-2">
                                             <QuickAddOrder 
