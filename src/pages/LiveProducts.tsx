@@ -89,6 +89,7 @@ interface OrderWithProduct extends LiveOrder {
 // Helper function to calculate oversell status dynamically
 const calculateIsOversell = (
   productId: string,
+  currentOrderId: string,
   liveProducts: LiveProduct[],
   ordersWithProducts: OrderWithProduct[]
 ): boolean => {
@@ -99,9 +100,27 @@ const calculateIsOversell = (
     order => order.live_product_id === productId
   );
   
-  const totalSold = productOrders.reduce((sum, order) => sum + order.quantity, 0);
+  // Sort orders by order date to get chronological order
+  const sortedOrders = [...productOrders].sort((a, b) => 
+    new Date(a.order_date).getTime() - new Date(b.order_date).getTime()
+  );
   
-  return totalSold > product.prepared_quantity;
+  // Calculate cumulative quantity up to and including the current order
+  let cumulativeQuantity = 0;
+  let foundCurrentOrder = false;
+  
+  for (const order of sortedOrders) {
+    cumulativeQuantity += order.quantity;
+    
+    if (order.id === currentOrderId) {
+      foundCurrentOrder = true;
+      // Current order is oversell if cumulative quantity exceeds prepared quantity
+      return cumulativeQuantity > product.prepared_quantity;
+    }
+  }
+  
+  // If current order not found, check if total exceeds prepared quantity
+  return cumulativeQuantity > product.prepared_quantity;
 };
 
 export default function LiveProducts() {
@@ -988,6 +1007,7 @@ export default function LiveProducts() {
                                         {ordersReversed.map(order => {
                                           const isOversell = calculateIsOversell(
                                             order.live_product_id,
+                                            order.id,
                                             liveProducts || [],
                                             ordersWithProducts
                                           );
