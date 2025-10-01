@@ -27,7 +27,8 @@ import {
   ListOrdered,
   Pencil,
   Copy,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -636,6 +637,13 @@ export default function LiveProducts() {
     setIsEditSessionOpen(true);
   };
 
+  const handleRefreshProducts = () => {
+    queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase, selectedSession] });
+    queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase, selectedSession] });
+    queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase, selectedSession] });
+    toast.success("Đã làm mới danh sách sản phẩm");
+  };
+
   const exportToCSV = () => {
     if (!selectedPhase || liveProducts.length === 0) {
       toast.error("Không có dữ liệu để xuất");
@@ -853,6 +861,16 @@ export default function LiveProducts() {
                     >
                       <Plus className="h-4 w-4" />
                       Thêm sản phẩm
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshProducts}
+                      disabled={liveProducts.length === 0}
+                      className="flex items-center gap-2"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Làm mới
                     </Button>
                     <Button
                       variant="outline"
