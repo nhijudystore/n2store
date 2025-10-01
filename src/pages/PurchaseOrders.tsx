@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
@@ -231,6 +231,68 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleExportPurchaseExcel = () => {
+    // Flatten all items from filteredOrders
+    const products = filteredOrders.flatMap(order => 
+      (order.items || []).map(item => ({
+        ...item,
+        order_id: order.id,
+        order_date: order.order_date,
+        supplier_name: order.supplier_name,
+        order_notes: order.notes,
+        discount_amount: order.discount_amount || 0,
+        total_amount: order.total_amount || 0
+      }))
+    );
+
+    if (products.length === 0) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Không có sản phẩm nào để xuất",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Calculate discount percentage for each item
+      const excelData = products.map(item => {
+        // Calculate discount percentage based on order discount
+        const itemTotal = (item.unit_price || 0) * (item.quantity || 0);
+        const orderTotal = item.total_amount || 0;
+        const orderDiscount = item.discount_amount || 0;
+        const discountPercent = orderTotal > 0 ? ((orderDiscount / orderTotal) * 100).toFixed(2) : "0";
+
+        return {
+          "Mã sản phẩm (*)": item.product_code?.toString() || "",
+          "Số lượng (*)": item.quantity || 0,
+          "Đơn giá": item.unit_price || 0,
+          "Chiết khấu (%)": discountPercent,
+        };
+      });
+
+      // Create Excel file
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Mua Hàng");
+      
+      const fileName = `MuaHang_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      toast({
+        title: "Xuất Excel thành công!",
+        description: `Đã tạo file ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast({
+        title: "Lỗi khi xuất Excel!",
+        description: "Vui lòng thử lại",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -278,10 +340,16 @@ const PurchaseOrders = () => {
                     Xem và quản lý tất cả đơn đặt hàng với nhà cung cấp
                   </CardDescription>
                 </div>
-                <Button onClick={handleExportExcel} variant="outline" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Xuất Excel Thêm SP
-                </Button>
+                <div className="flex gap-2">
+                  <Button onClick={handleExportPurchaseExcel} variant="outline" className="gap-2">
+                    <ShoppingCart className="w-4 h-4" />
+                    Xuất Excel mua hàng
+                  </Button>
+                  <Button onClick={handleExportExcel} variant="outline" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Xuất Excel Thêm SP
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
