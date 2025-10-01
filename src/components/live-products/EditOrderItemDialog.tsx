@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -14,6 +14,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -25,7 +35,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const formSchema = z.object({
-  quantity: z.coerce.number().min(1, "Số lượng phải lớn hơn 0"),
+  quantity: z.coerce.number().min(0, "Số lượng không được âm"),
 });
 
 interface EditOrderItemDialogProps {
@@ -60,6 +70,8 @@ export function EditOrderItemDialog({
   phaseId,
 }: EditOrderItemDialogProps) {
   const queryClient = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingQuantity, setPendingQuantity] = useState<number | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -174,57 +186,161 @@ export function EditOrderItemDialog({
     },
   });
 
+  const deleteOrderByCodeMutation = useMutation({
+    mutationFn: async () => {
+      if (!orderItem) return;
+
+      // Get order_code from the first order
+      const orderCode = orderItem.orders && orderItem.orders.length > 0 
+        ? orderItem.orders[0].order_code 
+        : null;
+
+      if (!orderCode) {
+        throw new Error("Không tìm thấy mã đơn hàng");
+      }
+
+      // Get all orders with this order_code
+      const { data: ordersToDelete, error: fetchError } = await supabase
+        .from("live_orders")
+        .select("id, live_product_id, quantity")
+        .eq("order_code", orderCode);
+
+      if (fetchError) throw fetchError;
+
+      if (!ordersToDelete || ordersToDelete.length === 0) return;
+
+      // Update sold_quantity for each affected product
+      for (const order of ordersToDelete) {
+        const { data: product, error: productFetchError } = await supabase
+          .from("live_products")
+          .select("sold_quantity")
+          .eq("id", order.live_product_id)
+          .single();
+
+        if (productFetchError) throw productFetchError;
+
+        const { error: productUpdateError } = await supabase
+          .from("live_products")
+          .update({ 
+            sold_quantity: Math.max(0, product.sold_quantity - order.quantity)
+          })
+          .eq("id", order.live_product_id);
+
+        if (productUpdateError) throw productUpdateError;
+      }
+
+      // Delete all orders with this order_code
+      const { error: deleteError } = await supabase
+        .from("live_orders")
+        .delete()
+        .eq("order_code", orderCode);
+
+      if (deleteError) throw deleteError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-orders", phaseId] });
+      queryClient.invalidateQueries({ queryKey: ["live-products", phaseId] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products", phaseId] });
+      toast.success("Đã xóa đơn hàng thành công");
+      onOpenChange(false);
+      setShowDeleteConfirm(false);
+      form.reset();
+    },
+    onError: (error) => {
+      console.error("Error deleting order:", error);
+      toast.error("Có lỗi xảy ra khi xóa đơn hàng");
+    },
+  });
+
   const onSubmit = (values: z.infer<typeof formSchema>) => {
-    updateOrderItemMutation.mutate(values);
+    if (values.quantity === 0) {
+      setPendingQuantity(values.quantity);
+      setShowDeleteConfirm(true);
+    } else {
+      updateOrderItemMutation.mutate(values);
+    }
   };
 
+  const handleDeleteConfirm = () => {
+    deleteOrderByCodeMutation.mutate();
+  };
+
+  const orderCode = orderItem?.orders && orderItem.orders.length > 0 
+    ? orderItem.orders[0].order_code 
+    : "";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Chỉnh sửa số lượng sản phẩm</DialogTitle>
-          <DialogDescription>
-            Cập nhật số lượng cho sản phẩm: <strong>{orderItem?.product_name}</strong>
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Số lượng</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="1"
-                      placeholder="Nhập số lượng"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Hủy
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={updateOrderItemMutation.isPending}
-              >
-                {updateOrderItemMutation.isPending ? "Đang lưu..." : "Lưu"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa số lượng sản phẩm</DialogTitle>
+            <DialogDescription>
+              Cập nhật số lượng cho sản phẩm: <strong>{orderItem?.product_name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="quantity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Số lượng</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        placeholder="Nhập số lượng"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                >
+                  Hủy
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={updateOrderItemMutation.isPending}
+                >
+                  {updateOrderItemMutation.isPending ? "Đang lưu..." : "Lưu"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa đơn hàng</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có muốn xóa đơn hàng <strong>{orderCode}</strong> không? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
+              Hủy
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={deleteOrderByCodeMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteOrderByCodeMutation.isPending ? "Đang xóa..." : "Xóa đơn hàng"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
