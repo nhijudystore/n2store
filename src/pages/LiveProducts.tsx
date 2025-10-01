@@ -1276,7 +1276,12 @@ export default function LiveProducts() {
                                       <AlertTriangle className="h-5 w-5 text-red-500" />
                                     )}
                                     <ContextMenu>
-                                      <ContextMenuTrigger>
+                                      <ContextMenuTrigger
+                                        onContextMenu={(e) => {
+                                          e.preventDefault();
+                                          console.log('Context menu triggered for order:', orderCode);
+                                        }}
+                                      >
                                         <Badge className={`text-base font-bold font-mono px-3 py-1.5 cursor-context-menu ${
                                           hasOversell 
                                             ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
@@ -1285,10 +1290,11 @@ export default function LiveProducts() {
                                           {orderCode}
                                         </Badge>
                                       </ContextMenuTrigger>
-                                      <ContextMenuContent>
+                                      <ContextMenuContent className="z-[9999]">
                                         <ContextMenuItem
                                           className="text-red-600 focus:text-red-600 cursor-pointer"
                                           onClick={() => {
+                                            console.log('Delete menu item clicked for order:', orderCode);
                                             const ordersForCode = ordersWithProducts.filter(
                                               o => o.order_code === orderCode
                                             );
