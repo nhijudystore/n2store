@@ -49,6 +49,20 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
+      // Check for duplicate product_code + variant in the same phase
+      const { data: existingProducts, error: checkError } = await supabase
+        .from("live_products")
+        .select("id")
+        .eq("live_phase_id", phaseId)
+        .eq("product_code", data.product_code.trim() || "N/A")
+        .eq("variant", data.variant.trim() || null);
+
+      if (checkError) throw checkError;
+
+      if (existingProducts && existingProducts.length > 0) {
+        throw new Error("Sản phẩm với mã và biến thể này đã tồn tại trong phiên live");
+      }
+
       const { error } = await supabase
         .from("live_products")
         .insert([{

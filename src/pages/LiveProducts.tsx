@@ -842,46 +842,48 @@ export default function LiveProducts() {
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        // Group products by product_code and product_name
+                        // Group products by product_code and variant
                         const productGroups = liveProducts.reduce((groups, product) => {
-                          const key = `${product.product_code}_${product.product_name}`;
+                          const key = `${product.product_code}_${product.variant || 'no_variant'}`;
                           if (!groups[key]) {
                             groups[key] = {
                               product_code: product.product_code,
-                              product_name: product.product_name,
-                              variants: []
+                              variant: product.variant,
+                              products: []
                             };
                           }
-                          groups[key].variants.push(product);
+                          groups[key].products.push(product);
                           return groups;
                         }, {} as Record<string, {
                           product_code: string;
-                          product_name: string;
-                          variants: LiveProduct[];
+                          variant: string | null;
+                          products: LiveProduct[];
                         }>);
 
                         return Object.values(productGroups).flatMap((group) => {
-                          return group.variants.map((product, variantIndex) => (
+                          return group.products.map((product, productIndex) => (
                             <TableRow key={product.id}>
-                              {variantIndex === 0 && (
+                              {productIndex === 0 && (
                                 <>
                                   <TableCell 
-                                    rowSpan={group.variants.length} 
+                                    rowSpan={group.products.length} 
                                     className="font-medium align-top border-r"
                                   >
                                     {group.product_code}
                                   </TableCell>
-                                  <TableCell 
-                                    rowSpan={group.variants.length} 
-                                    className="align-top border-r"
-                                  >
-                                    {group.product_name}
-                                  </TableCell>
                                 </>
                               )}
-                              <TableCell className="text-muted-foreground">
-                                {product.variant || "-"}
+                              <TableCell>
+                                {product.product_name}
                               </TableCell>
+                              {productIndex === 0 && (
+                                <TableCell 
+                                  rowSpan={group.products.length}
+                                  className="text-muted-foreground align-top border-r"
+                                >
+                                  {group.variant || "-"}
+                                </TableCell>
+                              )}
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                               <TableCell className="text-center">{product.sold_quantity}</TableCell>
                               <TableCell className="text-center">
@@ -934,9 +936,9 @@ export default function LiveProducts() {
                                   })()}
                                 </div>
                               </TableCell>
-                              {variantIndex === 0 && (
+                              {productIndex === 0 && (
                                 <TableCell 
-                                  rowSpan={group.variants.length} 
+                                  rowSpan={group.products.length}
                                   className="text-center align-top border-l"
                                 >
                                   <div className="flex items-center justify-center gap-2">
