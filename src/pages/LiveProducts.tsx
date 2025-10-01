@@ -25,9 +25,11 @@ import {
   ChevronRight,
   Edit,
   ListOrdered,
-  Pencil
+  Pencil,
+  Copy
 } from "lucide-react";
 import { toast } from "sonner";
+import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -101,6 +103,7 @@ export default function LiveProducts() {
   } | null>(null);
   const [editingSession, setEditingSession] = useState<LiveSession | null>(null);
   const [isEditOrderItemOpen, setIsEditOrderItemOpen] = useState(false);
+  const [orderQuantities, setOrderQuantities] = useState<Record<string, number>>({});
   const [editingOrderItem, setEditingOrderItem] = useState<{
     id: string;
     product_id: string;
@@ -842,6 +845,7 @@ export default function LiveProducts() {
                         <TableHead>Tên sản phẩm</TableHead>
                         <TableHead>Hình ảnh</TableHead>
                         <TableHead>Biến thể</TableHead>
+                        <TableHead className="text-center w-24">Tạo order</TableHead>
                         <TableHead className="text-center">SL chuẩn bị</TableHead>
                         <TableHead className="text-center">SL đã bán</TableHead>
                         <TableHead>Mã đơn hàng</TableHead>
@@ -905,6 +909,46 @@ export default function LiveProducts() {
                               )}
                               <TableCell className="text-muted-foreground">
                                 {product.variant || "-"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <div className="flex flex-col items-center gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={async () => {
+                                      const qty = orderQuantities[product.id] || 1;
+                                      if (!product.image_url) {
+                                        toast.error("Sản phẩm chưa có hình ảnh");
+                                        return;
+                                      }
+                                      await generateOrderImage(
+                                        product.image_url,
+                                        product.variant || "",
+                                        qty,
+                                        product.product_name
+                                      );
+                                    }}
+                                    disabled={!product.image_url}
+                                    title={product.image_url ? "Copy hình order" : "Chưa có hình ảnh"}
+                                  >
+                                    <Copy className="h-3 w-3" />
+                                  </Button>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    value={orderQuantities[product.id] || 1}
+                                    onChange={(e) => {
+                                      const value = parseInt(e.target.value) || 1;
+                                      setOrderQuantities(prev => ({
+                                        ...prev,
+                                        [product.id]: value
+                                      }));
+                                    }}
+                                    className="w-12 h-6 text-center text-xs border rounded px-1"
+                                    placeholder="SL"
+                                  />
+                                </div>
                               </TableCell>
                               <TableCell className="text-center">{product.prepared_quantity}</TableCell>
                               <TableCell className="text-center">{product.sold_quantity}</TableCell>
