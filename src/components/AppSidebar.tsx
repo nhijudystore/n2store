@@ -71,7 +71,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border hidden md:block">
+    <Sidebar className="border-r border-border">
       <SidebarContent className="p-4">
         <div className="mb-8">
           <div className="flex items-center gap-2 px-3">

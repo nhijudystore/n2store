@@ -5,11 +5,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { MobileNavigationProvider } from "@/contexts/MobileNavigationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useIsMobile } from "@/hooks/use-mobile";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
@@ -26,65 +23,53 @@ const queryClient = new QueryClient({
   },
 });
 
-const ConditionalLayout = ({ children }: { children: React.ReactNode }) => {
-  const isMobile = useIsMobile();
-  
-  if (isMobile) {
-    return <MobileLayout>{children}</MobileLayout>;
-  }
-  
-  return <Layout>{children}</Layout>;
-};
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
       <TooltipProvider>
         <AuthProvider>
-          <MobileNavigationProvider>
-            <Routes>
-              <Route path="/auth" element={<Auth />} />
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <PurchaseOrders />
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/purchase-orders" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <PurchaseOrders />
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/live-products" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <LiveProducts />
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/livestream-reports" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <LivestreamReports />
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
-              <Route path="/goods-receiving" element={
-                <ProtectedRoute>
-                  <ConditionalLayout>
-                    <GoodsReceiving />
-                  </ConditionalLayout>
-                </ProtectedRoute>
-              } />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-            <Toaster />
-            <Sonner />
-          </MobileNavigationProvider>
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/purchase-orders" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/live-products" element={
+              <ProtectedRoute>
+                <Layout>
+                  <LiveProducts />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/livestream-reports" element={
+              <ProtectedRoute>
+                <Layout>
+                  <LivestreamReports />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/goods-receiving" element={
+              <ProtectedRoute>
+                <Layout>
+                  <GoodsReceiving />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster />
+          <Sonner />
         </AuthProvider>
       </TooltipProvider>
     </BrowserRouter>
