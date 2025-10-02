@@ -53,6 +53,12 @@ interface EditPurchaseOrderDialogProps {
 export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurchaseOrderDialogProps) {
   const queryClient = useQueryClient();
 
+  // Helper function to parse number input from text
+  const parseNumberInput = (value: string): number => {
+    const numericValue = value.replace(/[^\d]/g, '');
+    return numericValue === '' ? 0 : parseInt(numericValue, 10);
+  };
+
   const [supplierName, setSupplierName] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString());
   const [invoiceDate, setInvoiceDate] = useState("");
@@ -404,9 +410,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <Label htmlFor="discountAmount">Số tiền giảm giá (VND)</Label>
               <Input
                 id="discountAmount"
-                type="number"
+                type="text"
+                inputMode="numeric"
                 value={discountAmount}
-                onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value))}
                 placeholder="0"
               />
             </div>
@@ -500,18 +507,18 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                       </td>
                       <td className="p-2">
                         <Input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           value={item.unit_price}
-                          onChange={(e) => updateItem(index, 'unit_price', Number(e.target.value))}
-                          min="0"
+                          onChange={(e) => updateItem(index, 'unit_price', parseNumberInput(e.target.value))}
                         />
                       </td>
                       <td className="p-2">
                         <Input
-                          type="number"
+                          type="text"
+                          inputMode="numeric"
                           value={item.selling_price}
-                          onChange={(e) => updateItem(index, 'selling_price', Number(e.target.value))}
-                          min="0"
+                          onChange={(e) => updateItem(index, 'selling_price', parseNumberInput(e.target.value))}
                         />
                       </td>
                       <td className="p-2">

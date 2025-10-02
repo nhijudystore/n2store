@@ -35,6 +35,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper function to parse number input from text
+  const parseNumberInput = (value: string): number => {
+    const numericValue = value.replace(/[^\d]/g, '');
+    return numericValue === '' ? 0 : parseInt(numericValue, 10);
+  };
+
   const [formData, setFormData] = useState({
     supplier_name: "",
     order_date: new Date().toISOString(),
@@ -197,11 +203,11 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               <Label htmlFor="invoice_amount">Số tiền hóa đơn (VND)</Label>
               <Input
                 id="invoice_amount"
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 placeholder="Nhập số tiền VND"
                 value={formData.invoice_amount || ""}
-                onChange={(e) => setFormData({...formData, invoice_amount: Number(e.target.value)})}
+                onChange={(e) => setFormData({...formData, invoice_amount: parseNumberInput(e.target.value)})}
               />
             </div>
 
@@ -278,19 +284,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
                           value={item.unit_price}
-                          onChange={(e) => updateItem(index, "unit_price", Number(e.target.value))}
+                          onChange={(e) => updateItem(index, "unit_price", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          type="number"
-                          min="0"
+                          type="text"
+                          inputMode="numeric"
                           value={item.selling_price}
-                          onChange={(e) => updateItem(index, "selling_price", Number(e.target.value))}
+                          onChange={(e) => updateItem(index, "selling_price", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right"
                         />
                       </TableCell>
