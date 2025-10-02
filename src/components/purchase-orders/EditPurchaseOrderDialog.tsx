@@ -204,7 +204,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         .from("purchase_orders")
         .update({
           supplier_name: supplierName,
-          order_date: new Date().toISOString(),
           invoice_date: invoiceDate || null,
           invoice_number: invoiceNumber || null,
           notes: notes || null,
@@ -319,7 +318,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <Label htmlFor="orderDate">Ngày đặt hàng</Label>
               <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{format(new Date(), "dd/MM/yyyy HH:mm")}</span>
+                <span>{order?.order_date ? format(new Date(order.order_date), "dd/MM/yyyy HH:mm") : "Không xác định"}</span>
               </div>
             </div>
 
