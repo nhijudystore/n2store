@@ -1,39 +1,18 @@
 import { Input } from "@/components/ui/input";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CheckCircle } from "lucide-react";
 
 interface ReceivingItemRowProps {
   item: any;
   onQuantityChange: (itemId: string, quantity: number) => void;
+  isConfirmed: boolean;
+  onConfirm: (itemId: string) => void;
 }
 
-export function ReceivingItemRow({ item, onQuantityChange }: ReceivingItemRowProps) {
-  const discrepancy = item.received_quantity - item.quantity;
-  const discrepancyType = discrepancy < 0 ? 'shortage' : (discrepancy > 0 ? 'overage' : 'match');
-  
+export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfirm }: ReceivingItemRowProps) {
   const getRowClassName = () => {
-    if (discrepancyType === 'shortage') return 'bg-red-50';
-    if (discrepancyType === 'overage') return 'bg-green-50';
+    if (isConfirmed) return 'bg-green-50/50';
     return '';
-  };
-
-  const getDiscrepancyBadge = () => {
-    if (discrepancyType === 'shortage') {
-      return (
-        <div className="flex items-center gap-1 text-red-700">
-          <AlertCircle className="w-4 h-4" />
-          <span className="text-sm font-medium">Thiếu {Math.abs(discrepancy)}</span>
-        </div>
-      );
-    }
-    if (discrepancyType === 'overage') {
-      return (
-        <div className="flex items-center gap-1 text-green-700">
-          <CheckCircle className="w-4 h-4" />
-          <span className="text-sm font-medium">Dư {discrepancy}</span>
-        </div>
-      );
-    }
-    return <span className="text-sm text-muted-foreground">Đủ</span>;
   };
 
   return (
@@ -57,10 +36,24 @@ export function ReceivingItemRow({ item, onQuantityChange }: ReceivingItemRowPro
           value={item.received_quantity}
           onChange={(e) => onQuantityChange(item.id, parseInt(e.target.value) || 0)}
           className="w-24 text-center mx-auto"
+          disabled={isConfirmed}
         />
       </td>
-      <td className="p-3">
-        {getDiscrepancyBadge()}
+      <td className="p-3 text-center">
+        {isConfirmed ? (
+          <div className="flex items-center justify-center gap-2 text-green-700">
+            <CheckCircle className="w-5 h-5" />
+            <span className="text-sm font-medium">Đã xác nhận</span>
+          </div>
+        ) : (
+          <Button 
+            size="sm" 
+            onClick={() => onConfirm(item.id)}
+            className="min-h-[44px]"
+          >
+            Xác nhận
+          </Button>
+        )}
       </td>
     </tr>
   );

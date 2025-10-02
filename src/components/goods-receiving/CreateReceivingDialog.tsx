@@ -28,6 +28,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
   const [items, setItems] = useState<any[]>([]);
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmedItems, setConfirmedItems] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -40,6 +41,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
         item_notes: ""
       })) || []);
       setNotes("");
+      setConfirmedItems(new Set());
     }
   }, [open, order]);
 
@@ -63,6 +65,24 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
         ? { ...item, received_quantity: receivedQty }
         : item
     ));
+    // Unconfirm item when quantity changes
+    setConfirmedItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(itemId);
+      return newSet;
+    });
+  };
+
+  const handleConfirm = (itemId: string) => {
+    setConfirmedItems(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId);
+      } else {
+        newSet.add(itemId);
+      }
+      return newSet;
+    });
   };
 
   const handleSubmit = async () => {
@@ -161,6 +181,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
 
   const totalExpected = items.reduce((sum, item) => sum + item.quantity, 0);
   const totalReceived = items.reduce((sum, item) => sum + item.received_quantity, 0);
+  const allItemsConfirmed = items.length > 0 && confirmedItems.size === items.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -187,12 +208,11 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                 <span className="font-medium ml-2">{totalReceived}</span>
               </div>
               <div className="text-sm">
-                <span className="text-muted-foreground">Chênh lệch:</span>
+                <span className="text-muted-foreground">Đã xác nhận:</span>
                 <span className={`font-medium ml-2 ${
-                  totalReceived < totalExpected ? 'text-red-600' :
-                  totalReceived > totalExpected ? 'text-green-600' : ''
+                  allItemsConfirmed ? 'text-green-600' : 'text-orange-600'
                 }`}>
-                  {totalReceived - totalExpected > 0 ? '+' : ''}{totalReceived - totalExpected}
+                  {confirmedItems.size}/{items.length} sản phẩm
                 </span>
               </div>
             </div>
@@ -208,7 +228,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                       <th className="text-left p-3 text-sm font-medium">Biến thể</th>
                       <th className="text-center p-3 text-sm font-medium">SL Đặt</th>
                       <th className="text-center p-3 text-sm font-medium">SL Nhận</th>
-                      <th className="text-left p-3 text-sm font-medium">Chênh lệch</th>
+                      <th className="text-center p-3 text-sm font-medium w-32">Xác nhận</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -217,6 +237,8 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                         key={item.id}
                         item={item}
                         onQuantityChange={handleQuantityChange}
+                        isConfirmed={confirmedItems.has(item.id)}
+                        onConfirm={handleConfirm}
                       />
                     ))}
                   </tbody>
@@ -239,7 +261,11 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting || !allItemsConfirmed}
+              title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
+            >
               {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
             </Button>
           </div>
