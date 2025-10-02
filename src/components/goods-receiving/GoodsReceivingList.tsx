@@ -131,7 +131,6 @@ export function GoodsReceivingList({
                   <TableHead>Nhà cung cấp</TableHead>
                   <TableHead>Tổng SP</TableHead>
                   <TableHead>Tổng SL</TableHead>
-                  <TableHead>Tổng tiền</TableHead>
                   <TableHead>Trạng thái</TableHead>
                   <TableHead className="text-right">Thao tác</TableHead>
                 </TableRow>
@@ -149,7 +148,6 @@ export function GoodsReceivingList({
                       <TableCell className="font-medium">{order.supplier_name}</TableCell>
                       <TableCell>{totalItems}</TableCell>
                       <TableCell>{totalQuantity}</TableCell>
-                      <TableCell>{order.final_amount?.toLocaleString('vi-VN')}đ</TableCell>
                       <TableCell>
                         {order.hasReceiving ? (
                           order.overallStatus === 'shortage' ? (
