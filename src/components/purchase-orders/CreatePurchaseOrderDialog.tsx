@@ -17,7 +17,6 @@ interface PurchaseOrderItem {
   product_name: string;
   variant: string;
   product_code: string;
-  description: string;
   quantity: number;
   unit_price: number;
   selling_price: number;
@@ -51,7 +50,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
-    { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
+    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
   ]);
 
 
@@ -88,7 +87,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           product_name: item.product_name,
           variant: item.variant,
           product_code: item.product_code,
-          description: item.description,
           quantity: item.quantity,
           unit_price: item.unit_price * 1000,
           selling_price: item.selling_price * 1000,
@@ -134,7 +132,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       discount_amount: 0
     });
     setItems([
-      { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
+      { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
     ]);
   };
 
@@ -150,7 +148,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   };
 
   const addItem = () => {
-    setItems([...items, { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
+    setItems([...items, { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
   };
 
   const copyItem = (index: number) => {
@@ -169,7 +167,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       setItems(items.filter((_, i) => i !== index));
     } else {
       // Reset the last item to empty state instead of removing
-      setItems([{ product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
+      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
     }
   };
 

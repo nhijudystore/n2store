@@ -20,7 +20,6 @@ interface PurchaseOrder {
   invoice_number: string | null;
   supplier_name: string | null;
   notes: string | null;
-  invoice_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -28,7 +27,6 @@ interface PurchaseOrder {
 interface PurchaseOrderItem {
   id: string;
   product_name: string;
-  description: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;
@@ -132,18 +130,6 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                 {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
               </p>
             </div>
-            
-            {order.invoice_date && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Ngày hóa đơn</span>
-                </div>
-                <p className="text-base">
-                  {format(new Date(order.invoice_date), "dd/MM/yyyy", { locale: vi })}
-                </p>
-              </div>
-            )}
           </div>
 
           <Separator />
@@ -200,11 +186,6 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                          <TableCell>
                            <div className="space-y-1">
                              <div className="font-medium">{item.product_name}</div>
-                             {item.description && (
-                               <div className="text-sm text-muted-foreground">
-                                 {item.description}
-                               </div>
-                             )}
                              {item.notes && (
                                <div className="text-xs text-muted-foreground italic">
                                  Ghi chú: {item.notes}

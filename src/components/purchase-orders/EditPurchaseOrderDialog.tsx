@@ -17,7 +17,6 @@ interface PurchaseOrderItem {
   product_name: string;
   product_code: string;
   variant: string;
-  description: string;
   quantity: number;
   unit_price: number;
   selling_price: number;
@@ -38,7 +37,6 @@ interface PurchaseOrder {
   invoice_number: string | null;
   supplier_name: string | null;
   notes: string | null;
-  invoice_date: string | null;
   invoice_images: string[] | null;
   created_at: string;
   updated_at: string;
@@ -61,7 +59,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
   const [supplierName, setSupplierName] = useState("");
   const [orderDate, setOrderDate] = useState(new Date().toISOString());
-  const [invoiceDate, setInvoiceDate] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [invoiceImages, setInvoiceImages] = useState<string[]>([]);
@@ -90,7 +87,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     if (order && open) {
       setSupplierName(order.supplier_name || "");
       setOrderDate(order.order_date || new Date().toISOString().split('T')[0]);
-      setInvoiceDate(order.invoice_date || "");
       setInvoiceNumber(order.invoice_number || "");
       setNotes(order.notes || "");
       setInvoiceImages(order.invoice_images || []);
@@ -106,7 +102,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         product_name: item.product_name || "",
         product_code: item.product_code || "",
         variant: item.variant || "",
-        description: item.description || "",
         quantity: item.quantity || 1,
         unit_price: Number(item.unit_price) / 1000 || 0,
         selling_price: Number(item.selling_price) / 1000 || 0,
@@ -121,7 +116,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         product_name: "",
         product_code: "",
         variant: "",
-        description: "",
         quantity: 1,
         unit_price: 0,
         selling_price: 0,
@@ -136,7 +130,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const resetForm = () => {
     setSupplierName("");
     setOrderDate(new Date().toISOString());
-    setInvoiceDate("");
     setInvoiceNumber("");
     setNotes("");
     setInvoiceImages([]);
@@ -145,7 +138,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       product_name: "",
       product_code: "",
       variant: "",
-      description: "",
       quantity: 1,
       unit_price: 0,
       selling_price: 0,
@@ -174,7 +166,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       product_name: "",
       product_code: "",
       variant: "",
-      description: "",
       quantity: 1,
       unit_price: 0,
       selling_price: 0,
@@ -212,7 +203,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         .from("purchase_orders")
         .update({
           supplier_name: supplierName,
-          invoice_date: invoiceDate || null,
           invoice_number: invoiceNumber || null,
           notes: notes || null,
           invoice_images: invoiceImages.length > 0 ? invoiceImages : null,
@@ -258,7 +248,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           product_name: item.product_name,
           product_code: item.product_code || null,
           variant: item.variant || null,
-          description: item.description || null,
           quantity: item.quantity,
           unit_price: item.unit_price * 1000,
           selling_price: item.selling_price * 1000,
@@ -313,7 +302,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               ...po,
               supplier_name: supplierName,
               order_date: orderDate,
-              invoice_date: invoiceDate,
               invoice_number: invoiceNumber,
               notes,
               invoice_images: invoiceImages,
@@ -387,16 +375,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoiceDate">Ngày hóa đơn</Label>
-              <Input
-                id="invoiceDate"
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
               <Label htmlFor="invoiceNumber">Số hóa đơn</Label>
               <Input
                 id="invoiceNumber"
@@ -454,8 +432,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                   <tr>
                     <th className="p-2 text-left min-w-[150px]">Tên sản phẩm</th>
                     <th className="p-2 text-left min-w-[100px]">Mã SP</th>
-                    <th className="p-2 text-left min-w-[100px]">Phân loại</th>
-                    <th className="p-2 text-left min-w-[150px]">Mô tả</th>
+                    <th className="p-2 text-left min-w-[100px]">Biến thể</th>
                     <th className="p-2 text-left min-w-[80px]">SL</th>
                     <th className="p-2 text-left min-w-[100px]">Đơn giá (VND)</th>
                     <th className="p-2 text-left min-w-[100px]">Giá bán (VND)</th>
@@ -487,14 +464,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         <Input
                           value={item.variant}
                           onChange={(e) => updateItem(index, 'variant', e.target.value)}
-                          placeholder="Phân loại"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateItem(index, 'description', e.target.value)}
-                          placeholder="Mô tả"
+                          placeholder="Biến thể"
                         />
                       </td>
                       <td className="p-2">

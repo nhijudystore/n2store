@@ -41,7 +41,6 @@ interface PurchaseOrder {
   supplier_name: string | null;
   supplier_id?: string | null;
   notes: string | null;
-  invoice_date: string | null;
   invoice_images: string[] | null;
   created_at: string;
   updated_at: string;
