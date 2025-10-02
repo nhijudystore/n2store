@@ -294,7 +294,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               final_amount: finalAmount,
               items: items.map(item => ({
                 ...item,
-                purchase_order_id: order.id
+                purchase_order_id: order.id,
+                unit_price: Number(item.unit_price) * 1000,
+                selling_price: Number(item.selling_price) * 1000,
+                total_price: Number(item.quantity) * Number(item.unit_price) * 1000
               }))
             };
           }
