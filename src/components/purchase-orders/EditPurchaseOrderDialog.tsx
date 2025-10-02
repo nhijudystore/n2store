@@ -375,12 +375,12 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoiceNumber">Số hóa đơn</Label>
+              <Label htmlFor="invoiceNumber">Số tiền hóa đơn</Label>
               <Input
                 id="invoiceNumber"
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="Nhập số hóa đơn"
+                placeholder="Nhập số tiền hóa đơn"
               />
             </div>
 

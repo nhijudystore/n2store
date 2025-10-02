@@ -264,7 +264,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
             <>
               <Separator />
               <div className="space-y-2">
-                <span className="text-sm font-medium">Số hóa đơn</span>
+                <span className="text-sm font-medium">Số tiền hóa đơn</span>
                 <p className="text-base font-mono bg-muted/50 p-2 rounded">
                   {order.invoice_number}
                 </p>
