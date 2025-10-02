@@ -5,7 +5,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2 } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
@@ -47,6 +48,8 @@ interface PurchaseOrder {
 const PurchaseOrders = () => {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const queryClient = useQueryClient();
 
   // Helper function to format date as DD-MM
   const formatDateDDMM = () => {
@@ -65,6 +68,27 @@ const PurchaseOrders = () => {
     return uniqueSuppliers.join('-') || 'NoSupplier';
   };
   
+  // Selection management functions
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrders(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId)
+        : [...prev, orderId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrders.length === filteredOrders.length) {
+      setSelectedOrders([]);
+    } else {
+      setSelectedOrders(filteredOrders.map(order => order.id));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedOrders([]);
+  };
+
   // Filter states moved from PurchaseOrderList
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("pending");
@@ -219,8 +243,13 @@ const PurchaseOrders = () => {
   }) || [];
 
   const handleExportExcel = () => {
-    // Flatten all items from filteredOrders
-    const products = filteredOrders.flatMap(order => 
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    // Flatten all items from orders to export
+    const products = ordersToExport.flatMap(order => 
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
@@ -350,8 +379,13 @@ const PurchaseOrders = () => {
   };
 
   const handleExportVariantsExcel = () => {
-    // Flatten all items from filteredOrders
-    const products = filteredOrders.flatMap(order => 
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    // Flatten all items from orders to export
+    const products = ordersToExport.flatMap(order => 
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
@@ -421,6 +455,85 @@ const PurchaseOrders = () => {
     }
   };
 
+  // Bulk delete mutation
+  const deleteBulkOrdersMutation = useMutation({
+    mutationFn: async (orderIds: string[]) => {
+      const results = [];
+      for (const orderId of orderIds) {
+        try {
+          // Step 1: Get all purchase_order_item IDs
+          const { data: itemIds } = await supabase
+            .from("purchase_order_items")
+            .select("id")
+            .eq("purchase_order_id", orderId);
+
+          if (itemIds && itemIds.length > 0) {
+            const itemIdList = itemIds.map(item => item.id);
+            
+            // Step 2: Delete goods_receiving_items first
+            await supabase
+              .from("goods_receiving_items")
+              .delete()
+              .in("purchase_order_item_id", itemIdList);
+          }
+
+          // Step 3: Delete goods_receiving records
+          await supabase
+            .from("goods_receiving")
+            .delete()
+            .eq("purchase_order_id", orderId);
+
+          // Step 4: Delete purchase_order_items
+          await supabase
+            .from("purchase_order_items")
+            .delete()
+            .eq("purchase_order_id", orderId);
+
+          // Step 5: Delete purchase_order
+          await supabase
+            .from("purchase_orders")
+            .delete()
+            .eq("id", orderId);
+
+          results.push({ orderId, success: true });
+        } catch (error) {
+          results.push({ orderId, success: false, error });
+        }
+      }
+      return results;
+    },
+    onSuccess: (results) => {
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      toast({
+        title: `Đã xóa ${successCount} đơn hàng`,
+        description: failCount > 0 
+          ? `${failCount} đơn không thể xóa` 
+          : "Tất cả đơn đã được xóa thành công",
+        variant: failCount > 0 ? "destructive" : "default"
+      });
+      
+      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa các đơn hàng. Vui lòng thử lại.",
+        variant: "destructive",
+      });
+      console.error("Error bulk deleting orders:", error);
+    }
+  });
+
+  const handleBulkDelete = () => {
+    if (selectedOrders.length === 0) return;
+    
+    if (confirm(`Bạn có chắc muốn xóa ${selectedOrders.length} đơn hàng đã chọn?`)) {
+      deleteBulkOrdersMutation.mutate(selectedOrders);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -461,13 +574,45 @@ const PurchaseOrders = () => {
         <TabsContent value="orders" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Danh sách đơn đặt hàng</CardTitle>
-                  <CardDescription>
-                    Xem và quản lý tất cả đơn đặt hàng với nhà cung cấp
-                  </CardDescription>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Danh sách đơn đặt hàng</CardTitle>
+                    <CardDescription>
+                      Xem và quản lý tất cả đơn đặt hàng với nhà cung cấp
+                    </CardDescription>
+                  </div>
                 </div>
+
+                {/* Bulk selection actions */}
+                {selectedOrders.length > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">
+                      Đã chọn: <span className="text-primary">{selectedOrders.length}</span> đơn hàng
+                    </span>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handleBulkDelete} 
+                        variant="destructive" 
+                        size="sm"
+                        disabled={deleteBulkOrdersMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Xóa đã chọn
+                      </Button>
+                      <Button onClick={handleExportExcel} variant="outline" size="sm">
+                        <Download className="w-4 h-4 mr-2" />
+                        Xuất Excel Thêm SP
+                      </Button>
+                      <Button onClick={handleExportVariantsExcel} variant="outline" size="sm">
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Xuất Excel Biến thể
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Regular export actions */}
                 <div className="flex gap-2">
                   <Button onClick={handleExportPurchaseExcel} variant="outline" className="gap-2">
                     <ShoppingCart className="w-4 h-4" />
@@ -498,6 +643,9 @@ const PurchaseOrders = () => {
                 setDateTo={setDateTo}
                 quickFilter={quickFilter}
                 applyQuickFilter={applyQuickFilter}
+                selectedOrders={selectedOrders}
+                onToggleSelect={toggleSelectOrder}
+                onToggleSelectAll={toggleSelectAll}
               />
             </CardContent>
           </Card>

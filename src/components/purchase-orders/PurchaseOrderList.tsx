@@ -9,7 +9,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Pencil, Search, Filter, Calendar, Trash2 } from "lucide-react";
+import { Pencil, Search, Filter, Calendar, Trash2, Check } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -61,6 +62,9 @@ interface PurchaseOrderListProps {
   setDateTo: (date: Date | undefined) => void;
   quickFilter: string;
   applyQuickFilter: (type: string) => void;
+  selectedOrders: string[];
+  onToggleSelect: (orderId: string) => void;
+  onToggleSelectAll: () => void;
 }
 
 export function PurchaseOrderList({
@@ -75,7 +79,10 @@ export function PurchaseOrderList({
   dateTo,
   setDateTo,
   quickFilter,
-  applyQuickFilter
+  applyQuickFilter,
+  selectedOrders,
+  onToggleSelect,
+  onToggleSelectAll
 }: PurchaseOrderListProps) {
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -356,6 +363,13 @@ export function PurchaseOrderList({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[50px]">
+                <Checkbox
+                  checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                  onCheckedChange={onToggleSelectAll}
+                  aria-label="Chọn tất cả"
+                />
+              </TableHead>
               <TableHead>Ngày đặt</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Hóa đơn (VND)</TableHead>
@@ -373,16 +387,35 @@ export function PurchaseOrderList({
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
             ) : (
-              flattenedItems?.map((flatItem, index) => (
-                <TableRow key={`${flatItem.id}-${index}`} className="border-b">
-                  {/* Order-level columns with rowSpan - only show on first item */}
-                  {flatItem.isFirstItem && (
-                    <>
+              flattenedItems?.map((flatItem, index) => {
+                const isSelected = selectedOrders.includes(flatItem.id);
+                return (
+                  <TableRow 
+                    key={`${flatItem.id}-${index}`} 
+                    className={cn("border-b", isSelected && "bg-muted/50")}
+                  >
+                    {/* Checkbox column - only show on first item */}
+                    {flatItem.isFirstItem && (
+                      <TableCell 
+                        className="border-r" 
+                        rowSpan={flatItem.itemCount}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => onToggleSelect(flatItem.id)}
+                          aria-label={`Chọn đơn hàng ${flatItem.supplier_name}`}
+                        />
+                      </TableCell>
+                    )}
+
+                    {/* Order-level columns with rowSpan - only show on first item */}
+                    {flatItem.isFirstItem && (
+                      <>
                       <TableCell 
                         className="border-r" 
                         rowSpan={flatItem.itemCount}
@@ -551,7 +584,8 @@ export function PurchaseOrderList({
                     </>
                   )}
                 </TableRow>
-              ))
+              );
+            })
             )}
           </TableBody>
         </Table>
