@@ -275,11 +275,11 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         
         return oldData.map((po: any) => {
           if (po.id === order.id) {
-            // Calculate new totals
+            // Calculate new totals (multiply by 1000 to match database VND units)
             const totalAmount = items.reduce((sum, item) => {
-              return sum + (Number(item.quantity) * Number(item.unit_price));
+              return sum + (Number(item.quantity) * Number(item.unit_price) * 1000);
             }, 0);
-            const finalAmount = totalAmount - Number(discountAmount);
+            const finalAmount = totalAmount - (Number(discountAmount) * 1000);
             
             return {
               ...po,
@@ -289,7 +289,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               invoice_number: invoiceNumber,
               notes,
               invoice_images: invoiceImages,
-              discount_amount: discountAmount,
+              discount_amount: Number(discountAmount) * 1000,
               total_amount: totalAmount,
               final_amount: finalAmount,
               items: items.map(item => ({
@@ -302,9 +302,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         });
       });
       
-      // Invalidate stats and items to ensure consistency
+      // Invalidate stats to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["purchaseOrderItems", order?.id] });
       
       toast({
         title: "Thành công",
