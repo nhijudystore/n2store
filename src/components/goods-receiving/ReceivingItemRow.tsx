@@ -68,10 +68,20 @@ export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfir
   return (
     <tr className={getRowClassName()}>
       <td className="p-3">
-        <div className="font-medium">{item.product_name}</div>
+        {item.product_images && item.product_images.length > 0 ? (
+          <img 
+            src={item.product_images[0]} 
+            alt={item.product_name}
+            className="w-16 h-16 object-cover rounded border"
+          />
+        ) : (
+          <div className="w-16 h-16 bg-muted rounded border flex items-center justify-center">
+            <span className="text-xs text-muted-foreground">No image</span>
+          </div>
+        )}
       </td>
-      <td className="p-3 text-sm text-muted-foreground">
-        {item.product_code || '-'}
+      <td className="p-3">
+        <div className="font-medium text-sm">{item.product_name}</div>
       </td>
       <td className="p-3 text-sm text-muted-foreground">
         {item.variant || '-'}

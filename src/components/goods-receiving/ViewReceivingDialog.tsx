@@ -36,7 +36,10 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
         .from('goods_receiving')
         .select(`
           *,
-          items:goods_receiving_items(*)
+          items:goods_receiving_items(
+            *,
+            purchase_order_item:purchase_order_items(product_images)
+          )
         `)
         .eq('purchase_order_id', orderId)
         .single();
@@ -156,8 +159,8 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 text-sm font-medium">Sản phẩm</th>
-                      <th className="text-left p-3 text-sm font-medium">Mã SP</th>
+                      <th className="text-left p-3 text-sm font-medium w-24">Hình ảnh</th>
+                      <th className="text-left p-3 text-sm font-medium w-40">Sản phẩm</th>
                       <th className="text-left p-3 text-sm font-medium">Biến thể</th>
                       <th className="text-center p-3 text-sm font-medium">SL Đặt</th>
                       <th className="text-center p-3 text-sm font-medium">SL Nhận</th>
@@ -167,8 +170,22 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
                   <tbody>
                     {receivingData.items?.map((item: any) => (
                       <tr key={item.id} className={getRowClassName(item)}>
-                        <td className="p-3 text-sm">{item.product_name}</td>
-                        <td className="p-3 text-sm">{item.product_code || '-'}</td>
+                        <td className="p-3">
+                          {item.purchase_order_item?.product_images?.[0] ? (
+                            <img 
+                              src={item.purchase_order_item.product_images[0]} 
+                              alt={item.product_name}
+                              className="w-16 h-16 object-cover rounded border"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 bg-muted rounded border flex items-center justify-center">
+                              <span className="text-xs text-muted-foreground">No image</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          <div className="text-sm font-medium">{item.product_name}</div>
+                        </td>
                         <td className="p-3 text-sm">{item.variant || '-'}</td>
                         <td className="p-3 text-sm text-center font-medium">{item.expected_quantity}</td>
                         <td className="p-3 text-sm text-center font-medium">{item.received_quantity}</td>

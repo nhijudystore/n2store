@@ -223,8 +223,8 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                 <table className="w-full">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-3 text-sm font-medium">Sản phẩm</th>
-                      <th className="text-left p-3 text-sm font-medium">Mã SP</th>
+                      <th className="text-left p-3 text-sm font-medium w-24">Hình ảnh</th>
+                      <th className="text-left p-3 text-sm font-medium w-40">Sản phẩm</th>
                       <th className="text-left p-3 text-sm font-medium">Biến thể</th>
                       <th className="text-center p-3 text-sm font-medium">SL Đặt</th>
                       <th className="text-center p-3 text-sm font-medium">SL Nhận</th>
