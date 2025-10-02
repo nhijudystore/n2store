@@ -252,7 +252,7 @@ export default function LiveProducts() {
           .from("live_products")
           .select("*")
           .eq("live_phase_id", selectedPhase)
-          .order("created_at", { ascending: true });
+          .order("created_at", { ascending: false });
         
         if (error) throw error;
         return data as LiveProduct[];
@@ -896,11 +896,7 @@ export default function LiveProducts() {
                         }>);
 
                         return Object.values(productGroups).flatMap((group) => {
-                          // Sort variants by creation time to maintain consistent order
-                          const sortedProducts = [...group.products].sort((a, b) => 
-                            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-                          );
-                          return sortedProducts.map((product, productIndex) => (
+                          return group.products.map((product, productIndex) => (
                             <TableRow key={product.id}>
                               {productIndex === 0 && (
                                 <>
