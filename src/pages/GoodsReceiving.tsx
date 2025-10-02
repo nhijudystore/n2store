@@ -1,19 +1,29 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { Package } from "lucide-react";
 import { GoodsReceivingStats } from "@/components/goods-receiving/GoodsReceivingStats";
 import { GoodsReceivingList } from "@/components/goods-receiving/GoodsReceivingList";
+import { MobileGoodsReceivingCard } from "@/components/mobile/MobileGoodsReceivingCard";
+import { CreateReceivingDialog } from "@/components/goods-receiving/CreateReceivingDialog";
+import { ViewReceivingDialog } from "@/components/goods-receiving/ViewReceivingDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
 
 export default function GoodsReceiving() {
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("needInspection");
   const [searchQuery, setSearchQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [quickFilter, setQuickFilter] = useState<string>("all");
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
 
   const { data: orders, isLoading, refetch } = useQuery({
     queryKey: ['goods-receiving-orders', statusFilter, startDate, endDate],
@@ -144,36 +154,98 @@ export default function GoodsReceiving() {
     }
   };
 
+  const handleInspect = (order: any) => {
+    setSelectedOrder(order);
+    setIsCreateDialogOpen(true);
+  };
+
+  const handleViewDetail = (order: any) => {
+    if (isMobile) {
+      navigate(`/goods-receiving/${order.id}`);
+    } else {
+      setSelectedOrder(order);
+      setIsViewDialogOpen(true);
+    }
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <Package className="w-5 h-5 text-primary-foreground" />
+      {!isMobile && (
+        <>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center">
+                <Package className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">Kiểm hàng & nhận hàng</h1>
+                <p className="text-muted-foreground">Quản lý kiểm tra và nhận hàng từ nhà cung cấp</p>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold">Kiểm hàng & nhận hàng</h1>
-            <p className="text-muted-foreground">Quản lý kiểm tra và nhận hàng từ nhà cung cấp</p>
-          </div>
-        </div>
-      </div>
 
-      <GoodsReceivingStats filteredOrders={filteredOrders} isLoading={isLoading} />
-      <GoodsReceivingList 
-        filteredOrders={filteredOrders}
-        isLoading={isLoading}
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        startDate={startDate}
-        setStartDate={setStartDate}
-        endDate={endDate}
-        setEndDate={setEndDate}
-        quickFilter={quickFilter}
-        applyQuickFilter={applyQuickFilter}
-        refetch={refetch}
-      />
+          <GoodsReceivingStats filteredOrders={filteredOrders} isLoading={isLoading} />
+        </>
+      )}
+
+      {isMobile ? (
+        <div className="space-y-3 pb-4 px-4">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-muted-foreground">Đang tải...</div>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-muted-foreground">Không có đơn hàng</div>
+            </div>
+          ) : (
+            filteredOrders.map((order) => (
+              <MobileGoodsReceivingCard
+                key={order.id}
+                order={order}
+                onInspect={() => handleInspect(order)}
+                onViewDetail={() => handleViewDetail(order)}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+        <GoodsReceivingList
+          filteredOrders={filteredOrders}
+          isLoading={isLoading}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          startDate={startDate}
+          setStartDate={setStartDate}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          quickFilter={quickFilter}
+          applyQuickFilter={applyQuickFilter}
+          refetch={refetch}
+        />
+      )}
+
+      {selectedOrder && (
+        <>
+          <CreateReceivingDialog
+            open={isCreateDialogOpen}
+            onOpenChange={setIsCreateDialogOpen}
+            order={selectedOrder}
+            onSuccess={() => {
+              setIsCreateDialogOpen(false);
+              refetch();
+            }}
+          />
+
+          <ViewReceivingDialog
+            open={isViewDialogOpen}
+            onOpenChange={setIsViewDialogOpen}
+            orderId={selectedOrder.id}
+          />
+        </>
+      )}
     </div>
   );
 }
