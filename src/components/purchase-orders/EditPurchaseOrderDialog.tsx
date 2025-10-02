@@ -25,6 +25,7 @@ interface PurchaseOrderItem {
   notes: string;
   product_images: string[];
   price_images: string[];
+  position?: number;
 }
 
 interface PurchaseOrder {
@@ -69,7 +70,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       const { data, error } = await supabase
         .from("purchase_order_items")
         .select("*")
-        .eq("purchase_order_id", order.id);
+        .eq("purchase_order_id", order.id)
+        .order("position", { ascending: true });
       
       if (error) throw error;
       return data || [];
@@ -231,8 +233,20 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         if (deleteError) throw deleteError;
       }
 
+      // Get max position for new items
+      const { data: maxPosData } = await supabase
+        .from("purchase_order_items")
+        .select("position")
+        .eq("purchase_order_id", order.id)
+        .order("position", { ascending: false })
+        .limit(1);
+      
+      const maxPosition = maxPosData?.[0]?.position || 0;
+      let nextPosition = maxPosition + 1;
+
       // Update existing items and insert new items
-      for (const item of items) {
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         const itemData = {
           purchase_order_id: order.id,
           product_name: item.product_name,
@@ -249,7 +263,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         };
 
         if (item.id) {
-          // Update existing item
+          // Update existing item - preserve position
           const { error: updateError } = await supabase
             .from("purchase_order_items")
             .update(itemData)
@@ -257,12 +271,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
           if (updateError) throw updateError;
         } else {
-          // Insert new item
+          // Insert new item - assign next position
           const { error: insertError } = await supabase
             .from("purchase_order_items")
-            .insert(itemData);
+            .insert({ ...itemData, position: nextPosition });
 
           if (insertError) throw insertError;
+          nextPosition++;
         }
       }
 
@@ -281,6 +296,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             }, 0);
             const finalAmount = totalAmount - (Number(discountAmount) * 1000);
             
+            // Sort items by position for consistent display
+            const sortedItems = [...items].sort((a, b) => {
+              const posA = a.position || 999999;
+              const posB = b.position || 999999;
+              return posA - posB;
+            });
+            
             return {
               ...po,
               supplier_name: supplierName,
@@ -292,7 +314,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               discount_amount: Number(discountAmount) * 1000,
               total_amount: totalAmount,
               final_amount: finalAmount,
-              items: items.map(item => ({
+              items: sortedItems.map(item => ({
                 ...item,
                 purchase_order_id: order.id,
                 unit_price: Number(item.unit_price) * 1000,

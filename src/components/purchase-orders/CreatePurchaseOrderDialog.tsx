@@ -75,7 +75,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
       const orderItems = items
         .filter(item => item.product_name.trim())
-        .map(item => ({
+        .map((item, index) => ({
           purchase_order_id: order.id,
           product_name: item.product_name,
           variant: item.variant,
@@ -86,7 +86,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           selling_price: item.selling_price * 1000,
           total_price: item.total_price * 1000,
           product_images: item.product_images,
-          price_images: item.price_images
+          price_images: item.price_images,
+          position: index + 1
         }));
 
       if (orderItems.length > 0) {

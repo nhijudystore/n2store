@@ -21,6 +21,7 @@ interface PurchaseOrderItem {
   selling_price: number;
   product_images: string[] | null;
   price_images: string[] | null;
+  position?: number;
 }
 
 interface PurchaseOrder {
@@ -133,7 +134,8 @@ const PurchaseOrders = () => {
           const { data: items } = await supabase
             .from("purchase_order_items")
             .select("product_name, product_code, variant, quantity, unit_price, selling_price, product_images, price_images")
-            .eq("purchase_order_id", order.id);
+            .eq("purchase_order_id", order.id)
+            .order("position", { ascending: true });
 
           return {
             ...order,

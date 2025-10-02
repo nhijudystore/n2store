@@ -12,6 +12,7 @@ interface PurchaseOrderItem {
   selling_price: number;
   product_images: string[] | null;
   price_images: string[] | null;
+  position?: number;
 }
 
 interface PurchaseOrder {
