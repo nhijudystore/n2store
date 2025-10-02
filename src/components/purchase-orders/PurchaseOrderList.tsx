@@ -167,6 +167,17 @@ export function PurchaseOrderList({
   }) || [];
 
   const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge variant="secondary">Chờ Hàng</Badge>;
+      case "received":
+        return <Badge variant="default">Đã Nhận Hàng</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const getOldStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       pending: "outline",
       confirmed: "secondary", 
@@ -177,7 +188,7 @@ export function PurchaseOrderList({
 
     const labels = {
       pending: "Đang chờ",
-      confirmed: "Đã xác nhận", 
+      confirmed: "Đã xác nhận",
       received: "Đã nhận hàng",
       completed: "Hoàn thành",
       cancelled: "Đã hủy"
@@ -329,11 +340,8 @@ export function PurchaseOrderList({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả trạng thái</SelectItem>
-              <SelectItem value="pending">Đang chờ</SelectItem>
-              <SelectItem value="confirmed">Đã xác nhận</SelectItem>
-              <SelectItem value="received">Đã nhận hàng</SelectItem>
-              <SelectItem value="completed">Hoàn thành</SelectItem>
-              <SelectItem value="cancelled">Đã hủy</SelectItem>
+              <SelectItem value="pending">Chờ Hàng</SelectItem>
+              <SelectItem value="received">Đã Nhận Hàng</SelectItem>
             </SelectContent>
           </Select>
         </div>

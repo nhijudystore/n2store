@@ -57,9 +57,7 @@ export default function GoodsReceiving() {
             const hasShortage = receiving.items.some((item: any) => item.discrepancy_type === 'shortage');
             const hasOverage = receiving.items.some((item: any) => item.discrepancy_type === 'overage');
             
-            if (hasShortage && hasOverage) {
-              overallStatus = 'mixed';
-            } else if (hasShortage) {
+            if (hasShortage) {
               overallStatus = 'shortage';
             } else if (hasOverage) {
               overallStatus = 'overage';
