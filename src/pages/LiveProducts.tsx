@@ -252,7 +252,8 @@ export default function LiveProducts() {
           .from("live_products")
           .select("*")
           .eq("live_phase_id", selectedPhase)
-          .order("created_at", { ascending: false });
+          .order("product_code", { ascending: true })
+          .order("created_at", { ascending: true });
         
         if (error) throw error;
         return data as LiveProduct[];
@@ -884,19 +885,37 @@ export default function LiveProducts() {
                             groups[key] = {
                               product_code: product.product_code,
                               product_name: product.product_name,
-                              products: []
+                              products: [],
+                              earliest_created_at: product.created_at
                             };
                           }
                           groups[key].products.push(product);
+                          // Track earliest created_at for group sorting
+                          if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
+                            groups[key].earliest_created_at = product.created_at;
+                          }
                           return groups;
                         }, {} as Record<string, {
                           product_code: string;
                           product_name: string;
                           products: LiveProduct[];
+                          earliest_created_at?: string;
                         }>);
 
-                        return Object.values(productGroups).flatMap((group) => {
-                          return group.products.map((product, productIndex) => (
+                        // Sort groups by product_code alphabetically
+                        const sortedGroups = Object.values(productGroups).sort((a, b) => 
+                          a.product_code.localeCompare(b.product_code)
+                        );
+
+                        return sortedGroups.flatMap((group) => {
+                          // Sort products within group by created_at to maintain original order
+                          const sortedProducts = [...group.products].sort((a, b) => {
+                            const timeA = new Date(a.created_at || 0).getTime();
+                            const timeB = new Date(b.created_at || 0).getTime();
+                            return timeA - timeB;
+                          });
+
+                          return sortedProducts.map((product, productIndex) => (
                             <TableRow key={product.id}>
                               {productIndex === 0 && (
                                 <>
