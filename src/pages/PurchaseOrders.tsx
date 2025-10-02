@@ -66,7 +66,7 @@ const PurchaseOrders = () => {
   
   // Filter states moved from PurchaseOrderList
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [quickFilter, setQuickFilter] = useState<string>("all");
