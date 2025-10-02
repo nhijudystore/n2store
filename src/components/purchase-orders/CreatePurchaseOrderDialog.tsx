@@ -46,7 +46,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     order_date: new Date().toISOString(),
     notes: "",
     invoice_images: [] as string[],
-    invoice_amount: 0
+    invoice_amount: 0,
+    discount_amount: 0
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
@@ -61,8 +62,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       }
 
       const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0) * 1000;
-
-      const finalAmount = formData.invoice_amount > 0 ? formData.invoice_amount * 1000 : totalAmount;
+      const discountAmount = formData.discount_amount * 1000;
+      const finalAmount = totalAmount - discountAmount;
 
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
@@ -71,6 +72,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           order_date: formData.order_date,
           total_amount: totalAmount,
           final_amount: finalAmount,
+          discount_amount: discountAmount,
           invoice_images: formData.invoice_images.length > 0 ? formData.invoice_images : null,
           notes: formData.notes
         })
@@ -128,7 +130,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       order_date: new Date().toISOString(),
       notes: "",
       invoice_images: [],
-      invoice_amount: 0
+      invoice_amount: 0,
+      discount_amount: 0
     });
     setItems([
       { product_name: "", variant: "", product_code: "", description: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
@@ -171,6 +174,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+  const finalAmount = totalAmount - formData.discount_amount;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -354,6 +358,21 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="discount_amount">Giảm giá (VND)</Label>
+            <Input
+              id="discount_amount"
+              type="text"
+              inputMode="numeric"
+              placeholder="Nhập số tiền giảm giá"
+              value={formData.discount_amount || ""}
+              onChange={(e) => setFormData({
+                ...formData, 
+                discount_amount: parseNumberInput(e.target.value)
+              })}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="notes">Ghi chú</Label>
             <Textarea
               id="notes"
@@ -364,9 +383,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
 
           <div className="border-t pt-4">
-            <div className="flex justify-between items-center text-lg font-semibold">
-              <span>Tổng cộng:</span>
-              <span>{formatVND(totalAmount * 1000)}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Tổng tiền:</span>
+                <span>{formatVND(totalAmount * 1000)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Giảm giá:</span>
+                <span>{formatVND(formData.discount_amount * 1000)}</span>
+              </div>
+              <div className="flex justify-between items-center text-lg font-bold">
+                <span>Thành tiền:</span>
+                <span>{formatVND(finalAmount * 1000)}</span>
+              </div>
             </div>
           </div>
 
