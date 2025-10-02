@@ -269,13 +269,47 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       return order.id;
     },
     onSuccess: () => {
+      // Optimistic update: Update only the edited order in cache
+      queryClient.setQueryData(["purchase-orders"], (oldData: any) => {
+        if (!oldData || !order?.id) return oldData;
+        
+        return oldData.map((po: any) => {
+          if (po.id === order.id) {
+            // Calculate new totals
+            const totalAmount = items.reduce((sum, item) => {
+              return sum + (Number(item.quantity) * Number(item.unit_price));
+            }, 0);
+            const finalAmount = totalAmount - Number(discountAmount);
+            
+            return {
+              ...po,
+              supplier_name: supplierName,
+              order_date: orderDate,
+              invoice_date: invoiceDate,
+              invoice_number: invoiceNumber,
+              notes,
+              invoice_images: invoiceImages,
+              discount_amount: discountAmount,
+              total_amount: totalAmount,
+              final_amount: finalAmount,
+              items: items.map(item => ({
+                ...item,
+                purchase_order_id: order.id
+              }))
+            };
+          }
+          return po;
+        });
+      });
+      
+      // Invalidate stats and items to ensure consistency
+      queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["purchaseOrderItems", order?.id] });
+      
       toast({
         title: "Thành công",
         description: "Đơn hàng đã được cập nhật",
       });
-      queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
-      queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
-      queryClient.invalidateQueries({ queryKey: ["purchaseOrderItems", order?.id] });
       onOpenChange(false);
       resetForm();
     },
