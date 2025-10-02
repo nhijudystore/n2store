@@ -24,14 +24,14 @@ export default function GoodsReceiving() {
           *,
           items:purchase_order_items(*)
         `)
-        .order('order_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       // Apply date filters
       if (startDate) {
-        query = query.gte('order_date', startDate);
+        query = query.gte('created_at', `${startDate}T00:00:00`);
       }
       if (endDate) {
-        query = query.lte('order_date', endDate);
+        query = query.lte('created_at', `${endDate}T23:59:59`);
       }
 
       const { data: purchaseOrders } = await query;
@@ -94,7 +94,7 @@ export default function GoodsReceiving() {
       item.product_name?.toLowerCase().includes(query) ||
       item.product_code?.toLowerCase().includes(query)
     );
-    const matchDate = format(new Date(order.order_date), 'dd/MM/yyyy').includes(query);
+    const matchDate = format(new Date(order.created_at), 'dd/MM/yyyy HH:mm').includes(query);
     
     return matchSupplier || matchProduct || matchDate;
   }) || [];
