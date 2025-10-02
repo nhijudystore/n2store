@@ -5,12 +5,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download, ShoppingCart } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 import { format } from "date-fns";
+import { convertVietnameseToUpperCase } from "@/lib/utils";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -316,6 +317,78 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleExportVariantsExcel = () => {
+    // Flatten all items from filteredOrders
+    const products = filteredOrders.flatMap(order => 
+      (order.items || []).map(item => ({
+        ...item,
+        order_id: order.id,
+        order_date: order.created_at,
+        supplier_name: order.supplier_name,
+        order_notes: order.notes
+      }))
+    );
+
+    if (products.length === 0) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Không có sản phẩm nào để xuất",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Mapping according to the Excel template format (17 columns) with variant codes
+      const excelData = products.map(item => {
+        const productCode = item.product_code?.toUpperCase() || "";
+        const finalCode = item.variant 
+          ? `${productCode}-${convertVietnameseToUpperCase(item.variant)}`
+          : productCode;
+
+        return {
+          "Loại sản phẩm": "Có thể lưu trữ",
+          "Mã sản phẩm": finalCode || undefined,
+          "Mã chốt đơn": undefined,
+          "Tên sản phẩm": item.product_name?.toString() || undefined,
+          "Giá bán": item.selling_price || 0,
+          "Giá mua": item.unit_price || 0,
+          "Đơn vị": "CÁI",
+          "Nhóm sản phẩm": "QUẦN ÁO",
+          "Mã vạch": finalCode || undefined,
+          "Khối lượng": undefined,
+          "Chiết khấu bán": undefined,
+          "Chiết khấu mua": undefined,
+          "Tồn kho": undefined,
+          "Giá vốn": undefined,
+          "Ghi chú": undefined,
+          "Cho phép bán ở công ty khác": "FALSE",
+          "Thuộc tính": undefined,
+        };
+      });
+
+      // Create Excel file
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Đặt Hàng");
+      
+      const fileName = `TaoMaSP_BienThe_${formatDateDDMM()}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+      toast({
+        title: "Xuất Excel thành công!",
+        description: `Đã tạo file ${fileName}`,
+      });
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      toast({
+        title: "Lỗi khi xuất Excel!",
+        description: "Vui lòng thử lại",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -371,6 +444,10 @@ const PurchaseOrders = () => {
                   <Button onClick={handleExportExcel} variant="outline" className="gap-2">
                     <Download className="w-4 h-4" />
                     Xuất Excel Thêm SP
+                  </Button>
+                  <Button onClick={handleExportVariantsExcel} variant="outline" className="gap-2">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Xuất Excel Biến thể
                   </Button>
                 </div>
               </div>
