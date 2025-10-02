@@ -405,7 +405,8 @@ export function PurchaseOrderList({
                             const calculatedTotal = flatItem.items.reduce((sum, item) => 
                               sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                             0);
-                            const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                            const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
+                            const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
                             return hasMismatch ? 'bg-red-100 border-2 border-red-300' : '';
                           })()
                         }`}
@@ -427,12 +428,13 @@ export function PurchaseOrderList({
                               const calculatedTotal = flatItem.items.reduce((sum, item) => 
                                 sum + ((item.unit_price || 0) * (item.quantity || 0)), 
                               0);
-                              const hasMismatch = Math.abs(calculatedTotal - (flatItem.final_amount || 0)) > 0.01;
+                              const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
+                              const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
                               
                               if (hasMismatch) {
                                 return (
                                   <div className="text-xs font-semibold text-red-600">
-                                    Tổng tính: {formatVND(calculatedTotal)}
+                                    Tổng tính: {formatVND(calculatedFinalAmount)}
                                   </div>
                                 );
                               }
