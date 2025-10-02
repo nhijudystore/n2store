@@ -36,19 +36,41 @@ export default function GoodsReceiving() {
 
       const { data: purchaseOrders } = await query;
 
-      // Get receiving records for each order
+      // Get receiving records with detailed items for each order
       const ordersWithStatus = await Promise.all(
         (purchaseOrders || []).map(async (order) => {
           const { data: receiving } = await supabase
             .from('goods_receiving')
-            .select('*')
+            .select(`
+              *,
+              items:goods_receiving_items(
+                discrepancy_type,
+                discrepancy_quantity
+              )
+            `)
             .eq('purchase_order_id', order.id)
             .maybeSingle();
+          
+          // Calculate overall status
+          let overallStatus = 'match';
+          if (receiving?.items && receiving.items.length > 0) {
+            const hasShortage = receiving.items.some((item: any) => item.discrepancy_type === 'shortage');
+            const hasOverage = receiving.items.some((item: any) => item.discrepancy_type === 'overage');
+            
+            if (hasShortage && hasOverage) {
+              overallStatus = 'mixed';
+            } else if (hasShortage) {
+              overallStatus = 'shortage';
+            } else if (hasOverage) {
+              overallStatus = 'overage';
+            }
+          }
           
           return { 
             ...order, 
             receiving,
-            hasReceiving: !!receiving 
+            hasReceiving: !!receiving,
+            overallStatus
           };
         })
       );

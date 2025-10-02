@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Package, CheckCircle } from "lucide-react";
+import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 import { CreateReceivingDialog } from "./CreateReceivingDialog";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
@@ -152,10 +152,27 @@ export function GoodsReceivingList({
                       <TableCell>{order.final_amount?.toLocaleString('vi-VN')}đ</TableCell>
                       <TableCell>
                         {order.hasReceiving ? (
-                          <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Đã kiểm
-                          </Badge>
+                          order.overallStatus === 'shortage' ? (
+                            <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200">
+                              <AlertCircle className="w-3 h-3 mr-1" />
+                              Thiếu hàng
+                            </Badge>
+                          ) : order.overallStatus === 'overage' ? (
+                            <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Dư hàng
+                            </Badge>
+                          ) : order.overallStatus === 'mixed' ? (
+                            <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Có chênh lệch
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Đủ hàng
+                            </Badge>
+                          )
                         ) : (order.status === 'confirmed' || order.status === 'pending') ? (
                           <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
                             <Package className="w-3 h-3 mr-1" />
