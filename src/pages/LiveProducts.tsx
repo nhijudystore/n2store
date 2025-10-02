@@ -1084,34 +1084,29 @@ export default function LiveProducts() {
                                   })()}
                                 </div>
                               </TableCell>
-                              {productIndex === 0 && (
-                                <TableCell 
-                                  rowSpan={group.products.length}
-                                  className="text-center align-top border-l"
-                                >
-                                  <div className="flex items-center justify-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditProduct(product)}
-                                      disabled={selectedPhase === "all"}
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteProduct(product.id)}
-                                      disabled={selectedPhase === "all"}
-                                      className="text-red-600 hover:text-red-700"
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
+                              <TableCell className="text-center border-l">
+                                <div className="flex items-center justify-center gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditProduct(product)}
+                                    disabled={selectedPhase === "all"}
+                                    title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteProduct(product.id)}
+                                    disabled={selectedPhase === "all"}
+                                    className="text-red-600 hover:text-red-700"
+                                    title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
                             </TableRow>
                           ));
                         });
