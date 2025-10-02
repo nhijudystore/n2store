@@ -129,7 +129,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                 <span className="text-sm font-medium">Ngày đặt hàng</span>
               </div>
               <p className="text-base">
-                {format(new Date(order.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
+                {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
               </p>
             </div>
             

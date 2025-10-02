@@ -45,7 +45,7 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
   
   // Calculate today's stats from allOrders (unfiltered)
   const todayOrders = allOrders.filter(order => 
-    format(new Date(order.order_date), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+    format(new Date(order.created_at), 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
   );
   const todayOrdersCount = todayOrders.length;
   const todayTotalAmount = todayOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);

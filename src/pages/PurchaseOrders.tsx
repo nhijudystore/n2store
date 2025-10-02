@@ -150,7 +150,7 @@ const PurchaseOrders = () => {
   const filteredOrders = orders?.filter(order => {
     // Date range filter
     if (dateFrom || dateTo) {
-      const orderDate = new Date(order.order_date);
+      const orderDate = new Date(order.created_at);
       orderDate.setHours(0, 0, 0, 0);
       
       if (dateFrom) {
@@ -170,8 +170,8 @@ const PurchaseOrders = () => {
     const matchesSearch = searchTerm === "" || 
       order.supplier_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      format(new Date(order.order_date), "dd/MM").includes(searchTerm) ||
-      format(new Date(order.order_date), "dd/MM/yyyy").includes(searchTerm) ||
+      format(new Date(order.created_at), "dd/MM").includes(searchTerm) ||
+      format(new Date(order.created_at), "dd/MM/yyyy").includes(searchTerm) ||
       order.items?.some(item => 
         item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -189,7 +189,7 @@ const PurchaseOrders = () => {
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
-        order_date: order.order_date,
+        order_date: order.created_at,
         supplier_name: order.supplier_name,
         order_notes: order.notes
       }))
@@ -264,7 +264,7 @@ const PurchaseOrders = () => {
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
-        order_date: order.order_date,
+        order_date: order.created_at,
         supplier_name: order.supplier_name,
         order_notes: order.notes,
         discount_amount: order.discount_amount || 0,

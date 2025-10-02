@@ -318,7 +318,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <Label htmlFor="orderDate">Ngày đặt hàng</Label>
               <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
                 <Calendar className="h-4 w-4" />
-                <span>{order?.order_date ? format(new Date(order.order_date), "dd/MM/yyyy HH:mm") : "Không xác định"}</span>
+                <span>{order?.created_at ? format(new Date(order.created_at), "dd/MM/yyyy HH:mm") : "Không xác định"}</span>
               </div>
             </div>
 

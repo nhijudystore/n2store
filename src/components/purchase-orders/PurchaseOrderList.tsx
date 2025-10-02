@@ -375,7 +375,7 @@ export function PurchaseOrderList({
                       >
                         <div className="flex items-center gap-2">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {format(new Date(flatItem.order_date), "dd/MM/yyyy HH:mm", { locale: vi })}
+                          {format(new Date(flatItem.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
                         </div>
                       </TableCell>
                       <TableCell 
