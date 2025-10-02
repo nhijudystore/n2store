@@ -41,6 +41,7 @@ interface PurchaseOrder {
   created_at: string;
   updated_at: string;
   items?: PurchaseOrderItem[];
+  hasShortage?: boolean;
 }
 
 const PurchaseOrders = () => {
@@ -117,35 +118,66 @@ const PurchaseOrders = () => {
     setQuickFilter(filterType);
   };
 
-  // Data fetching moved from PurchaseOrderList
+  // Data fetching moved from PurchaseOrderList - OPTIMIZED to reduce queries
   const { data: orders, isLoading } = useQuery({
     queryKey: ["purchase-orders"],
     queryFn: async () => {
-      // Get all purchase orders first
+      // Single optimized query with JOIN to fetch orders, items, and receiving data
       const { data: ordersData, error: ordersError } = await supabase
         .from("purchase_orders")
-        .select("*")
+        .select(`
+          *,
+          items:purchase_order_items(
+            product_name, 
+            product_code, 
+            variant, 
+            quantity, 
+            unit_price, 
+            selling_price, 
+            product_images, 
+            price_images,
+            position
+          ),
+          receiving:goods_receiving(
+            id,
+            has_discrepancy,
+            items:goods_receiving_items(
+              discrepancy_type,
+              discrepancy_quantity
+            )
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (ordersError) throw ordersError;
 
-      // Get items for each order
-      const ordersWithItems = await Promise.all(
-        (ordersData || []).map(async (order: any) => {
-          const { data: items } = await supabase
-            .from("purchase_order_items")
-            .select("product_name, product_code, variant, quantity, unit_price, selling_price, product_images, price_images")
-            .eq("purchase_order_id", order.id)
-            .order("position", { ascending: true });
+      // Process orders to add hasShortage flag
+      const ordersWithStatus = (ordersData || []).map((order: any) => {
+        let hasShortage = false;
+        
+        // Check if there's any shortage in goods_receiving_items
+        if (order.receiving && order.receiving.length > 0) {
+          const receivingRecord = order.receiving[0]; // Get first receiving record
+          if (receivingRecord.items && receivingRecord.items.length > 0) {
+            hasShortage = receivingRecord.items.some(
+              (item: any) => item.discrepancy_type === 'shortage'
+            );
+          }
+        }
 
-          return {
-            ...order,
-            items: items || []
-          };
-        })
-      );
+        // Sort items by position
+        const sortedItems = (order.items || []).sort((a: any, b: any) => 
+          (a.position || 0) - (b.position || 0)
+        );
 
-      return ordersWithItems as PurchaseOrder[];
+        return {
+          ...order,
+          items: sortedItems,
+          hasShortage
+        };
+      });
+
+      return ordersWithStatus as PurchaseOrder[];
     }
   });
 

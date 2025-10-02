@@ -46,6 +46,7 @@ interface PurchaseOrder {
   created_at: string;
   updated_at: string;
   items?: PurchaseOrderItem[];
+  hasShortage?: boolean;
 }
 
 interface PurchaseOrderListProps {
@@ -166,7 +167,12 @@ export function PurchaseOrderList({
     }));
   }) || [];
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, hasShortage?: boolean) => {
+    // Prioritize showing "Giao thiếu hàng" if received with shortage
+    if (status === "received" && hasShortage) {
+      return <Badge variant="destructive">Giao thiếu hàng</Badge>;
+    }
+    
     switch (status) {
       case "pending":
         return <Badge variant="secondary">Chờ Hàng</Badge>;
@@ -520,7 +526,7 @@ export function PurchaseOrderList({
                         className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
-                        {getStatusBadge(flatItem.status)}
+                        {getStatusBadge(flatItem.status, flatItem.hasShortage)}
                       </TableCell>
                       <TableCell rowSpan={flatItem.itemCount}>
                         <div className="flex items-center gap-2">
