@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 import { CreateReceivingDialog } from "./CreateReceivingDialog";
+import { ViewReceivingDialog } from "./ViewReceivingDialog";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
 
@@ -45,12 +46,8 @@ export function GoodsReceivingList({
 }: GoodsReceivingListProps) {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-
-  const handleInspectClick = (order: any) => {
-    setSelectedOrder(order);
-    setDialogOpen(true);
-  };
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
 
   return (
     <Card>
@@ -186,7 +183,10 @@ export function GoodsReceivingList({
                         {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
                           <Button 
                             size="sm" 
-                            onClick={() => handleInspectClick(order)}
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setDialogOpen(true);
+                            }}
                           >
                             Kiểm hàng
                           </Button>
@@ -195,7 +195,10 @@ export function GoodsReceivingList({
                           <Button 
                             size="sm" 
                             variant="outline"
-                            onClick={() => handleInspectClick(order)}
+                            onClick={() => {
+                              setViewOrderId(order.id);
+                              setViewDialogOpen(true);
+                            }}
                           >
                             Xem chi tiết
                           </Button>
@@ -222,6 +225,12 @@ export function GoodsReceivingList({
           refetch();
           setDialogOpen(false);
         }}
+      />
+
+      <ViewReceivingDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        orderId={viewOrderId || ""}
       />
     </Card>
   );
