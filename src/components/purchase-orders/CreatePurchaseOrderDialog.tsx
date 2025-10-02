@@ -358,21 +358,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="discount_amount">Giảm giá (VND)</Label>
-            <Input
-              id="discount_amount"
-              type="text"
-              inputMode="numeric"
-              placeholder="Nhập số tiền giảm giá"
-              value={formData.discount_amount || ""}
-              onChange={(e) => setFormData({
-                ...formData, 
-                discount_amount: parseNumberInput(e.target.value)
-              })}
-            />
-          </div>
-
-          <div className="space-y-2">
             <Label htmlFor="notes">Ghi chú</Label>
             <Textarea
               id="notes"
@@ -388,9 +373,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 <span className="font-medium">Tổng tiền:</span>
                 <span>{formatVND(totalAmount * 1000)}</span>
               </div>
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items-center gap-4">
                 <span className="font-medium">Giảm giá:</span>
-                <span>{formatVND(formData.discount_amount * 1000)}</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="w-40 text-right"
+                  placeholder="0"
+                  value={formData.discount_amount || ""}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    discount_amount: parseNumberInput(e.target.value)
+                  })}
+                />
               </div>
               <div className="flex justify-between items-center text-lg font-bold">
                 <span>Thành tiền:</span>
