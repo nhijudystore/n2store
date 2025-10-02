@@ -109,6 +109,12 @@ export default function GoodsReceiving() {
         setStartDate(format(today, 'yyyy-MM-dd'));
         setEndDate(format(today, 'yyyy-MM-dd'));
         break;
+      case "yesterday":
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        setStartDate(format(yesterday, 'yyyy-MM-dd'));
+        setEndDate(format(yesterday, 'yyyy-MM-dd'));
+        break;
       case "week":
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
@@ -120,6 +126,17 @@ export default function GoodsReceiving() {
         monthAgo.setMonth(today.getMonth() - 1);
         setStartDate(format(monthAgo, 'yyyy-MM-dd'));
         setEndDate(format(today, 'yyyy-MM-dd'));
+        break;
+      case "thisMonth":
+        const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        setStartDate(format(firstDayThisMonth, 'yyyy-MM-dd'));
+        setEndDate(format(today, 'yyyy-MM-dd'));
+        break;
+      case "lastMonth":
+        const firstDayLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        const lastDayLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+        setStartDate(format(firstDayLastMonth, 'yyyy-MM-dd'));
+        setEndDate(format(lastDayLastMonth, 'yyyy-MM-dd'));
         break;
       default:
         setStartDate("");

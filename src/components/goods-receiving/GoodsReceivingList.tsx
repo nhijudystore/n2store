@@ -84,8 +84,11 @@ export function GoodsReceivingList({
               <SelectContent>
                 <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="today">Hôm nay</SelectItem>
+                <SelectItem value="yesterday">Hôm qua</SelectItem>
                 <SelectItem value="week">7 ngày qua</SelectItem>
                 <SelectItem value="month">30 ngày qua</SelectItem>
+                <SelectItem value="thisMonth">Tháng này</SelectItem>
+                <SelectItem value="lastMonth">Tháng trước</SelectItem>
               </SelectContent>
             </Select>
           </div>
