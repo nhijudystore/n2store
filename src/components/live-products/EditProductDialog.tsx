@@ -73,6 +73,21 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     enabled: open && !!product?.product_code && !!product?.live_phase_id,
   });
 
+  // Reset form when dialog closes
+  useEffect(() => {
+    if (!open) {
+      form.reset({
+        product_code: "",
+        product_name: "",
+        variants: [{ name: "", quantity: 0 }],
+      });
+      setDuplicateWarning("");
+      setImagePreview("");
+      setImageFile(null);
+      setIsUploading(false);
+    }
+  }, [open, form]);
+
   // Reset form when variants are loaded
   useEffect(() => {
     if (product && open && allVariants) {
@@ -270,8 +285,19 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       return;
     }
 
+    // Filter out completely empty variants (no name and quantity = 0)
+    const validVariants = data.variants.filter(v => v.name?.trim() || v.quantity > 0);
+    
+    if (validVariants.length === 0) {
+      toast({
+        title: "Lỗi",
+        description: "Phải có ít nhất một biến thể",
+        variant: "destructive",
+      });
+      return;
+    }
 
-    for (const variant of data.variants) {
+    for (const variant of validVariants) {
       if (variant.quantity < 0) {
         toast({
           title: "Lỗi",
@@ -283,7 +309,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     }
 
     // Check for duplicate variant names in form
-    const variantNames = data.variants
+    const variantNames = validVariants
       .map(v => v.name?.trim().toLowerCase())
       .filter(n => n);
     const duplicates = variantNames.filter((name, index) => variantNames.indexOf(name) !== index);
@@ -297,7 +323,11 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     }
 
     setIsSubmitting(true);
-    updateProductMutation.mutate(data);
+    // Pass only valid variants to mutation
+    updateProductMutation.mutate({
+      ...data,
+      variants: validVariants,
+    });
   };
 
   if (isLoading) {
