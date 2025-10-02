@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { compressImage } from "@/lib/image-utils";
 
 interface ImageUploadCellProps {
   images: string[];
@@ -26,24 +27,31 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "Lỗi", 
-        description: "Kích thước file phải nhỏ hơn 5MB",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
+      // Tự động nén ảnh nếu > 5MB
+      let fileToUpload = file;
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Đang nén ảnh...",
+          description: `Ảnh gốc ${(file.size / 1024 / 1024).toFixed(1)}MB, đang tối ưu...`,
+        });
+        
+        fileToUpload = await compressImage(file, 5, 1920, 1920);
+        
+        toast({
+          title: "Đã nén ảnh",
+          description: `Giảm từ ${(file.size / 1024 / 1024).toFixed(1)}MB xuống ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB`,
+        });
+      }
+
+      const fileExt = fileToUpload.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `purchase-order-items/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('purchase-images')
-        .upload(filePath, file);
+        .upload(filePath, fileToUpload);
 
       if (uploadError) throw uploadError;
 
@@ -61,7 +69,7 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
       console.error('Upload error:', error);
       toast({
         title: "Lỗi tải ảnh",
-        description: "Không thể tải ảnh lên. Vui lòng thử lại.",
+        description: error instanceof Error ? error.message : "Không thể tải ảnh lên. Vui lòng thử lại.",
         variant: "destructive"
       });
     } finally {
