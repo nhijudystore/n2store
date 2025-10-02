@@ -54,7 +54,7 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
     const diff = item.received_quantity - item.expected_quantity;
     
     if (diff < 0) {
-      return "border-t bg-red-50/70 hover:bg-red-50";
+      return "border-t bg-red-200 hover:bg-red-300";
     } else if (diff > 0) {
       return "border-t bg-orange-50/70 hover:bg-orange-50";
     } else {
