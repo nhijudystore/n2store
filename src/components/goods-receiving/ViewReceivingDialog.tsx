@@ -50,6 +50,18 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
     }
   };
 
+  const getRowClassName = (item: any) => {
+    const diff = item.received_quantity - item.expected_quantity;
+    
+    if (diff < 0) {
+      return "border-t bg-red-50/70 hover:bg-red-50";
+    } else if (diff > 0) {
+      return "border-t bg-orange-50/70 hover:bg-orange-50";
+    } else {
+      return "border-t bg-green-50/70 hover:bg-green-50";
+    }
+  };
+
   const getStatusDisplay = (item: any) => {
     const diff = item.received_quantity - item.expected_quantity;
     
@@ -154,7 +166,7 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
                   </thead>
                   <tbody>
                     {receivingData.items?.map((item: any) => (
-                      <tr key={item.id} className="border-t hover:bg-muted/20">
+                      <tr key={item.id} className={getRowClassName(item)}>
                         <td className="p-3 text-sm">{item.product_name}</td>
                         <td className="p-3 text-sm">{item.product_code || '-'}</td>
                         <td className="p-3 text-sm">{item.variant || '-'}</td>
