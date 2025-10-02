@@ -417,6 +417,59 @@ export default function LiveProducts() {
     },
   });
 
+  // Delete all variants of a product (by product_code)
+  const deleteAllVariantsMutation = useMutation({
+    mutationFn: async ({ product_code, live_phase_id, live_session_id }: { 
+      product_code: string; 
+      live_phase_id: string | null; 
+      live_session_id: string;
+    }) => {
+      // Get all products with this product_code in the session
+      let query = supabase
+        .from("live_products")
+        .select("id")
+        .eq("product_code", product_code)
+        .eq("live_session_id", live_session_id);
+
+      if (live_phase_id) {
+        query = query.eq("live_phase_id", live_phase_id);
+      }
+
+      const { data: productsToDelete, error: fetchError } = await query;
+      
+      if (fetchError) throw fetchError;
+      if (!productsToDelete || productsToDelete.length === 0) return;
+
+      const productIds = productsToDelete.map(p => p.id);
+
+      // First delete all orders for these products
+      const { error: deleteOrdersError } = await supabase
+        .from("live_orders")
+        .delete()
+        .in("live_product_id", productIds);
+      
+      if (deleteOrdersError) throw deleteOrdersError;
+
+      // Then delete all the products
+      const { error: deleteProductsError } = await supabase
+        .from("live_products")
+        .delete()
+        .in("id", productIds);
+      
+      if (deleteProductsError) throw deleteProductsError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase] });
+      queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase] });
+      toast.success("Đã xóa toàn bộ sản phẩm và các đơn hàng liên quan");
+    },
+    onError: (error) => {
+      console.error("Error deleting all variants:", error);
+      toast.error("Có lỗi xảy ra khi xóa sản phẩm");
+    },
+  });
+
   // Delete all phases and data for a live session
   const deleteAllPhasesForSessionMutation = useMutation({
     mutationFn: async (sessionId: string) => {
@@ -614,6 +667,16 @@ export default function LiveProducts() {
   const handleDeleteProduct = async (productId: string) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa sản phẩm này? Tất cả đơn hàng liên quan cũng sẽ bị xóa.")) {
       await deleteProductMutation.mutateAsync(productId);
+    }
+  };
+
+  const handleDeleteAllVariants = async (product_code: string, product_name: string) => {
+    if (window.confirm(`Bạn có chắc chắn muốn xóa toàn bộ sản phẩm "${product_name}" (${product_code}) và tất cả biến thể? Tất cả đơn hàng liên quan cũng sẽ bị xóa.`)) {
+      await deleteAllVariantsMutation.mutateAsync({
+        product_code,
+        live_phase_id: selectedPhase === "all" ? null : selectedPhase,
+        live_session_id: selectedSession,
+      });
     }
   };
 
@@ -1084,29 +1147,34 @@ export default function LiveProducts() {
                                   })()}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-center border-l">
-                                <div className="flex items-center justify-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditProduct(product)}
-                                    disabled={selectedPhase === "all"}
-                                    title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteProduct(product.id)}
-                                    disabled={selectedPhase === "all"}
-                                    className="text-red-600 hover:text-red-700"
-                                    title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                              {productIndex === 0 && (
+                                <TableCell 
+                                  rowSpan={group.products.length}
+                                  className="text-center border-l align-top"
+                                >
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditProduct(product)}
+                                      disabled={selectedPhase === "all"}
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteAllVariants(group.product_code, group.product_name)}
+                                      disabled={selectedPhase === "all"}
+                                      className="text-red-600 hover:text-red-700"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              )}
                             </TableRow>
                           ));
                         });
