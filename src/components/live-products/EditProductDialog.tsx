@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { AlertCircle, Trash2, ImagePlus, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
+import { compressImage } from "@/lib/image-utils";
 
 interface EditProductDialogProps {
   open: boolean;
@@ -158,22 +159,46 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
       let imageUrl: string | undefined = imagePreview;
       if (imageFile) {
         setIsUploading(true);
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `live-products/${fileName}`;
+        try {
+          // Tự động nén ảnh nếu > 1MB
+          let fileToUpload = imageFile;
+          if (imageFile.size > 1 * 1024 * 1024) {
+            toast({
+              title: "Đang nén ảnh...",
+              description: `Ảnh gốc ${(imageFile.size / 1024 / 1024).toFixed(1)}MB, đang tối ưu...`,
+            });
+            fileToUpload = await compressImage(imageFile, 1, 1920, 1920);
+            toast({
+              title: "Đã nén ảnh",
+              description: `Giảm từ ${(imageFile.size / 1024 / 1024).toFixed(1)}MB xuống ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB`,
+            });
+          }
 
-        const { error: uploadError } = await supabase.storage
-          .from('purchase-images')
-          .upload(filePath, imageFile);
+          const fileExt = fileToUpload.name.split('.').pop();
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+          const filePath = `live-products/${fileName}`;
 
-        if (uploadError) throw uploadError;
+          const { error: uploadError } = await supabase.storage
+            .from('purchase-images')
+            .upload(filePath, fileToUpload);
 
-        const { data: urlData } = supabase.storage
-          .from('purchase-images')
-          .getPublicUrl(filePath);
+          if (uploadError) throw uploadError;
 
-        imageUrl = urlData.publicUrl;
-        setIsUploading(false);
+          const { data: urlData } = supabase.storage
+            .from('purchase-images')
+            .getPublicUrl(filePath);
+
+          imageUrl = urlData.publicUrl;
+        } catch (error) {
+          console.error('Upload error:', error);
+          toast({
+            title: "Lỗi tải ảnh",
+            description: error instanceof Error ? error.message : "Không thể tải ảnh lên",
+            variant: "destructive",
+          });
+        } finally {
+          setIsUploading(false);
+        }
       }
       
       // Get current variants from database

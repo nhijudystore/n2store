@@ -29,15 +29,15 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
 
     setIsUploading(true);
     try {
-      // Tự động nén ảnh nếu > 5MB
+      // Tự động nén ảnh nếu > 1MB
       let fileToUpload = file;
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 1 * 1024 * 1024) {
         toast({
           title: "Đang nén ảnh...",
           description: `Ảnh gốc ${(file.size / 1024 / 1024).toFixed(1)}MB, đang tối ưu...`,
         });
         
-        fileToUpload = await compressImage(file, 5, 1920, 1920);
+        fileToUpload = await compressImage(file, 1, 1920, 1920);
         
         toast({
           title: "Đã nén ảnh",

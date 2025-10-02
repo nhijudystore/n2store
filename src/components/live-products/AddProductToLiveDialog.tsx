@@ -59,11 +59,11 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
     setIsUploading(true);
     try {
-      // Tự động nén ảnh nếu > 5MB
+      // Tự động nén ảnh nếu > 1MB
       let fileToUpload = file;
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 1 * 1024 * 1024) {
         toast.success(`Đang nén ảnh ${(file.size / 1024 / 1024).toFixed(1)}MB...`);
-        fileToUpload = await compressImage(file, 5, 1920, 1920);
+        fileToUpload = await compressImage(file, 1, 1920, 1920);
         toast.success(`Đã nén xuống ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB`);
       }
 
@@ -308,9 +308,9 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                       <p className="text-sm text-muted-foreground font-medium">
                         Ctrl+V để dán ảnh
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {imageUrl ? "Dán để thay thế ảnh" : "Ảnh sẽ tự động nén nếu > 5MB"}
-                      </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {imageUrl ? "Dán để thay thế ảnh" : "Ảnh sẽ tự động nén nếu > 1MB"}
+            </p>
                     </div>
                   )}
                 </div>
