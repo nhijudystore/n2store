@@ -5,15 +5,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
-import { MobileLayout } from "@/components/mobile/MobileLayout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { useIsMobile } from "@/hooks/use-mobile";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
 import GoodsReceiving from "./pages/GoodsReceiving";
-import MobileGoodsReceivingDetail from "./pages/mobile/MobileGoodsReceivingDetail";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -25,16 +22,6 @@ const queryClient = new QueryClient({
     },
   },
 });
-
-function ConditionalLayout({ children, activeTab }: { children: React.ReactNode; activeTab?: string }) {
-  const isMobile = useIsMobile();
-  
-  if (isMobile) {
-    return <MobileLayout activeTab={activeTab}>{children}</MobileLayout>;
-  }
-  
-  return <Layout>{children}</Layout>;
-}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -66,21 +53,16 @@ const App = () => (
             } />
             <Route path="/livestream-reports" element={
               <ProtectedRoute>
-                <ConditionalLayout activeTab="livestream-reports">
+                <Layout>
                   <LivestreamReports />
-                </ConditionalLayout>
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/goods-receiving" element={
               <ProtectedRoute>
-                <ConditionalLayout activeTab="goods-receiving">
+                <Layout>
                   <GoodsReceiving />
-                </ConditionalLayout>
-              </ProtectedRoute>
-            } />
-            <Route path="/goods-receiving/:orderId" element={
-              <ProtectedRoute>
-                <MobileGoodsReceivingDetail />
+                </Layout>
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
