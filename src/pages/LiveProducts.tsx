@@ -253,6 +253,7 @@ export default function LiveProducts() {
           .select("*")
           .eq("live_phase_id", selectedPhase)
           .order("product_code", { ascending: true })
+          .order("variant", { ascending: true })
           .order("created_at", { ascending: true });
         
         if (error) throw error;
@@ -908,8 +909,16 @@ export default function LiveProducts() {
                         );
 
                         return sortedGroups.flatMap((group) => {
-                          // Sort products within group by created_at to maintain original order
+                          // Sort products within group by variant name first, then by created_at
                           const sortedProducts = [...group.products].sort((a, b) => {
+                            // Primary sort: variant name (alphabetically)
+                            const variantA = (a.variant || '').toLowerCase();
+                            const variantB = (b.variant || '').toLowerCase();
+                            const variantCompare = variantA.localeCompare(variantB);
+                            
+                            if (variantCompare !== 0) return variantCompare;
+                            
+                            // Secondary sort: created_at (if variants are the same)
                             const timeA = new Date(a.created_at || 0).getTime();
                             const timeB = new Date(b.created_at || 0).getTime();
                             return timeA - timeB;
