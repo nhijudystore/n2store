@@ -313,18 +313,34 @@ const PurchaseOrders = () => {
   };
 
   const handleExportPurchaseExcel = () => {
-    // Validate that only one order is selected
-    if (filteredOrders.length !== 1) {
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    if (ordersToExport.length === 0) {
       toast({
-        title: "Không thể xuất Excel",
-        description: "Đang lọc nhiều hơn 1 nhà cung cấp. Vui lòng chọn 1 đơn hàng để xuất.",
+        title: "Không có đơn hàng",
+        description: "Vui lòng chọn ít nhất một đơn hàng",
         variant: "destructive",
       });
       return;
     }
 
-    // Flatten all items from filteredOrders
-    const products = filteredOrders.flatMap(order =>
+    // Check number of unique suppliers
+    const uniqueSuppliers = new Set(ordersToExport.map(order => order.supplier_name));
+
+    if (uniqueSuppliers.size > 1) {
+      toast({
+        title: "Không thể xuất Excel",
+        description: `Đang chọn ${uniqueSuppliers.size} nhà cung cấp khác nhau. Vui lòng chỉ chọn đơn hàng từ 1 nhà cung cấp để xuất.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Flatten all items from ordersToExport
+    const products = ordersToExport.flatMap(order =>
       (order.items || []).map(item => ({
         ...item,
         order_id: order.id,
@@ -361,7 +377,7 @@ const PurchaseOrders = () => {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Mua Hàng");
       
-      const fileName = `MuaHang_${getSupplierList(filteredOrders)}_${formatDateDDMM()}.xlsx`;
+      const fileName = `MuaHang_${getSupplierList(ordersToExport)}_${formatDateDDMM()}.xlsx`;
       XLSX.writeFile(wb, fileName);
 
       toast({
@@ -599,6 +615,10 @@ const PurchaseOrders = () => {
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Xóa đã chọn
+                      </Button>
+                      <Button onClick={handleExportPurchaseExcel} variant="outline" size="sm">
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Xuất Excel Mua hàng
                       </Button>
                       <Button onClick={handleExportExcel} variant="outline" size="sm">
                         <Download className="w-4 h-4 mr-2" />
