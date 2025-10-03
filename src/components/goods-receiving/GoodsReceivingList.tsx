@@ -324,12 +324,7 @@ export function GoodsReceivingList({
                         {totalQuantity}
                       </div>
                       
-                      {/* 5. Status Badge - compact no icon */}
-                      <Badge variant="secondary" className={`text-xs px-2 py-0.5 shrink-0 ${statusClassName}`}>
-                        {statusText}
-                      </Badge>
-                      
-                      {/* 6. Action Button - flexible */}
+                      {/* 5. Action Button - flexible, shows status for inspected orders */}
                       {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
                         <Button 
                           className="flex-1 h-9 text-xs px-2"
@@ -338,19 +333,24 @@ export function GoodsReceivingList({
                             setDialogOpen(true);
                           }}
                         >
-                          Kiểm
+                          Kiểm hàng
                         </Button>
                       )}
                       {order.hasReceiving && (
                         <Button 
-                          className="flex-1 h-9 text-xs px-2"
+                          className={`flex-1 h-9 text-xs px-2 ${
+                            order.overallStatus === 'shortage' ? 'bg-red-100 text-red-700 hover:bg-red-200 border-red-300' :
+                            order.overallStatus === 'overage' ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-300' :
+                            order.overallStatus === 'mixed' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-300' :
+                            'bg-green-100 text-green-700 hover:bg-green-200 border-green-300'
+                          }`}
                           variant="outline"
                           onClick={() => {
                             setViewOrderId(order.id);
                             setViewDialogOpen(true);
                           }}
                         >
-                          Xem
+                          {statusText}
                         </Button>
                       )}
                     </div>
