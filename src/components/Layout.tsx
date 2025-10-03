@@ -4,36 +4,28 @@ import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
 interface LayoutProps {
   children: React.ReactNode;
 }
-
-export function Layout({ children }: LayoutProps) {
-  const { user, signOut } = useAuth();
-
+export function Layout({
+  children
+}: LayoutProps) {
+  const {
+    user,
+    signOut
+  } = useAuth();
   const getInitials = (email: string | undefined) => {
     if (!email) return "U";
     const username = email.split('@')[0];
     return username.slice(0, 2).toUpperCase();
   };
-
   const getDisplayName = (email: string | undefined) => {
     if (!email) return "User";
     return email.split('@')[0];
   };
-
-  return (
-    <SidebarProvider>
+  return <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         
@@ -43,11 +35,8 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="p-2 hover:bg-muted rounded-lg transition-colors" />
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input 
-                  placeholder="Tìm kiếm đơn hàng, sản phẩm..." 
-                  className="pl-10 w-80 bg-muted/50 border-0 focus:bg-background"
-                />
+                
+                
               </div>
             </div>
 
@@ -99,6 +88,5 @@ export function Layout({ children }: LayoutProps) {
           </main>
         </div>
       </div>
-    </SidebarProvider>
-  );
+    </SidebarProvider>;
 }
