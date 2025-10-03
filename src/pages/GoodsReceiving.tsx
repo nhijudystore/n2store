@@ -7,7 +7,7 @@ import { GoodsReceivingStats } from "@/components/goods-receiving/GoodsReceiving
 import { GoodsReceivingList } from "@/components/goods-receiving/GoodsReceivingList";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type StatusFilter = "needInspection" | "inspected" | "all";
+type StatusFilter = "needInspection" | "inspected" | "shortage" | "all";
 
 export default function GoodsReceiving() {
   const isMobile = useIsMobile();
@@ -80,6 +80,8 @@ export default function GoodsReceiving() {
         return ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
       } else if (statusFilter === "inspected") {
         return ordersWithStatus.filter(o => o.hasReceiving);
+      } else if (statusFilter === "shortage") {
+        return ordersWithStatus.filter(o => o.hasReceiving && o.overallStatus === 'shortage');
       }
       
       return ordersWithStatus;

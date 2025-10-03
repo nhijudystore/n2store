@@ -13,7 +13,7 @@ import { ViewReceivingDialog } from "./ViewReceivingDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Separator } from "@/components/ui/separator";
 
-type StatusFilter = "needInspection" | "inspected" | "all";
+type StatusFilter = "needInspection" | "inspected" | "shortage" | "all";
 
 interface GoodsReceivingListProps {
   filteredOrders: any[];
@@ -118,6 +118,7 @@ export function GoodsReceivingList({
                   <SelectContent>
                     <SelectItem value="needInspection">Cần kiểm</SelectItem>
                     <SelectItem value="inspected">Đã kiểm</SelectItem>
+                    <SelectItem value="shortage">Thiếu hàng</SelectItem>
                     <SelectItem value="all">Toàn bộ</SelectItem>
                   </SelectContent>
                 </Select>
@@ -263,6 +264,7 @@ export function GoodsReceivingList({
               <SelectContent>
                 <SelectItem value="needInspection">Cần kiểm</SelectItem>
                 <SelectItem value="inspected">Đã kiểm</SelectItem>
+                <SelectItem value="shortage">Thiếu hàng</SelectItem>
                 <SelectItem value="all">Toàn bộ</SelectItem>
               </SelectContent>
             </Select>
