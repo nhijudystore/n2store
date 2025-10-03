@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { X } from "lucide-react";
@@ -14,6 +13,7 @@ interface VariantSelectorProps {
 
 export function VariantSelector({ value, onChange }: VariantSelectorProps) {
   const [inputValue, setInputValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
 
   // Sync with external value changes
@@ -23,34 +23,11 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     }
   }, [value]);
 
-  const handleInputChange = (newValue: string) => {
-    setInputValue(newValue);
-    onChange(newValue);
-  };
-
   const handleSelect = (selectedValue: string) => {
-    const currentParts = inputValue
-      .split(" + ")
-      .map((p) => p.trim())
-      .filter(Boolean);
-
-    // If attribute already exists, don't add it again
-    if (!currentParts.includes(selectedValue)) {
-      const newValue =
-        currentParts.length > 0
-          ? `${inputValue} + ${selectedValue}`
-          : selectedValue;
-      setInputValue(newValue);
-      onChange(newValue);
-    }
+    setInputValue(selectedValue);
+    onChange(selectedValue);
     setOpen(false);
-  };
-
-  const removeAttribute = (index: number) => {
-    const parts = inputValue.split(" + ").filter((_, i) => i !== index);
-    const newValue = parts.join(" + ");
-    setInputValue(newValue);
-    onChange(newValue);
+    setSearchTerm("");
   };
 
   const clearAll = () => {
@@ -58,16 +35,16 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     onChange("");
   };
 
-  // Filter suggestions based on current input
-  const searchTerm = inputValue.split(" + ").pop()?.trim().toLowerCase() || "";
+  // Filter suggestions based on search term
+  const searchLower = searchTerm.toLowerCase();
   const filteredColors = COLORS.filter((color) =>
-    color.toLowerCase().includes(searchTerm)
+    color.toLowerCase().includes(searchLower)
   ).slice(0, 10);
   const filteredTextSizes = TEXT_SIZES.filter((size) =>
-    size.toLowerCase().includes(searchTerm)
+    size.toLowerCase().includes(searchLower)
   );
   const filteredNumberSizes = NUMBER_SIZES.filter((size) =>
-    size.includes(searchTerm)
+    size.toLowerCase().includes(searchLower)
   ).slice(0, 10);
 
   const hasResults =
@@ -75,25 +52,17 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     filteredTextSizes.length > 0 ||
     filteredNumberSizes.length > 0;
 
-  const selectedParts = inputValue
-    .split(" + ")
-    .map((p) => p.trim())
-    .filter(Boolean);
-
   return (
-    <div className="space-y-2">
+    <div className="relative">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
               value={inputValue}
-              onChange={(e) => {
-                handleInputChange(e.target.value);
-                setOpen(true);
-              }}
+              readOnly
               onFocus={() => setOpen(true)}
-              placeholder="Nhập biến thể (ví dụ: Đỏ + L hoặc Xanh + 36)"
-              className="pr-10"
+              placeholder="Chọn biến thể"
+              className="pr-10 cursor-pointer"
             />
             {inputValue && (
               <Button
@@ -113,8 +82,12 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <Command>
-            <CommandInput placeholder="Tìm kiếm..." />
+          <Command shouldFilter={false}>
+            <CommandInput 
+              placeholder="Tìm kiếm..." 
+              value={searchTerm}
+              onValueChange={setSearchTerm}
+            />
             <CommandList>
               {!hasResults && <CommandEmpty>Không tìm thấy biến thể</CommandEmpty>}
 
@@ -151,21 +124,6 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
           </Command>
         </PopoverContent>
       </Popover>
-
-      {/* Display selected attributes as badges */}
-      {selectedParts.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {selectedParts.map((part, idx) => (
-            <Badge key={idx} variant="secondary" className="gap-1">
-              {part}
-              <X
-                className="h-3 w-3 cursor-pointer hover:text-destructive"
-                onClick={() => removeAttribute(idx)}
-              />
-            </Badge>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
