@@ -33,7 +33,7 @@ export function Layout({
           {/* Header */}
           <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shadow-soft">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="p-2 hover:bg-muted rounded-lg transition-colors" />
+              <SidebarTrigger className="p-3 hover:bg-primary/10 bg-muted rounded-lg transition-all hover:scale-105 border-2 border-primary/20 hover:border-primary/40" />
               <div className="relative">
                 
                 
