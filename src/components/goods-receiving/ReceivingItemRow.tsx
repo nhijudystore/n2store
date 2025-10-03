@@ -7,32 +7,36 @@ interface ReceivingItemRowProps {
   onQuantityChange: (itemId: string, quantity: number) => void;
   isConfirmed: boolean;
   onConfirm: (itemId: string) => void;
+  isMobile?: boolean;
 }
 
-export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfirm }: ReceivingItemRowProps) {
+export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfirm, isMobile = false }: ReceivingItemRowProps) {
   const getRowClassName = () => {
     if (isConfirmed) return 'bg-green-50/50';
     return '';
   };
 
   const getInputClassName = () => {
-    if (isConfirmed) return "w-24 text-center mx-auto";
+    const baseClass = isMobile ? "w-full text-center h-12 text-lg" : "w-24 text-center mx-auto";
+    const disabledClass = isConfirmed ? baseClass : baseClass;
+    
+    if (isConfirmed) return disabledClass;
     
     if (item.received_quantity < item.quantity) {
-      return "w-24 text-center mx-auto bg-red-50 border-red-300 text-red-700 focus-visible:ring-red-500";
+      return `${baseClass} bg-red-50 border-2 border-red-400 text-red-700 focus-visible:ring-red-500`;
     } else if (item.received_quantity > item.quantity) {
-      return "w-24 text-center mx-auto bg-orange-50 border-orange-300 text-orange-700 focus-visible:ring-orange-500";
+      return `${baseClass} bg-orange-50 border-2 border-orange-400 text-orange-700 focus-visible:ring-orange-500`;
     }
-    return "w-24 text-center mx-auto";
+    return baseClass;
   };
 
   const getConfirmationDisplay = () => {
     if (!isConfirmed) {
       return (
         <Button 
-          size="sm" 
+          size={isMobile ? "default" : "sm"}
           onClick={() => onConfirm(item.id)}
-          className="min-h-[44px]"
+          className={isMobile ? "w-full min-h-[48px] text-base" : "min-h-[44px]"}
         >
           Xác nhận
         </Button>
@@ -43,28 +47,78 @@ export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfir
     
     if (diff < 0) {
       return (
-        <div className="flex items-center justify-center gap-2 text-red-700">
-          <AlertCircle className="w-5 h-5" />
-          <span className="text-sm font-medium">Thiếu {Math.abs(diff)}</span>
+        <div className={`flex items-center ${isMobile ? 'justify-start' : 'justify-center'} gap-2 text-red-700`}>
+          <AlertCircle className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
+          <span className={isMobile ? "text-base font-semibold" : "text-sm font-medium"}>Thiếu {Math.abs(diff)}</span>
         </div>
       );
     } else if (diff > 0) {
       return (
-        <div className="flex items-center justify-center gap-2 text-orange-600">
-          <AlertTriangle className="w-5 h-5" />
-          <span className="text-sm font-medium">Dư {diff}</span>
+        <div className={`flex items-center ${isMobile ? 'justify-start' : 'justify-center'} gap-2 text-orange-600`}>
+          <AlertTriangle className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
+          <span className={isMobile ? "text-base font-semibold" : "text-sm font-medium"}>Dư {diff}</span>
         </div>
       );
     } else {
       return (
-        <div className="flex items-center justify-center gap-2 text-green-700">
-          <CheckCircle className="w-5 h-5" />
-          <span className="text-sm font-medium">Đủ hàng</span>
+        <div className={`flex items-center ${isMobile ? 'justify-start' : 'justify-center'} gap-2 text-green-700`}>
+          <CheckCircle className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
+          <span className={isMobile ? "text-base font-semibold" : "text-sm font-medium"}>Đủ hàng</span>
         </div>
       );
     }
   };
 
+  // Mobile Card Layout
+  if (isMobile) {
+    return (
+      <div className={`border rounded-lg p-4 space-y-3 ${getRowClassName()}`}>
+        <div className="flex gap-3">
+          {item.product_images && item.product_images.length > 0 ? (
+            <img 
+              src={item.product_images[0]} 
+              alt={item.product_name}
+              className="w-20 h-20 object-cover rounded border flex-shrink-0"
+            />
+          ) : (
+            <div className="w-20 h-20 bg-muted rounded border flex items-center justify-center flex-shrink-0">
+              <span className="text-xs text-muted-foreground">No image</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-base mb-1">{item.product_name}</div>
+            {item.variant && (
+              <div className="text-sm text-muted-foreground mb-2">{item.variant}</div>
+            )}
+            <div className="flex items-center gap-3 text-sm">
+              <div>
+                <span className="text-muted-foreground">SL Đặt:</span>
+                <span className="font-semibold ml-1 text-base">{item.quantity}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-muted-foreground">Số lượng nhận thực tế</label>
+          <Input
+            type="number"
+            min="0"
+            value={item.received_quantity}
+            onChange={(e) => onQuantityChange(item.id, parseInt(e.target.value) || 0)}
+            className={getInputClassName()}
+            disabled={isConfirmed}
+          />
+        </div>
+
+        <div>
+          {getConfirmationDisplay()}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop Table Row Layout
   return (
     <tr className={getRowClassName()}>
       <td className="p-3">

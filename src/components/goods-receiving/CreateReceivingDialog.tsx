@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Package, AlertCircle, CheckCircle } from "lucide-react";
 import { ReceivingItemRow } from "./ReceivingItemRow";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CreateReceivingDialogProps {
   open: boolean;
@@ -31,6 +32,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
   const [confirmedItems, setConfirmedItems] = useState<Set<string>>(new Set());
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -185,10 +187,10 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className={isMobile ? "w-full h-screen max-w-full p-0 flex flex-col" : "max-w-4xl max-h-[90vh]"}>
+        <DialogHeader className={isMobile ? "p-4 pb-0" : ""}>
           <DialogTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
+            <Package className={isMobile ? "w-6 h-6" : "w-5 h-5"} />
             Kiểm hàng chi tiết
           </DialogTitle>
           <DialogDescription>
@@ -196,28 +198,52 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-            {/* Summary */}
-            <div className="bg-muted/50 rounded-lg p-3 flex justify-between items-center">
-              <div className="text-sm">
-                <span className="text-muted-foreground">Tổng đặt:</span>
-                <span className="font-medium ml-2">{totalExpected}</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Tổng nhận:</span>
-                <span className="font-medium ml-2">{totalReceived}</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">Đã xác nhận:</span>
-                <span className={`font-medium ml-2 ${
-                  allItemsConfirmed ? 'text-green-600' : 'text-orange-600'
-                }`}>
-                  {confirmedItems.size}/{items.length} sản phẩm
-                </span>
-              </div>
+        {/* Sticky Summary Bar */}
+        <div className={`bg-muted/50 ${isMobile ? 'sticky top-0 z-10 shadow-md' : 'rounded-lg'} p-3 ${isMobile ? 'mx-4' : 'mx-6'} ${isMobile ? 'grid grid-cols-3 gap-2' : 'flex justify-between items-center'}`}>
+          <div className={isMobile ? "text-center" : "text-sm"}>
+            <div className={isMobile ? "text-xs text-muted-foreground" : "inline"}>
+              <span className="text-muted-foreground">Tổng đặt:</span>
             </div>
+            <div className={isMobile ? "text-lg font-bold" : "inline font-medium ml-2"}>
+              {totalExpected}
+            </div>
+          </div>
+          <div className={isMobile ? "text-center" : "text-sm"}>
+            <div className={isMobile ? "text-xs text-muted-foreground" : "inline"}>
+              <span className="text-muted-foreground">Tổng nhận:</span>
+            </div>
+            <div className={isMobile ? "text-lg font-bold" : "inline font-medium ml-2"}>
+              {totalReceived}
+            </div>
+          </div>
+          <div className={isMobile ? "text-center" : "text-sm"}>
+            <div className={isMobile ? "text-xs text-muted-foreground" : "inline"}>
+              <span className="text-muted-foreground">Đã xác nhận:</span>
+            </div>
+            <div className={`${isMobile ? "text-lg font-bold" : "inline font-medium ml-2"} ${
+              allItemsConfirmed ? 'text-green-600' : 'text-orange-600'
+            }`}>
+              {confirmedItems.size}/{items.length}
+            </div>
+          </div>
+        </div>
 
-            {/* Items table */}
+        <div className={`space-y-4 ${isMobile ? 'flex-1 overflow-y-auto px-4 pb-4' : 'px-6'}`}>
+          {/* Items - Mobile: Cards, Desktop: Table */}
+          {isMobile ? (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <ReceivingItemRow
+                  key={item.id}
+                  item={item}
+                  onQuantityChange={handleQuantityChange}
+                  isConfirmed={confirmedItems.has(item.id)}
+                  onConfirm={handleConfirm}
+                  isMobile={true}
+                />
+              ))}
+            </div>
+          ) : (
             <div className="border rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -239,36 +265,45 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                         onQuantityChange={handleQuantityChange}
                         isConfirmed={confirmedItems.has(item.id)}
                         onConfirm={handleConfirm}
+                        isMobile={false}
                       />
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+          )}
 
-            {/* Notes */}
-            <div>
-              <label className="text-sm font-medium mb-2 block">Ghi chú chung</label>
-              <Textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Nhập ghi chú về tình trạng hàng hóa..."
-                rows={3}
-              />
-            </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Hủy
-            </Button>
-            <Button 
-              onClick={handleSubmit} 
-              disabled={isSubmitting || !allItemsConfirmed}
-              title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
-            >
-              {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
-            </Button>
+          {/* Notes */}
+          <div>
+            <label className={`font-medium mb-2 block ${isMobile ? 'text-base' : 'text-sm'}`}>Ghi chú chung</label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Nhập ghi chú về tình trạng hàng hóa..."
+              rows={3}
+              className={isMobile ? 'text-base min-h-[80px]' : ''}
+            />
           </div>
+        </div>
+
+        {/* Action buttons - Sticky on mobile */}
+        <div className={`flex ${isMobile ? 'flex-col sticky bottom-0 bg-background border-t p-4' : 'justify-end px-6 pb-6'} gap-2`}>
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className={isMobile ? 'w-full min-h-[48px] text-base' : ''}
+          >
+            Hủy
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={isSubmitting || !allItemsConfirmed}
+            title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
+            className={isMobile ? 'w-full min-h-[48px] text-base' : ''}
+          >
+            {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
