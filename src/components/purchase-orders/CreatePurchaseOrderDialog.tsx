@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, X, Copy, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
+import { VariantSelector } from "./VariantSelector";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 
@@ -268,11 +269,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         />
                       </TableCell>
                       <TableCell>
-                        <Input
-                          placeholder="Nhập biến thể"
+                        <VariantSelector
                           value={item.variant}
-                          onChange={(e) => updateItem(index, "variant", e.target.value)}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2"
+                          onChange={(value) => updateItem(index, "variant", value)}
                         />
                       </TableCell>
                       <TableCell>

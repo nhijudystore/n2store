@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Copy, Trash2, Calendar } from "lucide-react";
 import { ImageUploadCell } from "./ImageUploadCell";
+import { VariantSelector } from "./VariantSelector";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 
@@ -461,10 +462,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         />
                       </td>
                       <td className="p-2">
-                        <Input
+                        <VariantSelector
                           value={item.variant}
-                          onChange={(e) => updateItem(index, 'variant', e.target.value)}
-                          placeholder="Biến thể"
+                          onChange={(value) => updateItem(index, 'variant', value)}
                         />
                       </td>
                       <td className="p-2">
