@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2 } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
@@ -607,6 +607,14 @@ const PurchaseOrders = () => {
                       Đã chọn: <span className="text-primary">{selectedOrders.length}</span> đơn hàng
                     </span>
                     <div className="flex gap-2">
+                      <Button 
+                        onClick={clearSelection} 
+                        variant="outline" 
+                        size="sm"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Bỏ chọn
+                      </Button>
                       <Button 
                         onClick={handleBulkDelete} 
                         variant="destructive" 
