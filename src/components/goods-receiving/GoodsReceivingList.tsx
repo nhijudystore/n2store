@@ -229,7 +229,7 @@ export function GoodsReceivingList({
       ) : (
         // Mobile View - Full Screen
         <div className="space-y-3">
-          {/* Mobile: Search + Filter Button */}
+          {/* Mobile: Search + Quick Filter + Filter Button */}
           <div className="flex gap-2 px-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -240,6 +240,22 @@ export function GoodsReceivingList({
                 className="pl-9 bg-muted/50"
               />
             </div>
+            
+            {/* Quick Filter - Outside */}
+            <Select value={quickFilter} onValueChange={applyQuickFilter}>
+              <SelectTrigger className="w-24 shrink-0">
+                <SelectValue placeholder="Lọc" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
+                <SelectItem value="today">Hôm nay</SelectItem>
+                <SelectItem value="yesterday">Hôm qua</SelectItem>
+                <SelectItem value="week">7 ngày</SelectItem>
+                <SelectItem value="month">30 ngày</SelectItem>
+                <SelectItem value="thisMonth">Tháng này</SelectItem>
+                <SelectItem value="lastMonth">Tháng trước</SelectItem>
+              </SelectContent>
+            </Select>
             
             <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
               <SheetTrigger asChild>
@@ -271,29 +287,6 @@ export function GoodsReceivingList({
                       />
                     </div>
                   </div>
-                  
-                  <Separator />
-                  
-                  {/* Quick Filter */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Lọc nhanh</label>
-                    <Select value={quickFilter} onValueChange={applyQuickFilter}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Lọc nhanh" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tất cả</SelectItem>
-                        <SelectItem value="today">Hôm nay</SelectItem>
-                        <SelectItem value="yesterday">Hôm qua</SelectItem>
-                        <SelectItem value="week">7 ngày</SelectItem>
-                        <SelectItem value="month">30 ngày</SelectItem>
-                        <SelectItem value="thisMonth">Tháng này</SelectItem>
-                        <SelectItem value="lastMonth">Tháng trước</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Separator />
                   
                   {/* Status Filter */}
                   <div className="space-y-2">
