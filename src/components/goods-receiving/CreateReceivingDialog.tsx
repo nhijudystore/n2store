@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { toast } from "sonner";
 import { Package, AlertCircle, CheckCircle } from "lucide-react";
 import { ReceivingItemRow } from "./ReceivingItemRow";
@@ -229,84 +237,103 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
         </div>
 
         {/* Scrollable Content */}
-        <div className={`space-y-4 ${isMobile ? 'flex-1 overflow-y-auto px-4 pb-20' : 'px-6 flex-1 overflow-y-auto'}`}>
+        <div className={`space-y-4 ${isMobile ? 'flex-1 overflow-y-auto px-4 pb-4' : 'px-6 flex-1 overflow-y-auto'}`}>
           {/* Items - Mobile: Cards, Desktop: Table */}
           {isMobile ? (
             <div className="space-y-3">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <ReceivingItemRow
                   key={item.id}
                   item={item}
-                  onQuantityChange={handleQuantityChange}
                   isConfirmed={confirmedItems.has(item.id)}
+                  onQuantityChange={handleQuantityChange}
                   onConfirm={handleConfirm}
-                  isMobile={true}
+                  isMobile={isMobile}
                 />
               ))}
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-muted/50">
-                    <tr>
-                      <th className="text-left p-3 text-sm font-medium w-24">Hình ảnh</th>
-                      <th className="text-left p-3 text-sm font-medium w-40">Sản phẩm</th>
-                      <th className="text-left p-3 text-sm font-medium">Biến thể</th>
-                      <th className="text-center p-3 text-sm font-medium">SL Đặt</th>
-                      <th className="text-center p-3 text-sm font-medium">SL Nhận</th>
-                      <th className="text-center p-3 text-sm font-medium w-32">Xác nhận</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {items.map((item) => (
-                      <ReceivingItemRow
-                        key={item.id}
-                        item={item}
-                        onQuantityChange={handleQuantityChange}
-                        isConfirmed={confirmedItems.has(item.id)}
-                        onConfirm={handleConfirm}
-                        isMobile={false}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>STT</TableHead>
+                  <TableHead>Sản phẩm</TableHead>
+                  <TableHead className="text-right">SL đặt</TableHead>
+                  <TableHead className="text-right">SL nhận</TableHead>
+                  <TableHead className="text-right">Chênh lệch</TableHead>
+                  <TableHead className="text-center">Xác nhận</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, index) => (
+                  <ReceivingItemRow
+                    key={item.id}
+                    item={item}
+                    isConfirmed={confirmedItems.has(item.id)}
+                    onQuantityChange={handleQuantityChange}
+                    onConfirm={handleConfirm}
+                    isMobile={isMobile}
+                  />
+                ))}
+              </TableBody>
+            </Table>
           )}
 
           {/* Notes */}
           <div>
-            <label className={`font-medium mb-2 block ${isMobile ? 'text-base' : 'text-sm'}`}>Ghi chú chung</label>
+            <Label htmlFor="notes">Ghi chú</Label>
             <Textarea
+              id="notes"
+              placeholder="Nhập ghi chú về quá trình kiểm hàng..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Nhập ghi chú về tình trạng hàng hóa..."
               rows={3}
-              className={isMobile ? 'text-base min-h-[80px]' : ''}
+              className={isMobile ? 'text-base' : ''}
             />
           </div>
+
+          {/* Action buttons - Inside scroll container, at the bottom (Mobile only) */}
+          {isMobile && (
+            <div className="flex flex-col-reverse gap-2 mt-6 pt-4 border-t pb-4">
+              <Button 
+                variant="outline" 
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+                className="w-full min-h-[48px] text-base"
+              >
+                Hủy
+              </Button>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting || !allItemsConfirmed}
+                title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
+                className="w-full min-h-[48px] text-base"
+              >
+                {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Action buttons - Sticky at bottom on mobile, outside scroll container */}
-        <div className={`flex ${isMobile ? 'flex-col-reverse sticky bottom-0 bg-background border-t p-4 shadow-lg z-20' : 'justify-end px-6 pb-6'} gap-2`}>
-          <Button 
-            variant="outline" 
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-            className={isMobile ? 'w-full min-h-[48px] text-base' : ''}
-          >
-            Hủy
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isSubmitting || !allItemsConfirmed}
-            title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
-            className={isMobile ? 'w-full min-h-[48px] text-base' : ''}
-          >
-            {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
-          </Button>
-        </div>
+        {/* Action buttons - Desktop only (outside scroll container) */}
+        {!isMobile && (
+          <div className="flex justify-end px-6 pb-6 gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Hủy
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isSubmitting || !allItemsConfirmed}
+              title={!allItemsConfirmed ? "Vui lòng xác nhận tất cả sản phẩm trước khi hoàn thành" : ""}
+            >
+              {isSubmitting ? "Đang xử lý..." : "Hoàn thành kiểm hàng"}
+            </Button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
