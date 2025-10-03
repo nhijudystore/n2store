@@ -90,6 +90,7 @@ export function GoodsReceivingList({
                     <SelectValue placeholder="Lọc nhanh" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">Tất cả</SelectItem>
                     <SelectItem value="today">Hôm nay</SelectItem>
                     <SelectItem value="yesterday">Hôm qua</SelectItem>
                     <SelectItem value="3days">3 ngày</SelectItem>
@@ -246,6 +247,7 @@ export function GoodsReceivingList({
                 <SelectValue placeholder="Lọc" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="all">Tất cả</SelectItem>
                 <SelectItem value="today">Hôm nay</SelectItem>
                 <SelectItem value="yesterday">Hôm qua</SelectItem>
                 <SelectItem value="3days">3 ngày</SelectItem>
