@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { X } from "lucide-react";
 import { COLORS, TEXT_SIZES, NUMBER_SIZES } from "@/lib/variant-attributes";
 
@@ -13,234 +13,159 @@ interface VariantSelectorProps {
 }
 
 export function VariantSelector({ value, onChange }: VariantSelectorProps) {
-  const [selectedColor, setSelectedColor] = useState<string>("");
-  const [selectedTextSize, setSelectedTextSize] = useState<string>("");
-  const [selectedNumberSize, setSelectedNumberSize] = useState<string>("");
-  const [useCustomInput, setUseCustomInput] = useState(false);
-  const [customValue, setCustomValue] = useState("");
+  const [inputValue, setInputValue] = useState("");
+  const [open, setOpen] = useState(false);
 
-  // Parse existing value when component mounts or value changes externally
+  // Sync with external value changes
   useEffect(() => {
-    if (!value) {
-      setSelectedColor("");
-      setSelectedTextSize("");
-      setSelectedNumberSize("");
-      setCustomValue("");
-      setUseCustomInput(false);
-      return;
-    }
-
-    // Check if value can be parsed from our predefined options
-    const parts = value.split(" + ").map(p => p.trim());
-    let foundColor = "";
-    let foundTextSize = "";
-    let foundNumberSize = "";
-
-    parts.forEach(part => {
-      if (COLORS.includes(part as any)) {
-        foundColor = part;
-      } else if (TEXT_SIZES.includes(part as any)) {
-        foundTextSize = part;
-      } else if (NUMBER_SIZES.includes(part as any)) {
-        foundNumberSize = part;
-      }
-    });
-
-    // If we found any matching attributes, use selector mode
-    if (foundColor || foundTextSize || foundNumberSize) {
-      setSelectedColor(foundColor);
-      setSelectedTextSize(foundTextSize);
-      setSelectedNumberSize(foundNumberSize);
-      setUseCustomInput(false);
-      setCustomValue("");
-    } else {
-      // Otherwise, use custom input mode
-      setUseCustomInput(true);
-      setCustomValue(value);
-      setSelectedColor("");
-      setSelectedTextSize("");
-      setSelectedNumberSize("");
+    if (value !== inputValue) {
+      setInputValue(value || "");
     }
   }, [value]);
 
-  // Update parent when selections change
-  useEffect(() => {
-    if (useCustomInput) {
-      onChange(customValue);
-      return;
-    }
+  const handleInputChange = (newValue: string) => {
+    setInputValue(newValue);
+    onChange(newValue);
+  };
 
-    const attributes = [selectedColor, selectedTextSize, selectedNumberSize].filter(Boolean);
-    const newValue = attributes.join(" + ");
-    
-    // Only update if value actually changed to avoid loops
-    if (newValue !== value) {
+  const handleSelect = (selectedValue: string) => {
+    const currentParts = inputValue
+      .split(" + ")
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    // If attribute already exists, don't add it again
+    if (!currentParts.includes(selectedValue)) {
+      const newValue =
+        currentParts.length > 0
+          ? `${inputValue} + ${selectedValue}`
+          : selectedValue;
+      setInputValue(newValue);
       onChange(newValue);
     }
-  }, [selectedColor, selectedTextSize, selectedNumberSize, useCustomInput, customValue]);
+    setOpen(false);
+  };
+
+  const removeAttribute = (index: number) => {
+    const parts = inputValue.split(" + ").filter((_, i) => i !== index);
+    const newValue = parts.join(" + ");
+    setInputValue(newValue);
+    onChange(newValue);
+  };
 
   const clearAll = () => {
-    setSelectedColor("");
-    setSelectedTextSize("");
-    setSelectedNumberSize("");
-    setCustomValue("");
+    setInputValue("");
     onChange("");
   };
 
-  const removeAttribute = (type: "color" | "textSize" | "numberSize") => {
-    if (type === "color") setSelectedColor("");
-    if (type === "textSize") setSelectedTextSize("");
-    if (type === "numberSize") setSelectedNumberSize("");
-  };
+  // Filter suggestions based on current input
+  const searchTerm = inputValue.split(" + ").pop()?.trim().toLowerCase() || "";
+  const filteredColors = COLORS.filter((color) =>
+    color.toLowerCase().includes(searchTerm)
+  ).slice(0, 10);
+  const filteredTextSizes = TEXT_SIZES.filter((size) =>
+    size.toLowerCase().includes(searchTerm)
+  );
+  const filteredNumberSizes = NUMBER_SIZES.filter((size) =>
+    size.includes(searchTerm)
+  ).slice(0, 10);
 
-  const toggleMode = () => {
-    if (useCustomInput) {
-      // Switching to selector mode - clear custom value
-      setCustomValue("");
-      setUseCustomInput(false);
-    } else {
-      // Switching to custom mode - combine current selections as starting value
-      const attributes = [selectedColor, selectedTextSize, selectedNumberSize].filter(Boolean);
-      setCustomValue(attributes.join(" + "));
-      setSelectedColor("");
-      setSelectedTextSize("");
-      setSelectedNumberSize("");
-      setUseCustomInput(true);
-    }
-  };
+  const hasResults =
+    filteredColors.length > 0 ||
+    filteredTextSizes.length > 0 ||
+    filteredNumberSizes.length > 0;
 
-  if (useCustomInput) {
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Input
-            value={customValue}
-            onChange={(e) => setCustomValue(e.target.value)}
-            placeholder="Nhập biến thể tự do"
-            className="flex-1"
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={toggleMode}
-            className="whitespace-nowrap"
-          >
-            Chọn từ danh sách
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const selectedParts = inputValue
+    .split(" + ")
+    .map((p) => p.trim())
+    .filter(Boolean);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative">
+            <Input
+              value={inputValue}
+              onChange={(e) => {
+                handleInputChange(e.target.value);
+                setOpen(true);
+              }}
+              onFocus={() => setOpen(true)}
+              placeholder="Nhập biến thể (ví dụ: Đỏ + L hoặc Xanh + 36)"
+              className="pr-10"
+            />
+            {inputValue && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                onClick={clearAll}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent
+          className="p-0 w-[var(--radix-popover-trigger-width)] max-w-[400px]"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command>
+            <CommandInput placeholder="Tìm kiếm..." />
+            <CommandList>
+              {!hasResults && <CommandEmpty>Không tìm thấy biến thể</CommandEmpty>}
+
+              {filteredColors.length > 0 && (
+                <CommandGroup heading="🎨 Màu sắc">
+                  {filteredColors.map((color) => (
+                    <CommandItem key={color} onSelect={() => handleSelect(color)}>
+                      {color}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {filteredTextSizes.length > 0 && (
+                <CommandGroup heading="📏 Size chữ">
+                  {filteredTextSizes.map((size) => (
+                    <CommandItem key={size} onSelect={() => handleSelect(size)}>
+                      {size}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {filteredNumberSizes.length > 0 && (
+                <CommandGroup heading="🔢 Size số">
+                  {filteredNumberSizes.map((size) => (
+                    <CommandItem key={size} onSelect={() => handleSelect(size)}>
+                      {size}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
       {/* Display selected attributes as badges */}
-      {(selectedColor || selectedTextSize || selectedNumberSize) && (
+      {selectedParts.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {selectedColor && (
-            <Badge variant="secondary" className="gap-1">
-              {selectedColor}
+          {selectedParts.map((part, idx) => (
+            <Badge key={idx} variant="secondary" className="gap-1">
+              {part}
               <X
                 className="h-3 w-3 cursor-pointer hover:text-destructive"
-                onClick={() => removeAttribute("color")}
+                onClick={() => removeAttribute(idx)}
               />
             </Badge>
-          )}
-          {selectedTextSize && (
-            <Badge variant="secondary" className="gap-1">
-              {selectedTextSize}
-              <X
-                className="h-3 w-3 cursor-pointer hover:text-destructive"
-                onClick={() => removeAttribute("textSize")}
-              />
-            </Badge>
-          )}
-          {selectedNumberSize && (
-            <Badge variant="secondary" className="gap-1">
-              {selectedNumberSize}
-              <X
-                className="h-3 w-3 cursor-pointer hover:text-destructive"
-                onClick={() => removeAttribute("numberSize")}
-              />
-            </Badge>
-          )}
+          ))}
         </div>
       )}
-
-      {/* Attribute selectors */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Màu sắc</Label>
-          <Select value={selectedColor} onValueChange={setSelectedColor}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Chọn màu" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              {COLORS.map((color) => (
-                <SelectItem key={color} value={color}>
-                  {color}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Size chữ</Label>
-          <Select value={selectedTextSize} onValueChange={setSelectedTextSize}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Chọn size" />
-            </SelectTrigger>
-            <SelectContent>
-              {TEXT_SIZES.map((size) => (
-                <SelectItem key={size} value={size}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Size số</Label>
-          <Select value={selectedNumberSize} onValueChange={setSelectedNumberSize}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Chọn size" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
-              {NUMBER_SIZES.map((size) => (
-                <SelectItem key={size} value={size}>
-                  {size}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          onClick={clearAll}
-          className="text-xs"
-          disabled={!selectedColor && !selectedTextSize && !selectedNumberSize}
-        >
-          Xóa tất cả
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={toggleMode}
-          className="text-xs"
-        >
-          Nhập tự do
-        </Button>
-      </div>
     </div>
   );
 }
