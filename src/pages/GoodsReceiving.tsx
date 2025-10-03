@@ -7,7 +7,7 @@ import { GoodsReceivingStats } from "@/components/goods-receiving/GoodsReceiving
 import { GoodsReceivingList } from "@/components/goods-receiving/GoodsReceivingList";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type StatusFilter = "needInspection" | "inspected" | "shortage" | "all";
+type StatusFilter = "needInspection" | "inspected" | "all";
 
 export default function GoodsReceiving() {
   const isMobile = useIsMobile();
@@ -53,15 +53,16 @@ export default function GoodsReceiving() {
             .eq('purchase_order_id', order.id)
             .maybeSingle();
           
-          // Calculate overall status - any discrepancy is treated as shortage
+          // Calculate overall status
           let overallStatus = 'match';
           if (receiving?.items && receiving.items.length > 0) {
-            const hasDiscrepancy = receiving.items.some((item: any) => 
-              item.discrepancy_quantity !== 0 && item.discrepancy_quantity !== null
-            );
+            const hasShortage = receiving.items.some((item: any) => item.discrepancy_type === 'shortage');
+            const hasOverage = receiving.items.some((item: any) => item.discrepancy_type === 'overage');
             
-            if (hasDiscrepancy || receiving.has_discrepancy) {
+            if (hasShortage) {
               overallStatus = 'shortage';
+            } else if (hasOverage) {
+              overallStatus = 'overage';
             }
           }
           
@@ -79,8 +80,6 @@ export default function GoodsReceiving() {
         return ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
       } else if (statusFilter === "inspected") {
         return ordersWithStatus.filter(o => o.hasReceiving);
-      } else if (statusFilter === "shortage") {
-        return ordersWithStatus.filter(o => o.hasReceiving && o.overallStatus === 'shortage');
       }
       
       return ordersWithStatus;

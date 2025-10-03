@@ -13,7 +13,7 @@ import { ViewReceivingDialog } from "./ViewReceivingDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Separator } from "@/components/ui/separator";
 
-type StatusFilter = "needInspection" | "inspected" | "shortage" | "all";
+type StatusFilter = "needInspection" | "inspected" | "all";
 
 interface GoodsReceivingListProps {
   filteredOrders: any[];
@@ -115,12 +115,11 @@ export function GoodsReceivingList({
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Trạng thái" />
                   </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="needInspection">Cần kiểm</SelectItem>
-                <SelectItem value="inspected">Đã kiểm</SelectItem>
-                <SelectItem value="shortage">Thiếu hàng</SelectItem>
-                <SelectItem value="all">Toàn bộ</SelectItem>
-              </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="needInspection">Cần kiểm</SelectItem>
+                    <SelectItem value="inspected">Đã kiểm</SelectItem>
+                    <SelectItem value="all">Toàn bộ</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>
@@ -261,12 +260,11 @@ export function GoodsReceivingList({
               <SelectTrigger className="w-20 shrink-0 text-xs">
                 <SelectValue placeholder="TT" />
               </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="needInspection">Cần kiểm</SelectItem>
-              <SelectItem value="inspected">Đã kiểm</SelectItem>
-              <SelectItem value="shortage">Thiếu hàng</SelectItem>
-              <SelectItem value="all">Toàn bộ</SelectItem>
-            </SelectContent>
+              <SelectContent>
+                <SelectItem value="needInspection">Cần kiểm</SelectItem>
+                <SelectItem value="inspected">Đã kiểm</SelectItem>
+                <SelectItem value="all">Toàn bộ</SelectItem>
+              </SelectContent>
             </Select>
           </div>
 
