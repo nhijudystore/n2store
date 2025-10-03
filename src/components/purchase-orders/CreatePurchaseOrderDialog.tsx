@@ -9,10 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, X, Copy, Calendar } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantSelector } from "./VariantSelector";
+import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const [items, setItems] = useState<PurchaseOrderItem[]>([
     { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
   ]);
+
+  const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
 
 
   const createOrderMutation = useMutation({
@@ -175,6 +179,35 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     }
   };
 
+  const handleSelectProduct = (product: any) => {
+    if (currentItemIndex !== null) {
+      const newItems = [...items];
+      newItems[currentItemIndex] = {
+        ...newItems[currentItemIndex],
+        product_name: product.product_name,
+        product_code: product.product_code,
+        variant: product.variant || "",
+        unit_price: product.purchase_price / 1000,
+        selling_price: product.selling_price / 1000,
+        product_images: product.product_images || [],
+        price_images: product.price_images || [],
+        total_price: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
+      };
+      setItems(newItems);
+      
+      // Auto-fill supplier name if empty
+      if (!formData.supplier_name && product.supplier_name) {
+        setFormData({ ...formData, supplier_name: product.supplier_name });
+      }
+    }
+    setCurrentItemIndex(null);
+  };
+
+  const openSelectProduct = (index: number) => {
+    setCurrentItemIndex(index);
+    setIsSelectProductOpen(true);
+  };
+
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
   const finalAmount = totalAmount - formData.discount_amount;
 
@@ -249,7 +282,18 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
 
           <div className="space-y-4">
-            <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1].product_name ? items.length : items.length - 1)}
+              >
+                <Warehouse className="h-4 w-4 mr-2" />
+                Chọn từ Kho SP
+              </Button>
+            </div>
 
             <div className="border rounded-lg overflow-hidden">
               <Table>
@@ -343,6 +387,15 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Button 
+                            onClick={() => openSelectProduct(index)} 
+                            size="sm" 
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+                            title="Chọn từ kho"
+                          >
+                            <Warehouse className="w-4 h-4" />
+                          </Button>
+                          <Button 
                             onClick={() => copyItem(index)} 
                             size="sm" 
                             variant="ghost"
@@ -426,6 +479,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           </div>
         </div>
       </DialogContent>
+
+      <SelectProductDialog
+        open={isSelectProductOpen}
+        onOpenChange={setIsSelectProductOpen}
+        onSelect={handleSelectProduct}
+      />
     </Dialog>
   );
 }
