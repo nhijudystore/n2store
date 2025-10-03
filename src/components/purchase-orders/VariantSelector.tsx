@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { X } from "lucide-react";
 import { COLORS, TEXT_SIZES, NUMBER_SIZES } from "@/lib/variant-attributes";
 
@@ -23,15 +23,29 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     }
   }, [value]);
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    if (!open) setOpen(true);
+  };
+
   const handleSelect = (selectedValue: string) => {
     setInputValue(selectedValue);
     onChange(selectedValue);
-    setOpen(false);
     setSearchTerm("");
+    setOpen(false);
+  };
+
+  const handleBlur = () => {
+    // Reset searchTerm if it doesn't match the selected value
+    if (searchTerm && searchTerm !== inputValue) {
+      setSearchTerm("");
+    }
   };
 
   const clearAll = () => {
     setInputValue("");
+    setSearchTerm("");
     onChange("");
   };
 
@@ -58,11 +72,12 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
-              value={inputValue}
-              readOnly
+              value={open ? searchTerm : inputValue}
+              onChange={handleInputChange}
               onFocus={() => setOpen(true)}
+              onBlur={handleBlur}
               placeholder="Chọn biến thể"
-              className="pr-10 cursor-pointer"
+              className="pr-10"
             />
             {inputValue && (
               <Button
@@ -83,11 +98,6 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command shouldFilter={false}>
-            <CommandInput 
-              placeholder="Tìm kiếm..." 
-              value={searchTerm}
-              onValueChange={setSearchTerm}
-            />
             <CommandList>
               {!hasResults && <CommandEmpty>Không tìm thấy biến thể</CommandEmpty>}
 
