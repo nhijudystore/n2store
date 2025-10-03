@@ -227,136 +227,113 @@ export function GoodsReceivingList({
           <div className="text-center py-8 text-muted-foreground">Đang tải...</div>
         ) : filteredOrders && filteredOrders.length > 0 ? (
           isMobile ? (
-            /* Mobile: Card List */
-            <div className="space-y-3 p-4">
-              {filteredOrders.map((order: any) => {
-                const totalItems = order.items?.length || 0;
-                const totalQuantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
-                
-                let statusBadge;
-                if (order.hasReceiving) {
-                  if (order.overallStatus === 'shortage') {
-                    statusBadge = (
-                      <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Thiếu hàng
-                      </Badge>
+            /* Mobile: Compact Table */
+            <div className="w-full overflow-x-auto px-2">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs py-2">Ngày đặt</TableHead>
+                    <TableHead className="text-xs text-center py-2">NCC</TableHead>
+                    <TableHead className="text-xs text-center py-2">SP</TableHead>
+                    <TableHead className="text-xs text-center py-2">SL</TableHead>
+                    <TableHead className="text-xs text-center py-2">Trạng thái</TableHead>
+                    <TableHead className="text-xs text-center py-2">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order: any) => {
+                    const totalItems = order.items?.length || 0;
+                    const totalQuantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
+                    
+                    let statusBadge;
+                    if (order.hasReceiving) {
+                      if (order.overallStatus === 'shortage') {
+                        statusBadge = (
+                          <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200 text-xs px-2 py-0.5">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Thiếu
+                          </Badge>
+                        );
+                      } else if (order.overallStatus === 'overage') {
+                        statusBadge = (
+                          <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200 text-xs px-2 py-0.5">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Dư
+                          </Badge>
+                        );
+                      } else if (order.overallStatus === 'mixed') {
+                        statusBadge = (
+                          <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200 text-xs px-2 py-0.5">
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Chênh
+                          </Badge>
+                        );
+                      } else {
+                        statusBadge = (
+                          <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200 text-xs px-2 py-0.5">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Đủ
+                          </Badge>
+                        );
+                      }
+                    } else if (order.status === 'confirmed' || order.status === 'pending') {
+                      statusBadge = (
+                        <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200 text-xs px-2 py-0.5">
+                          <Package className="w-3 h-3 mr-1" />
+                          Cần kiểm
+                        </Badge>
+                      );
+                    } else {
+                      statusBadge = <Badge variant="outline" className="text-xs px-2 py-0.5">{order.status}</Badge>;
+                    }
+                    
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell className="text-xs py-2">
+                          {format(new Date(order.created_at), "dd/MM")}
+                        </TableCell>
+                        <TableCell className="text-sm font-semibold text-center py-2">
+                          {order.supplier_name}
+                        </TableCell>
+                        <TableCell className="text-sm text-center py-2">
+                          {totalItems}
+                        </TableCell>
+                        <TableCell className="text-sm text-center py-2">
+                          {totalQuantity}
+                        </TableCell>
+                        <TableCell className="text-center py-2">
+                          {statusBadge}
+                        </TableCell>
+                        <TableCell className="text-center py-2">
+                          {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
+                            <Button 
+                              className="w-full h-8 text-xs px-2"
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              Kiểm hàng
+                            </Button>
+                          )}
+                          {order.hasReceiving && (
+                            <Button 
+                              className="w-full h-8 text-xs px-2"
+                              variant="outline"
+                              onClick={() => {
+                                setViewOrderId(order.id);
+                                setViewDialogOpen(true);
+                              }}
+                            >
+                              Xem
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
                     );
-                  } else if (order.overallStatus === 'overage') {
-                    statusBadge = (
-                      <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Dư hàng
-                      </Badge>
-                    );
-                  } else if (order.overallStatus === 'mixed') {
-                    statusBadge = (
-                      <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                        <AlertTriangle className="w-3 h-3 mr-1" />
-                        Có chênh lệch
-                      </Badge>
-                    );
-                  } else {
-                    statusBadge = (
-                      <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Đủ hàng
-                      </Badge>
-                    );
-                  }
-                } else if (order.status === 'confirmed' || order.status === 'pending') {
-                  statusBadge = (
-                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
-                      <Package className="w-3 h-3 mr-1" />
-                      Cần kiểm
-                    </Badge>
-                  );
-                } else {
-                  statusBadge = <Badge variant="outline">{order.status}</Badge>;
-                }
-                
-                // Prepare status badge without icon
-                let statusText = '';
-                let statusClassName = '';
-                
-                if (order.hasReceiving) {
-                  if (order.overallStatus === 'shortage') {
-                    statusText = 'Thiếu hàng';
-                    statusClassName = 'bg-red-50 text-red-700 border-red-200';
-                  } else if (order.overallStatus === 'overage') {
-                    statusText = 'Dư hàng';
-                    statusClassName = 'bg-orange-50 text-orange-700 border-orange-200';
-                  } else if (order.overallStatus === 'mixed') {
-                    statusText = 'Chênh lệch';
-                    statusClassName = 'bg-yellow-50 text-yellow-700 border-yellow-200';
-                  } else {
-                    statusText = 'Đủ hàng';
-                    statusClassName = 'bg-green-50 text-green-700 border-green-200';
-                  }
-                } else if (order.status === 'confirmed' || order.status === 'pending') {
-                  statusText = 'Cần kiểm';
-                  statusClassName = 'bg-amber-50 text-amber-700 border-amber-200';
-                } else {
-                  statusText = order.status;
-                  statusClassName = '';
-                }
-                
-                return (
-                  <Card key={order.id} className="p-2">
-                    <div className="flex items-center gap-2">
-                      {/* 1. Date - dd/MM only */}
-                      <div className="w-11 shrink-0 text-sm font-medium">
-                        {format(new Date(order.created_at), "dd/MM")}
-                      </div>
-                      
-                      {/* 2. Supplier */}
-                      <div className="w-12 shrink-0 text-center font-semibold text-sm">
-                        {order.supplier_name}
-                      </div>
-                      
-                      {/* 3. Total Items */}
-                      <div className="w-6 shrink-0 text-center text-sm">
-                        {totalItems}
-                      </div>
-                      
-                      {/* 4. Total Quantity */}
-                      <div className="w-6 shrink-0 text-center text-sm">
-                        {totalQuantity}
-                      </div>
-                      
-                      {/* 5. Status Badge - compact no icon */}
-                      <Badge variant="secondary" className={`text-xs px-2 py-0.5 shrink-0 ${statusClassName}`}>
-                        {statusText}
-                      </Badge>
-                      
-                      {/* 6. Action Button - flexible */}
-                      {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
-                        <Button 
-                          className="flex-1 h-9 text-xs px-2"
-                          onClick={() => {
-                            setSelectedOrder(order);
-                            setDialogOpen(true);
-                          }}
-                        >
-                          Kiểm
-                        </Button>
-                      )}
-                      {order.hasReceiving && (
-                        <Button 
-                          className="flex-1 h-9 text-xs px-2"
-                          variant="outline"
-                          onClick={() => {
-                            setViewOrderId(order.id);
-                            setViewDialogOpen(true);
-                          }}
-                        >
-                          Xem
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
+                  })}
+                </TableBody>
+              </Table>
             </div>
           ) : (
             /* Desktop: Table */
