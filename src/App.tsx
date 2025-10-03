@@ -8,6 +8,7 @@ import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PurchaseOrders from "./pages/PurchaseOrders";
+import Products from "./pages/Products";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
 import GoodsReceiving from "./pages/GoodsReceiving";
@@ -41,6 +42,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <PurchaseOrders />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/products" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Products />
                 </Layout>
               </ProtectedRoute>
             } />

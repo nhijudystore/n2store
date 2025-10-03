@@ -3,7 +3,8 @@ import {
   Settings,
   ShoppingBag,
   BarChart3,
-  Package
+  Package,
+  Warehouse
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -24,6 +25,11 @@ const menuItems = [
     title: "Đặt hàng NCC",
     url: "/purchase-orders",
     icon: ShoppingBag,
+  },
+  {
+    title: "Kho Sản Phẩm",
+    url: "/products",
+    icon: Warehouse,
   },
   {
     title: "Kiểm hàng",

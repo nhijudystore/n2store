@@ -346,6 +346,60 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          barcode: string | null
+          category: string | null
+          created_at: string
+          id: string
+          price_images: string[] | null
+          product_code: string
+          product_images: string[] | null
+          product_name: string
+          purchase_price: number | null
+          selling_price: number | null
+          stock_quantity: number | null
+          supplier_name: string | null
+          unit: string | null
+          updated_at: string
+          variant: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          price_images?: string[] | null
+          product_code: string
+          product_images?: string[] | null
+          product_name: string
+          purchase_price?: number | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          unit?: string | null
+          updated_at?: string
+          variant?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          category?: string | null
+          created_at?: string
+          id?: string
+          price_images?: string[] | null
+          product_code?: string
+          product_images?: string[] | null
+          product_name?: string
+          purchase_price?: number | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          unit?: string | null
+          updated_at?: string
+          variant?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
