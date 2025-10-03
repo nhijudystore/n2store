@@ -73,6 +73,11 @@ export const TEXT_SIZES = [
 ] as const;
 
 export const NUMBER_SIZES = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
   "28",
   "29",
   "30",
