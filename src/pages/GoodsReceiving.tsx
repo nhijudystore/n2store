@@ -45,6 +45,7 @@ export default function GoodsReceiving() {
             .from('goods_receiving')
             .select(`
               *,
+              receiving_date,
               items:goods_receiving_items(
                 discrepancy_type,
                 discrepancy_quantity
