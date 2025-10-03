@@ -362,20 +362,22 @@ export function GoodsReceivingList({
                         {order.supplier_name}
                       </div>
                       
-                      {/* 3. Total Items */}
-                      <div className="shrink-0 text-center text-xs">
-                        {totalItems} SP
+                      {/* 3. Total Items - with Package icon */}
+                      <div className="shrink-0 flex items-center gap-1 text-xs">
+                        <Package className="w-3 h-3 text-muted-foreground" />
+                        <span>{totalItems} SP</span>
                       </div>
                       
-                      {/* 4. Total Quantity */}
-                      <div className="shrink-0 text-center text-xs">
-                        {totalQuantity} cái
+                      {/* 4. Total Quantity - with bullet */}
+                      <div className="shrink-0 flex items-center gap-1 text-xs">
+                        <span className="text-muted-foreground">•</span>
+                        <span>{totalQuantity} cái</span>
                       </div>
                       
-                      {/* 5. Action Button - flexible, shows status for inspected orders */}
+                      {/* 5. Action Button - fixed width for uniform appearance */}
                       {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
                         <Button 
-                          className="flex-1 h-9 text-xs px-2"
+                          className="w-24 h-9 text-xs px-2"
                           onClick={() => {
                             setSelectedOrder(order);
                             setDialogOpen(true);
@@ -386,7 +388,7 @@ export function GoodsReceivingList({
                       )}
                       {order.hasReceiving && (
                         <Button 
-                          className={`flex-1 h-9 text-xs px-2 ${
+                          className={`w-24 h-9 text-xs px-2 ${
                             order.overallStatus === 'shortage' ? 'bg-red-100 text-red-700 hover:bg-red-200 border-red-300' :
                             order.overallStatus === 'overage' ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 border-orange-300' :
                             order.overallStatus === 'mixed' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border-yellow-300' :
