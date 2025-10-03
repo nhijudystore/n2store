@@ -7,11 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Plus, Copy, Trash2, Calendar } from "lucide-react";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantSelector } from "./VariantSelector";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
+import { cn } from "@/lib/utils";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -203,6 +206,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       const { error: orderError } = await supabase
         .from("purchase_orders")
         .update({
+          order_date: orderDate,
           supplier_name: supplierName,
           invoice_number: invoiceNumber || null,
           notes: notes || null,
@@ -369,10 +373,28 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
             <div className="space-y-2">
               <Label htmlFor="orderDate">Ngày đặt hàng</Label>
-              <div className="flex items-center gap-2 h-10 px-3 py-2 border rounded-md bg-muted/50 text-muted-foreground">
-                <Calendar className="h-4 w-4" />
-                <span>{order?.created_at ? format(new Date(order.created_at), "dd/MM/yyyy HH:mm") : "Không xác định"}</span>
-              </div>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal"
+                    )}
+                  >
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {orderDate ? format(new Date(orderDate), "dd/MM/yyyy") : <span>Chọn ngày</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={orderDate ? new Date(orderDate) : undefined}
+                    onSelect={(date) => setOrderDate(date ? date.toISOString() : new Date().toISOString())}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
 
             <div className="space-y-2">

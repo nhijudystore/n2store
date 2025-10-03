@@ -408,9 +408,17 @@ export function PurchaseOrderList({
                         className="border-r" 
                         rowSpan={flatItem.itemCount}
                       >
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          {format(new Date(flatItem.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
+                        <div className="flex flex-col gap-1">
+                          {/* Ngày đặt hàng (do user chọn) */}
+                          <div className="flex items-center gap-2 font-medium">
+                            <Calendar className="w-4 h-4 text-muted-foreground" />
+                            {format(new Date(flatItem.order_date), "dd/MM/yyyy", { locale: vi })}
+                          </div>
+                          
+                          {/* Ngày giờ tạo trên hệ thống */}
+                          <div className="text-xs text-muted-foreground ml-6">
+                            ({format(new Date(flatItem.created_at), "dd/MM HH:mm", { locale: vi })})
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell 
