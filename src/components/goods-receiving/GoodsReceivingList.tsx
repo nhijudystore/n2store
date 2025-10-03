@@ -7,11 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle, Filter } from "lucide-react";
+import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 import { CreateReceivingDialog } from "./CreateReceivingDialog";
 import { ViewReceivingDialog } from "./ViewReceivingDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
@@ -52,7 +51,6 @@ export function GoodsReceivingList({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewOrderId, setViewOrderId] = useState<string | null>(null);
-  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   return (
     <>
@@ -229,9 +227,9 @@ export function GoodsReceivingList({
       ) : (
         // Mobile View - Full Screen
         <div className="space-y-3">
-          {/* Mobile: Search + Quick Filter + Filter Button */}
+          {/* Mobile: Search + Quick Filter + Status Filter */}
           <div className="flex gap-2 px-4">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Tìm kiếm..."
@@ -241,9 +239,9 @@ export function GoodsReceivingList({
               />
             </div>
             
-            {/* Quick Filter - Outside */}
+            {/* Quick Filter */}
             <Select value={quickFilter} onValueChange={applyQuickFilter}>
-              <SelectTrigger className="w-24 shrink-0">
+              <SelectTrigger className="w-20 shrink-0 text-xs">
                 <SelectValue placeholder="Lọc" />
               </SelectTrigger>
               <SelectContent>
@@ -257,61 +255,17 @@ export function GoodsReceivingList({
               </SelectContent>
             </Select>
             
-            <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="shrink-0">
-                  <Filter className="h-4 w-4" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-[90vh]">
-                <SheetHeader>
-                  <SheetTitle>Bộ lọc</SheetTitle>
-                </SheetHeader>
-                
-                <div className="space-y-6 py-6">
-                  {/* Date Range */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Khoảng thời gian</label>
-                    <div className="space-y-2">
-                      <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        placeholder="Từ ngày"
-                      />
-                      <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        placeholder="Đến ngày"
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Status Filter */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Trạng thái</label>
-                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Chọn trạng thái" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="needInspection">Cần kiểm</SelectItem>
-                        <SelectItem value="inspected">Đã kiểm</SelectItem>
-                        <SelectItem value="all">Toàn bộ</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <Button 
-                    className="w-full mt-6" 
-                    onClick={() => setFilterSheetOpen(false)}
-                  >
-                    Áp dụng
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+              <SelectTrigger className="w-20 shrink-0 text-xs">
+                <SelectValue placeholder="TT" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="needInspection">Cần kiểm</SelectItem>
+                <SelectItem value="inspected">Đã kiểm</SelectItem>
+                <SelectItem value="all">Toàn bộ</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Mobile: List - Full Width */}
