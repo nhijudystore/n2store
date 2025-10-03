@@ -380,7 +380,7 @@ export function GoodsReceivingList({
                     return (
                       <TableRow key={order.id}>
                         <TableCell>
-                          {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
+                          {format(new Date(order.created_at), "dd/MM")}
                         </TableCell>
                         <TableCell className="font-medium">{order.supplier_name}</TableCell>
                         <TableCell>{totalItems}</TableCell>
