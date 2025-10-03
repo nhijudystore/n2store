@@ -351,27 +351,30 @@ export function GoodsReceivingList({
                 
                 return (
                   <div key={order.id} className="bg-card border-b px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {/* 1. Date - dd/MM only */}
-                      <div className="w-11 shrink-0 text-sm font-medium">
-                        {format(new Date(order.created_at), "dd/MM")}
-                      </div>
-                      
-                      {/* 2. Supplier */}
-                      <div className="w-12 shrink-0 text-center font-semibold text-sm">
-                        {order.supplier_name}
-                      </div>
-                      
-                      {/* 3. Total Items - with Package icon */}
-                      <div className="shrink-0 flex items-center gap-1 text-xs">
-                        <Package className="w-3 h-3 text-muted-foreground" />
-                        <span>{totalItems} SP</span>
-                      </div>
-                      
-                      {/* 4. Total Quantity - with bullet */}
-                      <div className="shrink-0 flex items-center gap-1 text-xs">
-                        <span className="text-muted-foreground">•</span>
-                        <span>{totalQuantity} cái</span>
+                    <div className="flex items-center justify-between gap-3">
+                      {/* Group all order info on the left */}
+                      <div className="flex items-center gap-2">
+                        {/* 1. Date - dd/MM only */}
+                        <div className="w-11 shrink-0 text-sm font-medium">
+                          {format(new Date(order.created_at), "dd/MM")}
+                        </div>
+                        
+                        {/* 2. Supplier */}
+                        <div className="w-12 shrink-0 text-center font-semibold text-sm">
+                          {order.supplier_name}
+                        </div>
+                        
+                        {/* 3. Total Items - with Package icon */}
+                        <div className="shrink-0 flex items-center gap-1 text-sm">
+                          <Package className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="font-medium">{totalItems} SP</span>
+                        </div>
+                        
+                        {/* 4. Total Quantity - with bullet */}
+                        <div className="shrink-0 flex items-center gap-1 text-sm">
+                          <span className="text-muted-foreground">•</span>
+                          <span className="font-medium">{totalQuantity} cái</span>
+                        </div>
                       </div>
                       
                       {/* 5. Action Button - fixed width for uniform appearance */}
