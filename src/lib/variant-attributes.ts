@@ -6,6 +6,7 @@ export const COLORS = [
   "Xám",
   "Xám đậm",
   "Xám nhạt",
+  "Ghi",
   "Đỏ",
   "Đỏ đậm",
   "Đỏ tươi",
@@ -32,6 +33,10 @@ export const COLORS = [
   "Hồng đậm",
   "Hồng nhạt",
   "Hồng phấn",
+  "Hồng Đào",
+  "Hồng Đất",
+  "Hồng Dâu",
+  "Hồng Rước",
   "Nâu",
   "Nâu đậm",
   "Nâu nhạt",
@@ -59,6 +64,9 @@ export const COLORS = [
   "Cam đất",
   "Nâu cafe",
   "Nâu chocolate",
+  "Jean Trắng",
+  "Jean Xanh",
+  "Muối Tiêu",
   "Nhiều màu"
 ] as const;
 
