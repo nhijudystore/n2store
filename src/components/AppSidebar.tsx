@@ -21,22 +21,22 @@ import {
 
 const menuItems = [
   {
-    title: "Đặt hàng NCC",
+    title: "Đặt Hàng",
     url: "/purchase-orders",
     icon: ShoppingBag,
   },
   {
-    title: "Kiểm hàng",
+    title: "Kiểm Hàng",
     url: "/goods-receiving",
     icon: Package,
   },
   {
-    title: "Order Live",
+    title: "OrLive",
     url: "/live-products",
     icon: ShoppingCart,
   },
   {
-    title: "Báo Cáo Livestream",
+    title: "BC Live",
     url: "/livestream-reports",
     icon: BarChart3,
   },
@@ -81,7 +81,6 @@ export function AppSidebar() {
             {!isCollapsed && (
               <div>
                 <h2 className="text-lg font-semibold">Sales Manager</h2>
-                <p className="text-xs text-muted-foreground">Hệ thống bán hàng</p>
               </div>
             )}
           </div>
