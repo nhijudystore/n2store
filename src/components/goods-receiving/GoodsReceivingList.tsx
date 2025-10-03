@@ -138,9 +138,7 @@ export function GoodsReceivingList({
                       <TableHead>Nhà cung cấp</TableHead>
                       <TableHead>Tổng SP</TableHead>
                       <TableHead>Tổng SL</TableHead>
-                      {(statusFilter === 'inspected' || statusFilter === 'shortage') && (
-                        <TableHead>Ngày kiểm</TableHead>
-                      )}
+                      <TableHead>Ngày kiểm</TableHead>
                       <TableHead>Trạng thái</TableHead>
                       <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -158,14 +156,12 @@ export function GoodsReceivingList({
                           <TableCell className="font-medium">{order.supplier_name}</TableCell>
                           <TableCell>{totalItems}</TableCell>
                           <TableCell>{totalQuantity}</TableCell>
-                          {(statusFilter === 'inspected' || statusFilter === 'shortage') && (
-                            <TableCell>
-                              {order.receiving?.receiving_date 
-                                ? format(new Date(order.receiving.receiving_date), "dd/MM/yyyy HH:mm", { locale: vi })
-                                : '-'
-                              }
-                            </TableCell>
-                          )}
+                          <TableCell>
+                            {order.receiving?.receiving_date 
+                              ? format(new Date(order.receiving.receiving_date), "dd/MM/yyyy HH:mm", { locale: vi })
+                              : '-'
+                            }
+                          </TableCell>
                           <TableCell>
                             {order.hasReceiving ? (
                               order.overallStatus === 'shortage' ? (
@@ -317,7 +313,7 @@ export function GoodsReceivingList({
                         {/* 1. Date - dd/MM only */}
                         <div className="w-11 shrink-0 text-xs">
                           <div className="font-medium">{format(new Date(order.created_at), "dd/MM")}</div>
-                          {(statusFilter === 'inspected' || statusFilter === 'shortage') && order.receiving?.receiving_date && (
+                          {order.receiving?.receiving_date && (
                             <div className="text-[10px] text-muted-foreground">
                               ✓ {format(new Date(order.receiving.receiving_date), "dd/MM")}
                             </div>
