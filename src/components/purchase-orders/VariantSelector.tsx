@@ -37,10 +37,12 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
   };
 
   const handleBlur = () => {
-    // Reset searchTerm if it doesn't match the selected value
-    if (searchTerm && searchTerm !== inputValue) {
-      setSearchTerm("");
-    }
+    // Delay để tránh xung đột với click vào item
+    setTimeout(() => {
+      if (searchTerm && searchTerm !== inputValue) {
+        setSearchTerm("");
+      }
+    }, 200);
   };
 
   const clearAll = () => {
@@ -51,15 +53,15 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
 
   // Filter suggestions based on search term
   const searchLower = searchTerm.toLowerCase();
-  const filteredColors = COLORS.filter((color) =>
-    color.toLowerCase().includes(searchLower)
-  ).slice(0, 10);
-  const filteredTextSizes = TEXT_SIZES.filter((size) =>
-    size.toLowerCase().includes(searchLower)
-  );
-  const filteredNumberSizes = NUMBER_SIZES.filter((size) =>
-    size.toLowerCase().includes(searchLower)
-  ).slice(0, 10);
+  const filteredColors = searchTerm 
+    ? COLORS.filter((color) => color.toLowerCase().includes(searchLower)).slice(0, 10)
+    : COLORS.slice(0, 10);
+  const filteredTextSizes = searchTerm
+    ? TEXT_SIZES.filter((size) => size.toLowerCase().includes(searchLower))
+    : TEXT_SIZES;
+  const filteredNumberSizes = searchTerm
+    ? NUMBER_SIZES.filter((size) => size.toLowerCase().includes(searchLower)).slice(0, 10)
+    : NUMBER_SIZES.slice(0, 10);
 
   const hasResults =
     filteredColors.length > 0 ||
@@ -96,6 +98,10 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
           className="p-0 w-[var(--radix-popover-trigger-width)] max-w-[400px]"
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={() => {
+            setSearchTerm("");
+            setOpen(false);
+          }}
         >
           <Command shouldFilter={false}>
             <CommandList>
