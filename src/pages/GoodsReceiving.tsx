@@ -77,15 +77,34 @@ export default function GoodsReceiving() {
       );
 
       // Apply status filter
+      let filteredOrders;
       if (statusFilter === "needInspection") {
-        return ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
+        filteredOrders = ordersWithStatus.filter(o => (o.status === 'confirmed' || o.status === 'pending') && !o.hasReceiving);
       } else if (statusFilter === "inspected") {
-        return ordersWithStatus.filter(o => o.hasReceiving);
+        filteredOrders = ordersWithStatus.filter(o => o.hasReceiving);
       } else if (statusFilter === "shortage") {
-        return ordersWithStatus.filter(o => o.hasReceiving && o.overallStatus === 'shortage');
+        filteredOrders = ordersWithStatus.filter(o => o.hasReceiving && o.overallStatus === 'shortage');
+      } else {
+        filteredOrders = ordersWithStatus;
+      }
+
+      // Sort by receiving_date for orders that have been inspected
+      // This applies to: inspected, shortage, and all filters
+      if (statusFilter !== "needInspection") {
+        filteredOrders.sort((a, b) => {
+          // For orders with receiving_date, sort by that
+          // For orders without receiving_date, sort by created_at
+          const dateA = a.receiving?.receiving_date 
+            ? new Date(a.receiving.receiving_date).getTime() 
+            : new Date(a.created_at).getTime();
+          const dateB = b.receiving?.receiving_date 
+            ? new Date(b.receiving.receiving_date).getTime() 
+            : new Date(b.created_at).getTime();
+          return dateB - dateA; // Descending order (mới nhất lên trước)
+        });
       }
       
-      return ordersWithStatus;
+      return filteredOrders;
     }
   });
 
