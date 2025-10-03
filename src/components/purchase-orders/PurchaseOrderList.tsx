@@ -363,13 +363,6 @@ export function PurchaseOrderList({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">
-                <Checkbox
-                  checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
-                  onCheckedChange={onToggleSelectAll}
-                  aria-label="Chọn tất cả"
-                />
-              </TableHead>
               <TableHead>Ngày đặt</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
               <TableHead>Hóa đơn (VND)</TableHead>
@@ -381,13 +374,22 @@ export function PurchaseOrderList({
               <TableHead>Giá bán (VND)</TableHead>
               <TableHead>Ghi chú</TableHead>
               <TableHead>Trạng thái</TableHead>
-              <TableHead>Thao tác</TableHead>
+              <TableHead>
+                <div className="flex items-center gap-2">
+                  <span>Thao tác</span>
+                  <Checkbox
+                    checked={selectedOrders.length === filteredOrders.length && filteredOrders.length > 0}
+                    onCheckedChange={onToggleSelectAll}
+                    aria-label="Chọn tất cả"
+                  />
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -399,20 +401,6 @@ export function PurchaseOrderList({
                     key={`${flatItem.id}-${index}`} 
                     className={cn("border-b", isSelected && "bg-muted/50")}
                   >
-                    {/* Checkbox column - only show on first item */}
-                    {flatItem.isFirstItem && (
-                      <TableCell 
-                        className="border-r" 
-                        rowSpan={flatItem.itemCount}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => onToggleSelect(flatItem.id)}
-                          aria-label={`Chọn đơn hàng ${flatItem.supplier_name}`}
-                        />
-                      </TableCell>
-                    )}
-
                     {/* Order-level columns with rowSpan - only show on first item */}
                     {flatItem.isFirstItem && (
                       <>
@@ -579,6 +567,11 @@ export function PurchaseOrderList({
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => onToggleSelect(flatItem.id)}
+                            aria-label={`Chọn đơn hàng ${flatItem.supplier_name}`}
+                          />
                         </div>
                       </TableCell>
                     </>
