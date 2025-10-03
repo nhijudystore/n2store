@@ -13,6 +13,7 @@ import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePu
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 import { format } from "date-fns";
 import { convertVietnameseToUpperCase } from "@/lib/utils";
+import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -421,32 +422,54 @@ const PurchaseOrders = () => {
     }
 
     try {
-      // Mapping according to the Excel template format (17 columns) with variant codes
-      const excelData = products.map(item => {
-        const productCode = item.product_code?.toUpperCase() || "";
-        const finalCode = item.variant 
-          ? `${productCode}-${convertVietnameseToUpperCase(item.variant)}`
-          : productCode;
+      // Step 1: Group products by product_code
+      const productGroups = new Map<string, Array<typeof products[0]>>();
+      
+      products.forEach(item => {
+        const code = item.product_code?.toUpperCase() || "";
+        if (!productGroups.has(code)) {
+          productGroups.set(code, []);
+        }
+        productGroups.get(code)!.push(item);
+      });
 
-        return {
-          "Loại sản phẩm": "Có thể lưu trữ",
-          "Mã sản phẩm": finalCode || undefined,
-          "Mã chốt đơn": undefined,
-          "Tên sản phẩm": item.product_name?.toString() || undefined,
-          "Giá bán": item.selling_price || 0,
-          "Giá mua": item.unit_price || 0,
-          "Đơn vị": "CÁI",
-          "Nhóm sản phẩm": "QUẦN ÁO",
-          "Mã vạch": finalCode || undefined,
-          "Khối lượng": undefined,
-          "Chiết khấu bán": undefined,
-          "Chiết khấu mua": undefined,
-          "Tồn kho": undefined,
-          "Giá vốn": undefined,
-          "Ghi chú": undefined,
-          "Cho phép bán ở công ty khác": "FALSE",
-          "Thuộc tính": undefined,
-        };
+      // Step 2: Process each product group with its own variant code tracker
+      const excelData: any[] = [];
+      
+      productGroups.forEach((items, productCode) => {
+        // Reset usedVariantCodes for EACH product!
+        const usedVariantCodes = new Set<string>();
+        
+        items.forEach(item => {
+          let finalCode = productCode;
+          let finalProductName = item.product_name?.toString() || "";
+          
+          if (item.variant) {
+            const variantCode = generateVariantCode(item.variant, usedVariantCodes);
+            finalCode = `${productCode}${variantCode}`;
+            finalProductName = generateProductNameWithVariant(finalProductName, item.variant);
+          }
+          
+          excelData.push({
+            "Loại sản phẩm": "Có thể lưu trữ",
+            "Mã sản phẩm": finalCode || undefined,
+            "Mã chốt đơn": undefined,
+            "Tên sản phẩm": finalProductName || undefined,
+            "Giá bán": item.selling_price || 0,
+            "Giá mua": item.unit_price || 0,
+            "Đơn vị": "CÁI",
+            "Nhóm sản phẩm": "QUẦN ÁO",
+            "Mã vạch": finalCode || undefined,
+            "Khối lượng": undefined,
+            "Chiết khấu bán": undefined,
+            "Chiết khấu mua": undefined,
+            "Tồn kho": undefined,
+            "Giá vốn": undefined,
+            "Ghi chú": undefined,
+            "Cho phép bán ở công ty khác": "FALSE",
+            "Thuộc tính": undefined,
+          });
+        });
       });
 
       // Create Excel file
