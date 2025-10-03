@@ -363,13 +363,13 @@ export function GoodsReceivingList({
                       </div>
                       
                       {/* 3. Total Items */}
-                      <div className="w-6 shrink-0 text-center text-sm">
-                        {totalItems}
+                      <div className="shrink-0 text-center text-xs">
+                        {totalItems} SP
                       </div>
                       
                       {/* 4. Total Quantity */}
-                      <div className="w-6 shrink-0 text-center text-sm">
-                        {totalQuantity}
+                      <div className="shrink-0 text-center text-xs">
+                        {totalQuantity} cái
                       </div>
                       
                       {/* 5. Action Button - flexible, shows status for inspected orders */}
