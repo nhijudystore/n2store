@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, CheckCircle, AlertTriangle, Boxes, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface GoodsReceivingStatsProps {
   filteredOrders: any[];
@@ -8,6 +9,13 @@ interface GoodsReceivingStatsProps {
 }
 
 export function GoodsReceivingStats({ filteredOrders, isLoading }: GoodsReceivingStatsProps) {
+  const isMobile = useIsMobile();
+  
+  // Hide stats on mobile
+  if (isMobile) {
+    return null;
+  }
+  
   // Calculate stats from filtered orders
   const stats = {
     totalOrders: filteredOrders.length,

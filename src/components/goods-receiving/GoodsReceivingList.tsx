@@ -7,9 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
+import { Search, Calendar, Package, CheckCircle, AlertCircle, AlertTriangle, Filter } from "lucide-react";
 import { CreateReceivingDialog } from "./CreateReceivingDialog";
 import { ViewReceivingDialog } from "./ViewReceivingDialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Separator } from "@/components/ui/separator";
 
 type StatusFilter = "needInspection" | "inspected" | "all";
 
@@ -44,173 +47,375 @@ export function GoodsReceivingList({
   applyQuickFilter,
   refetch
 }: GoodsReceivingListProps) {
+  const isMobile = useIsMobile();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [viewOrderId, setViewOrderId] = useState<string | null>(null);
+  const [filterSheetOpen, setFilterSheetOpen] = useState(false);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Danh sách đơn hàng</CardTitle>
-        
-        {/* Filters */}
-        <div className="space-y-4 pt-4">
-          {/* Row 1: Date filters and quick filter */}
-          <div className="flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-40"
-                placeholder="Từ ngày"
-              />
-              <span className="text-muted-foreground">-</span>
-              <Input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-40"
-                placeholder="Đến ngày"
-              />
+      {!isMobile && (
+        <CardHeader>
+          <CardTitle>Danh sách đơn hàng</CardTitle>
+          
+          {/* Desktop Filters */}
+          <div className="space-y-4 pt-4">
+            {/* Row 1: Date filters and quick filter */}
+            <div className="flex flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-40"
+                  placeholder="Từ ngày"
+                />
+                <span className="text-muted-foreground">-</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-40"
+                  placeholder="Đến ngày"
+                />
+              </div>
+              
+              <Select value={quickFilter} onValueChange={applyQuickFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Lọc nhanh" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tất cả</SelectItem>
+                  <SelectItem value="today">Hôm nay</SelectItem>
+                  <SelectItem value="yesterday">Hôm qua</SelectItem>
+                  <SelectItem value="week">7 ngày qua</SelectItem>
+                  <SelectItem value="month">30 ngày qua</SelectItem>
+                  <SelectItem value="thisMonth">Tháng này</SelectItem>
+                  <SelectItem value="lastMonth">Tháng trước</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            
-            <Select value={quickFilter} onValueChange={applyQuickFilter}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Lọc nhanh" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                <SelectItem value="today">Hôm nay</SelectItem>
-                <SelectItem value="yesterday">Hôm qua</SelectItem>
-                <SelectItem value="week">7 ngày qua</SelectItem>
-                <SelectItem value="month">30 ngày qua</SelectItem>
-                <SelectItem value="thisMonth">Tháng này</SelectItem>
-                <SelectItem value="lastMonth">Tháng trước</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
 
-          {/* Row 2: Search and status filter */}
-          <div className="flex flex-wrap gap-4">
-            <div className="relative flex-1 min-w-64">
+            {/* Row 2: Search and status filter */}
+            <div className="flex flex-wrap gap-4">
+              <div className="relative flex-1 min-w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm kiếm nhà cung cấp, sản phẩm, ngày..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Trạng thái" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="needInspection">Cần kiểm</SelectItem>
+                  <SelectItem value="inspected">Đã kiểm</SelectItem>
+                  <SelectItem value="all">Toàn bộ</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+      )}
+      
+      {isMobile && (
+        <CardHeader className="space-y-3">
+          {/* Mobile: Search + Filter Button */}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Tìm kiếm nhà cung cấp, sản phẩm, ngày..."
+                placeholder="Tìm kiếm..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
             </div>
             
-            <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Trạng thái" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="needInspection">Cần kiểm</SelectItem>
-                <SelectItem value="inspected">Đã kiểm</SelectItem>
-                <SelectItem value="all">Toàn bộ</SelectItem>
-              </SelectContent>
-            </Select>
+            <Sheet open={filterSheetOpen} onOpenChange={setFilterSheetOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon" className="shrink-0">
+                  <Filter className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="h-[90vh]">
+                <SheetHeader>
+                  <SheetTitle>Bộ lọc</SheetTitle>
+                </SheetHeader>
+                
+                <div className="space-y-6 py-6">
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Khoảng thời gian</label>
+                    <div className="space-y-2">
+                      <Input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        placeholder="Từ ngày"
+                      />
+                      <Input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        placeholder="Đến ngày"
+                      />
+                    </div>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Quick Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Lọc nhanh</label>
+                    <Select value={quickFilter} onValueChange={applyQuickFilter}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn khoảng thời gian" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                        <SelectItem value="today">Hôm nay</SelectItem>
+                        <SelectItem value="yesterday">Hôm qua</SelectItem>
+                        <SelectItem value="week">7 ngày qua</SelectItem>
+                        <SelectItem value="month">30 ngày qua</SelectItem>
+                        <SelectItem value="thisMonth">Tháng này</SelectItem>
+                        <SelectItem value="lastMonth">Tháng trước</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Separator />
+                  
+                  {/* Status Filter */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Trạng thái</label>
+                    <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Chọn trạng thái" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="needInspection">Cần kiểm</SelectItem>
+                        <SelectItem value="inspected">Đã kiểm</SelectItem>
+                        <SelectItem value="all">Toàn bộ</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <Button 
+                    className="w-full mt-6" 
+                    onClick={() => setFilterSheetOpen(false)}
+                  >
+                    Áp dụng
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
+      )}
 
-      <CardContent>
+      <CardContent className={isMobile ? "p-0" : ""}>
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Đang tải...</div>
         ) : filteredOrders && filteredOrders.length > 0 ? (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Ngày đặt</TableHead>
-                  <TableHead>Nhà cung cấp</TableHead>
-                  <TableHead>Tổng SP</TableHead>
-                  <TableHead>Tổng SL</TableHead>
-                  <TableHead>Trạng thái</TableHead>
-                  <TableHead className="text-right">Thao tác</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order: any) => {
-                  const totalItems = order.items?.length || 0;
-                  const totalQuantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
-                  
-                  return (
-                    <TableRow key={order.id}>
-                      <TableCell>
-                        {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
-                      </TableCell>
-                      <TableCell className="font-medium">{order.supplier_name}</TableCell>
-                      <TableCell>{totalItems}</TableCell>
-                      <TableCell>{totalQuantity}</TableCell>
-                      <TableCell>
-                        {order.hasReceiving ? (
-                          order.overallStatus === 'shortage' ? (
-                            <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200">
-                              <AlertCircle className="w-3 h-3 mr-1" />
-                              Thiếu hàng
-                            </Badge>
-                          ) : order.overallStatus === 'overage' ? (
-                            <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              Dư hàng
-                            </Badge>
-                          ) : order.overallStatus === 'mixed' ? (
-                            <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                              <AlertTriangle className="w-3 h-3 mr-1" />
-                              Có chênh lệch
+          isMobile ? (
+            /* Mobile: Card List */
+            <div className="space-y-3 p-4">
+              {filteredOrders.map((order: any) => {
+                const totalItems = order.items?.length || 0;
+                const totalQuantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
+                
+                let statusBadge;
+                if (order.hasReceiving) {
+                  if (order.overallStatus === 'shortage') {
+                    statusBadge = (
+                      <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Thiếu hàng
+                      </Badge>
+                    );
+                  } else if (order.overallStatus === 'overage') {
+                    statusBadge = (
+                      <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Dư hàng
+                      </Badge>
+                    );
+                  } else if (order.overallStatus === 'mixed') {
+                    statusBadge = (
+                      <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Có chênh lệch
+                      </Badge>
+                    );
+                  } else {
+                    statusBadge = (
+                      <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Đủ hàng
+                      </Badge>
+                    );
+                  }
+                } else if (order.status === 'confirmed' || order.status === 'pending') {
+                  statusBadge = (
+                    <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
+                      <Package className="w-3 h-3 mr-1" />
+                      Cần kiểm
+                    </Badge>
+                  );
+                } else {
+                  statusBadge = <Badge variant="outline">{order.status}</Badge>;
+                }
+                
+                return (
+                  <Card key={order.id} className="p-4">
+                    {/* Row 1: Supplier + Badge */}
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <p className="font-semibold text-base">{order.supplier_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
+                        </p>
+                      </div>
+                      {statusBadge}
+                    </div>
+                    
+                    {/* Row 2: Stats */}
+                    <div className="flex gap-4 mb-3 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Package className="w-4 h-4" />
+                        {totalItems} SP
+                      </span>
+                      <span>• {totalQuantity} chiếc</span>
+                    </div>
+                    
+                    {/* Row 3: Action Button */}
+                    {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
+                      <Button 
+                        className="w-full min-h-[48px]"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        Kiểm hàng
+                      </Button>
+                    )}
+                    {order.hasReceiving && (
+                      <Button 
+                        className="w-full min-h-[48px]"
+                        variant="outline"
+                        onClick={() => {
+                          setViewOrderId(order.id);
+                          setViewDialogOpen(true);
+                        }}
+                      >
+                        Xem chi tiết
+                      </Button>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            /* Desktop: Table */
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Ngày đặt</TableHead>
+                    <TableHead>Nhà cung cấp</TableHead>
+                    <TableHead>Tổng SP</TableHead>
+                    <TableHead>Tổng SL</TableHead>
+                    <TableHead>Trạng thái</TableHead>
+                    <TableHead className="text-right">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredOrders.map((order: any) => {
+                    const totalItems = order.items?.length || 0;
+                    const totalQuantity = order.items?.reduce((sum: number, item: any) => sum + (item.quantity || 0), 0) || 0;
+                    
+                    return (
+                      <TableRow key={order.id}>
+                        <TableCell>
+                          {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
+                        </TableCell>
+                        <TableCell className="font-medium">{order.supplier_name}</TableCell>
+                        <TableCell>{totalItems}</TableCell>
+                        <TableCell>{totalQuantity}</TableCell>
+                        <TableCell>
+                          {order.hasReceiving ? (
+                            order.overallStatus === 'shortage' ? (
+                              <Badge variant="secondary" className="bg-red-50 text-red-700 border-red-200">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Thiếu hàng
+                              </Badge>
+                            ) : order.overallStatus === 'overage' ? (
+                              <Badge variant="secondary" className="bg-orange-50 text-orange-700 border-orange-200">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Dư hàng
+                              </Badge>
+                            ) : order.overallStatus === 'mixed' ? (
+                              <Badge variant="secondary" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Có chênh lệch
+                              </Badge>
+                            ) : (
+                              <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+                                <CheckCircle className="w-3 h-3 mr-1" />
+                                Đủ hàng
+                              </Badge>
+                            )
+                          ) : (order.status === 'confirmed' || order.status === 'pending') ? (
+                            <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
+                              <Package className="w-3 h-3 mr-1" />
+                              Cần kiểm
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Đủ hàng
-                            </Badge>
-                          )
-                        ) : (order.status === 'confirmed' || order.status === 'pending') ? (
-                          <Badge variant="secondary" className="bg-amber-50 text-amber-700 border-amber-200">
-                            <Package className="w-3 h-3 mr-1" />
-                            Cần kiểm
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">{order.status}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
-                          <Button 
-                            size="sm" 
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setDialogOpen(true);
-                            }}
-                          >
-                            Kiểm hàng
-                          </Button>
-                        )}
-                        {order.hasReceiving && (
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => {
-                              setViewOrderId(order.id);
-                              setViewDialogOpen(true);
-                            }}
-                          >
-                            Xem chi tiết
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+                            <Badge variant="outline">{order.status}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
+                            <Button 
+                              size="sm" 
+                              onClick={() => {
+                                setSelectedOrder(order);
+                                setDialogOpen(true);
+                              }}
+                            >
+                              Kiểm hàng
+                            </Button>
+                          )}
+                          {order.hasReceiving && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setViewOrderId(order.id);
+                                setViewDialogOpen(true);
+                              }}
+                            >
+                              Xem chi tiết
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )
         ) : (
           <div className="text-center py-8 text-muted-foreground">
             Không tìm thấy đơn hàng nào
