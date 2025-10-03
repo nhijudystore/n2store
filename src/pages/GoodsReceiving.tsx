@@ -147,9 +147,9 @@ export default function GoodsReceiving() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className={isMobile ? "space-y-4" : "container mx-auto py-6 space-y-6"}>
       {isMobile ? (
-        <h1 className="text-xl font-bold px-4">Kiểm hàng</h1>
+        <h1 className="text-xl font-bold px-4 py-3">Kiểm hàng</h1>
       ) : (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -164,8 +164,8 @@ export default function GoodsReceiving() {
         </div>
       )}
 
-      <GoodsReceivingStats filteredOrders={filteredOrders} isLoading={isLoading} />
-      <GoodsReceivingList 
+      {!isMobile && <GoodsReceivingStats filteredOrders={filteredOrders} isLoading={isLoading} />}
+      <GoodsReceivingList
         filteredOrders={filteredOrders}
         isLoading={isLoading}
         statusFilter={statusFilter}
