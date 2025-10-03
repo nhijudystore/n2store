@@ -275,52 +275,85 @@ export function GoodsReceivingList({
                   statusBadge = <Badge variant="outline">{order.status}</Badge>;
                 }
                 
+                // Prepare status badge without icon
+                let statusText = '';
+                let statusClassName = '';
+                
+                if (order.hasReceiving) {
+                  if (order.overallStatus === 'shortage') {
+                    statusText = 'Thiếu hàng';
+                    statusClassName = 'bg-red-50 text-red-700 border-red-200';
+                  } else if (order.overallStatus === 'overage') {
+                    statusText = 'Dư hàng';
+                    statusClassName = 'bg-orange-50 text-orange-700 border-orange-200';
+                  } else if (order.overallStatus === 'mixed') {
+                    statusText = 'Chênh lệch';
+                    statusClassName = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                  } else {
+                    statusText = 'Đủ hàng';
+                    statusClassName = 'bg-green-50 text-green-700 border-green-200';
+                  }
+                } else if (order.status === 'confirmed' || order.status === 'pending') {
+                  statusText = 'Cần kiểm';
+                  statusClassName = 'bg-amber-50 text-amber-700 border-amber-200';
+                } else {
+                  statusText = order.status;
+                  statusClassName = '';
+                }
+                
                 return (
-                  <Card key={order.id} className="p-4">
-                    {/* Row 1: Supplier + Badge */}
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex-1">
-                        <p className="font-semibold text-base">{order.supplier_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), "dd/MM/yyyy HH:mm", { locale: vi })}
-                        </p>
+                  <Card key={order.id} className="p-2">
+                    <div className="flex items-center gap-2">
+                      {/* 1. Date - dd/MM only */}
+                      <div className="w-11 shrink-0 text-sm font-medium">
+                        {format(new Date(order.created_at), "dd/MM")}
                       </div>
-                      {statusBadge}
+                      
+                      {/* 2. Supplier */}
+                      <div className="w-12 shrink-0 text-center font-semibold text-sm">
+                        {order.supplier_name}
+                      </div>
+                      
+                      {/* 3. Total Items */}
+                      <div className="w-6 shrink-0 text-center text-sm">
+                        {totalItems}
+                      </div>
+                      
+                      {/* 4. Total Quantity */}
+                      <div className="w-6 shrink-0 text-center text-sm">
+                        {totalQuantity}
+                      </div>
+                      
+                      {/* 5. Status Badge - compact no icon */}
+                      <Badge variant="secondary" className={`text-xs px-2 py-0.5 shrink-0 ${statusClassName}`}>
+                        {statusText}
+                      </Badge>
+                      
+                      {/* 6. Action Button - flexible */}
+                      {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
+                        <Button 
+                          className="flex-1 h-9 text-xs px-2"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setDialogOpen(true);
+                          }}
+                        >
+                          Kiểm
+                        </Button>
+                      )}
+                      {order.hasReceiving && (
+                        <Button 
+                          className="flex-1 h-9 text-xs px-2"
+                          variant="outline"
+                          onClick={() => {
+                            setViewOrderId(order.id);
+                            setViewDialogOpen(true);
+                          }}
+                        >
+                          Xem
+                        </Button>
+                      )}
                     </div>
-                    
-                    {/* Row 2: Stats */}
-                    <div className="flex gap-4 mb-3 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Package className="w-4 h-4" />
-                        {totalItems} SP
-                      </span>
-                      <span>• {totalQuantity} chiếc</span>
-                    </div>
-                    
-                    {/* Row 3: Action Button */}
-                    {!order.hasReceiving && (order.status === 'confirmed' || order.status === 'pending') && (
-                      <Button 
-                        className="w-full min-h-[48px]"
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setDialogOpen(true);
-                        }}
-                      >
-                        Kiểm hàng
-                      </Button>
-                    )}
-                    {order.hasReceiving && (
-                      <Button 
-                        className="w-full min-h-[48px]"
-                        variant="outline"
-                        onClick={() => {
-                          setViewOrderId(order.id);
-                          setViewDialogOpen(true);
-                        }}
-                      >
-                        Xem chi tiết
-                      </Button>
-                    )}
                   </Card>
                 );
               })}
