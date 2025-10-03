@@ -93,8 +93,8 @@ export function GoodsReceivingList({
                     <SelectItem value="all">Tất cả</SelectItem>
                     <SelectItem value="today">Hôm nay</SelectItem>
                     <SelectItem value="yesterday">Hôm qua</SelectItem>
-                    <SelectItem value="week">7 ngày qua</SelectItem>
-                    <SelectItem value="month">30 ngày qua</SelectItem>
+                    <SelectItem value="week">7 ngày</SelectItem>
+                    <SelectItem value="month">30 ngày</SelectItem>
                     <SelectItem value="thisMonth">Tháng này</SelectItem>
                     <SelectItem value="lastMonth">Tháng trước</SelectItem>
                   </SelectContent>
@@ -279,14 +279,14 @@ export function GoodsReceivingList({
                     <label className="text-sm font-medium">Lọc nhanh</label>
                     <Select value={quickFilter} onValueChange={applyQuickFilter}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Chọn khoảng thời gian" />
+                        <SelectValue placeholder="Lọc nhanh" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Tất cả</SelectItem>
                         <SelectItem value="today">Hôm nay</SelectItem>
                         <SelectItem value="yesterday">Hôm qua</SelectItem>
-                        <SelectItem value="week">7 ngày qua</SelectItem>
-                        <SelectItem value="month">30 ngày qua</SelectItem>
+                        <SelectItem value="week">7 ngày</SelectItem>
+                        <SelectItem value="month">30 ngày</SelectItem>
                         <SelectItem value="thisMonth">Tháng này</SelectItem>
                         <SelectItem value="lastMonth">Tháng trước</SelectItem>
                       </SelectContent>
