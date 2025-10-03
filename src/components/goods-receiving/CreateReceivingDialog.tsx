@@ -228,7 +228,8 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
           </div>
         </div>
 
-        <div className={`space-y-4 ${isMobile ? 'flex-1 overflow-y-auto px-4 pb-4' : 'px-6'}`}>
+        {/* Scrollable Content */}
+        <div className={`space-y-4 ${isMobile ? 'flex-1 overflow-y-auto px-4 pb-20' : 'px-6 flex-1 overflow-y-auto'}`}>
           {/* Items - Mobile: Cards, Desktop: Table */}
           {isMobile ? (
             <div className="space-y-3">
@@ -287,11 +288,12 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
           </div>
         </div>
 
-        {/* Action buttons - Sticky on mobile */}
-        <div className={`flex ${isMobile ? 'flex-col sticky bottom-0 bg-background border-t p-4' : 'justify-end px-6 pb-6'} gap-2`}>
+        {/* Action buttons - Sticky at bottom on mobile, outside scroll container */}
+        <div className={`flex ${isMobile ? 'flex-col-reverse sticky bottom-0 bg-background border-t p-4 shadow-lg z-20' : 'justify-end px-6 pb-6'} gap-2`}>
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
             className={isMobile ? 'w-full min-h-[48px] text-base' : ''}
           >
             Hủy
