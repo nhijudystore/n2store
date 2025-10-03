@@ -26,7 +26,10 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    if (!open) setOpen(true);
+    // Chỉ mở popover khi bắt đầu gõ (có giá trị)
+    if (value && !open) {
+      setOpen(true);
+    }
   };
 
   const handleSelect = (selectedValue: string) => {
@@ -36,19 +39,11 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     setOpen(false);
   };
 
-  const handleBlur = () => {
-    // Delay để tránh xung đột với click vào item
-    setTimeout(() => {
-      if (searchTerm && searchTerm !== inputValue) {
-        setSearchTerm("");
-      }
-    }, 200);
-  };
-
   const clearAll = () => {
     setInputValue("");
     setSearchTerm("");
     onChange("");
+    setOpen(false);
   };
 
   // Filter suggestions based on search term
@@ -76,8 +71,7 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
             <Input
               value={open ? searchTerm : inputValue}
               onChange={handleInputChange}
-              onFocus={() => setOpen(true)}
-              onBlur={handleBlur}
+              onClick={() => setOpen(true)}
               placeholder="Chọn biến thể"
               className="pr-10"
             />
