@@ -2,10 +2,14 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Package } from "lucide-react";
+import { Package, Calendar } from "lucide-react";
 import { GoodsReceivingStats } from "@/components/goods-receiving/GoodsReceivingStats";
 import { GoodsReceivingList } from "@/components/goods-receiving/GoodsReceivingList";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 type StatusFilter = "needInspection" | "inspected" | "shortage" | "all";
 
@@ -171,7 +175,59 @@ export default function GoodsReceiving() {
   return (
     <div className={isMobile ? "space-y-4" : "container mx-auto py-6 space-y-6"}>
       {isMobile ? (
-        <h1 className="text-xl font-bold px-4 py-3">Kiểm hàng</h1>
+        <div className="px-4 py-3 bg-background border-b">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "flex-1 justify-start text-left font-normal text-xs h-9",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  {startDate ? format(new Date(startDate), "dd/MM/yyyy") : <span>Từ ngày</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={startDate ? new Date(startDate) : undefined}
+                  onSelect={(date) => setStartDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <span className="text-muted-foreground text-xs">-</span>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "flex-1 justify-start text-left font-normal text-xs h-9",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  {endDate ? format(new Date(endDate), "dd/MM/yyyy") : <span>Đến ngày</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={endDate ? new Date(endDate) : undefined}
+                  onSelect={(date) => setEndDate(date ? format(date, 'yyyy-MM-dd') : '')}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
       ) : (
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
