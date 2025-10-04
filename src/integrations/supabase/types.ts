@@ -442,6 +442,7 @@ export type Database = {
           quantity: number
           selling_price: number | null
           total_price: number | null
+          tpos_product_id: number | null
           unit_price: number | null
           variant: string | null
         }
@@ -459,6 +460,7 @@ export type Database = {
           quantity?: number
           selling_price?: number | null
           total_price?: number | null
+          tpos_product_id?: number | null
           unit_price?: number | null
           variant?: string | null
         }
@@ -476,6 +478,7 @@ export type Database = {
           quantity?: number
           selling_price?: number | null
           total_price?: number | null
+          tpos_product_id?: number | null
           unit_price?: number | null
           variant?: string | null
         }

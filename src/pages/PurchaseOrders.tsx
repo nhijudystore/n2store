@@ -5,12 +5,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2, X } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2, X, Upload } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
+import { ExportTPOSDialog } from "@/components/purchase-orders/ExportTPOSDialog";
+import type { TPOSProductItem } from "@/lib/tpos-api";
 import { format } from "date-fns";
 import { convertVietnameseToUpperCase } from "@/lib/utils";
 import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
@@ -49,6 +51,8 @@ interface PurchaseOrder {
 const PurchaseOrders = () => {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isTPOSDialogOpen, setIsTPOSDialogOpen] = useState(false);
+  const [tposItems, setTposItems] = useState<TPOSProductItem[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
@@ -395,6 +399,42 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleExportToTPOS = () => {
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    // Flatten all items from orders to export
+    const items: TPOSProductItem[] = ordersToExport.flatMap(order => 
+      (order.items || []).map(item => ({
+        id: crypto.randomUUID(),
+        product_code: item.product_code,
+        product_name: item.product_name,
+        variant: item.variant,
+        quantity: item.quantity,
+        unit_price: item.unit_price || 0,
+        selling_price: item.selling_price || 0,
+        product_images: item.product_images,
+        price_images: item.price_images,
+        purchase_order_id: order.id,
+        supplier_name: order.supplier_name || '',
+      }))
+    );
+
+    if (items.length === 0) {
+      toast({
+        title: "Không có dữ liệu",
+        description: "Không có sản phẩm nào để xuất",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTposItems(items);
+    setIsTPOSDialogOpen(true);
+  };
+
   const handleExportVariantsExcel = () => {
     // Use selected orders if any, otherwise use filtered orders
     const ordersToExport = selectedOrders.length > 0 
@@ -659,6 +699,10 @@ const PurchaseOrders = () => {
                         <FileSpreadsheet className="w-4 h-4 mr-2" />
                         Xuất Excel Biến thể
                       </Button>
+                      <Button onClick={handleExportToTPOS} variant="default" size="sm">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Export & Upload TPOS
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -676,6 +720,10 @@ const PurchaseOrders = () => {
                   <Button onClick={handleExportVariantsExcel} variant="outline" className="gap-2">
                     <FileSpreadsheet className="w-4 h-4" />
                     Xuất Excel Biến thể
+                  </Button>
+                  <Button onClick={handleExportToTPOS} variant="default" className="gap-2">
+                    <Upload className="w-4 h-4" />
+                    Export & Upload TPOS
                   </Button>
                 </div>
               </div>
@@ -724,6 +772,15 @@ const PurchaseOrders = () => {
       <CreatePurchaseOrderDialog 
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
+      />
+
+      <ExportTPOSDialog
+        open={isTPOSDialogOpen}
+        onOpenChange={setIsTPOSDialogOpen}
+        items={tposItems}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+        }}
       />
     </div>
   );
