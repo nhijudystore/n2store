@@ -329,6 +329,91 @@ export function detectAttributesFromText(text: string): DetectedAttributes {
 }
 
 /**
+ * Tạo AttributeValues cho TPOS product
+ */
+export function createAttributeValues(detected: DetectedAttributes): any[] {
+  const attributeValues: any[] = [];
+
+  // Helper để tìm attribute config
+  const getAttributeConfig = (type: 'sizeText' | 'color' | 'sizeNumber') => {
+    switch (type) {
+      case 'sizeText':
+        return { id: TPOS_ATTRIBUTE_IDS.SIZE_TEXT, name: "Size Chữ" };
+      case 'color':
+        return { id: TPOS_ATTRIBUTE_IDS.COLOR, name: "Màu" };
+      case 'sizeNumber':
+        return { id: TPOS_ATTRIBUTE_IDS.SIZE_NUMBER, name: "Size Số" };
+    }
+  };
+
+  // Process size text
+  if (detected.sizeText && detected.sizeText.length > 0) {
+    const config = getAttributeConfig('sizeText');
+    detected.sizeText.forEach(size => {
+      const valueId = TPOS_SIZE_TEXT_MAP[size];
+      if (valueId) {
+        attributeValues.push({
+          Id: valueId,
+          Name: size,
+          Code: null,
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${size}`,
+          DateCreated: null
+        });
+      }
+    });
+  }
+
+  // Process colors
+  if (detected.color && detected.color.length > 0) {
+    const config = getAttributeConfig('color');
+    detected.color.forEach(color => {
+      const valueId = TPOS_COLOR_MAP[color];
+      if (valueId) {
+        attributeValues.push({
+          Id: valueId,
+          Name: color,
+          Code: null,
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${color}`,
+          DateCreated: null
+        });
+      }
+    });
+  }
+
+  // Process size number
+  if (detected.sizeNumber && detected.sizeNumber.length > 0) {
+    const config = getAttributeConfig('sizeNumber');
+    detected.sizeNumber.forEach(size => {
+      const valueId = TPOS_SIZE_NUMBER_MAP[size];
+      if (valueId) {
+        attributeValues.push({
+          Id: valueId,
+          Name: size,
+          Code: null,
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${size}`,
+          DateCreated: null
+        });
+      }
+    });
+  }
+
+  console.log("🎨 [TPOS] Created AttributeValues:", attributeValues);
+  return attributeValues;
+}
+
+/**
  * Tạo AttributeLines cho TPOS product (format đầy đủ như backend)
  */
 export function createAttributeLines(detected: DetectedAttributes): any[] {
@@ -474,9 +559,16 @@ export async function updateProductWithImage(
   // Add attributes if detected
   if (detectedAttributes) {
     const attributeLines = createAttributeLines(detectedAttributes);
+    const attributeValues = createAttributeValues(detectedAttributes);
+    
     if (attributeLines.length > 0) {
       payload.AttributeLines = attributeLines;
-      console.log(`🎨 [TPOS] Adding ${attributeLines.length} attribute lines`);
+      console.log(`🎨 [TOPS] Adding ${attributeLines.length} attribute lines`);
+    }
+    
+    if (attributeValues.length > 0) {
+      payload.AttributeValues = attributeValues;
+      console.log(`🎨 [TPOS] Adding ${attributeValues.length} attribute values`);
     }
   }
 
