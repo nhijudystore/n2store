@@ -1,6 +1,15 @@
 import * as XLSX from "xlsx";
 import { TPOS_CONFIG, getTPOSHeaders, cleanBase64, randomDelay } from "./tpos-config";
-import { COLORS, TEXT_SIZES, NUMBER_SIZES, getVariantType } from "./variant-attributes";
+import { 
+  COLORS, 
+  TEXT_SIZES, 
+  NUMBER_SIZES, 
+  getVariantType,
+  TPOS_ATTRIBUTE_IDS,
+  TPOS_COLOR_MAP,
+  TPOS_SIZE_TEXT_MAP,
+  TPOS_SIZE_NUMBER_MAP
+} from "./variant-attributes";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -310,45 +319,55 @@ export function detectAttributesFromText(text: string): DetectedAttributes {
 }
 
 /**
- * Tạo attribute values cho TPOS product
+ * Tạo AttributeLines cho TPOS product (format đúng với TPOS API)
  */
-export function createAttributeValues(detected: DetectedAttributes): any[] {
-  const attributeValues: any[] = [];
+export function createAttributeLines(detected: DetectedAttributes): any[] {
+  const attributeLines: any[] = [];
 
   // Add size text attributes
-  if (detected.sizeText) {
-    detected.sizeText.forEach(size => {
-      attributeValues.push({
-        AttributeId: 1, // Size attribute ID
-        Name: size,
-        Code: size
+  if (detected.sizeText && detected.sizeText.length > 0) {
+    const valueIds = detected.sizeText
+      .map(size => TPOS_SIZE_TEXT_MAP[size])
+      .filter(id => id !== undefined);
+
+    if (valueIds.length > 0) {
+      attributeLines.push({
+        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_TEXT,
+        ValueIds: valueIds
       });
-    });
+    }
   }
 
   // Add color attributes
-  if (detected.color) {
-    detected.color.forEach(color => {
-      attributeValues.push({
-        AttributeId: 2, // Color attribute ID
-        Name: color,
-        Code: color.substring(0, 2).toUpperCase()
+  if (detected.color && detected.color.length > 0) {
+    const valueIds = detected.color
+      .map(color => TPOS_COLOR_MAP[color])
+      .filter(id => id !== undefined);
+
+    if (valueIds.length > 0) {
+      attributeLines.push({
+        AttributeId: TPOS_ATTRIBUTE_IDS.COLOR,
+        ValueIds: valueIds
       });
-    });
+    }
   }
 
   // Add size number attributes
-  if (detected.sizeNumber) {
-    detected.sizeNumber.forEach(size => {
-      attributeValues.push({
-        AttributeId: 3, // Size number attribute ID
-        Name: size,
-        Code: `A${size}`
+  if (detected.sizeNumber && detected.sizeNumber.length > 0) {
+    const valueIds = detected.sizeNumber
+      .map(size => TPOS_SIZE_NUMBER_MAP[size])
+      .filter(id => id !== undefined);
+
+    if (valueIds.length > 0) {
+      attributeLines.push({
+        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_NUMBER,
+        ValueIds: valueIds
       });
-    });
+    }
   }
 
-  return attributeValues;
+  console.log("🎨 [TPOS] Created AttributeLines:", attributeLines);
+  return attributeLines;
 }
 
 export async function updateProductWithImage(
@@ -366,10 +385,10 @@ export async function updateProductWithImage(
 
   // Add attributes if detected
   if (detectedAttributes) {
-    const attributeValues = createAttributeValues(detectedAttributes);
-    if (attributeValues.length > 0) {
-      payload.AttributeValues = attributeValues;
-      console.log(`🎨 [TPOS] Adding ${attributeValues.length} attributes`);
+    const attributeLines = createAttributeLines(detectedAttributes);
+    if (attributeLines.length > 0) {
+      payload.AttributeLines = attributeLines;
+      console.log(`🎨 [TPOS] Adding ${attributeLines.length} attribute lines`);
     }
   }
 
