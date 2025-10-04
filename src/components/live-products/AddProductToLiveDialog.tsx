@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ImageIcon, X, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
+import { generateProductCode } from "@/lib/product-code-generator";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -220,6 +221,22 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     }
   };
 
+  const handleProductNameBlur = async () => {
+    const productName = form.getValues("product_name");
+    const productCode = form.getValues("product_code");
+    
+    if (!productName.trim() || productCode.trim()) {
+      return; // Skip if name is empty or code already exists
+    }
+
+    try {
+      const code = await generateProductCode(productName);
+      form.setValue("product_code", code);
+      toast.success(`Đã tạo mã SP: ${code}`);
+    } catch (error) {
+      console.error("Error generating product code:", error);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -257,6 +274,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                     <Input 
                       placeholder="Nhập tên sản phẩm (không bắt buộc)"
                       {...field}
+                      onBlur={handleProductNameBlur}
                     />
                   </FormControl>
                   <FormMessage />

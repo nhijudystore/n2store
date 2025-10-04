@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
+import { generateProductCode } from "@/lib/product-code-generator";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -193,8 +194,22 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     }
   };
 
-  const handleProductNameBlur = (index: number, productName: string) => {
+  const handleProductNameBlur = async (index: number, productName: string) => {
     if (!productName.trim()) return;
+    
+    // Generate product code if empty
+    if (!items[index].product_code.trim()) {
+      try {
+        const code = await generateProductCode(productName);
+        updateItem(index, "product_code", code);
+        toast({
+          title: "Đã tạo mã SP",
+          description: `Mã SP: ${code}`,
+        });
+      } catch (error) {
+        console.error("Error generating product code:", error);
+      }
+    }
     
     const detected = detectAttributesFromText(productName);
     

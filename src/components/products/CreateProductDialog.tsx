@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { generateProductCode } from "@/lib/product-code-generator";
 
 interface CreateProductDialogProps {
   open: boolean;
@@ -75,6 +76,23 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     }
   };
 
+  const handleProductNameBlur = async () => {
+    if (!formData.product_name.trim() || formData.product_code.trim()) {
+      return; // Skip if name is empty or code already exists
+    }
+
+    try {
+      const code = await generateProductCode(formData.product_name);
+      setFormData({ ...formData, product_code: code });
+      toast({
+        title: "Đã tạo mã sản phẩm",
+        description: `Mã SP: ${code}`,
+      });
+    } catch (error) {
+      console.error("Error generating product code:", error);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -109,6 +127,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
               id="product_name"
               value={formData.product_name}
               onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
+              onBlur={handleProductNameBlur}
               required
             />
           </div>
