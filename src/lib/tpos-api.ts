@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { TPOS_CONFIG, getTPOSHeaders, cleanBase64, randomDelay } from "./tpos-config";
+import { COLORS, TEXT_SIZES, NUMBER_SIZES, getVariantType } from "./variant-attributes";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -210,9 +211,150 @@ export async function getProductDetail(productId: number): Promise<any> {
   return response.json();
 }
 
+// =====================================================
+// ATTRIBUTES MANAGEMENT
+// =====================================================
+
+export interface TPOSAttribute {
+  Id: number;
+  Name: string;
+  Code?: string;
+}
+
+export interface TPOSAttributesResponse {
+  sizeText: TPOSAttribute[];
+  sizeNumber: TPOSAttribute[];
+  color: TPOSAttribute[];
+}
+
+export interface DetectedAttributes {
+  sizeText?: string[];
+  sizeNumber?: string[];
+  color?: string[];
+}
+
+/**
+ * Load danh sách thuộc tính từ TPOS
+ */
+export async function getTPOSAttributes(): Promise<TPOSAttributesResponse> {
+  console.log("🎨 [TPOS] Loading attributes...");
+  
+  await randomDelay(300, 700);
+
+  try {
+    // Lấy danh sách attribute lines/values từ TPOS nếu có API
+    // Hiện tại return data từ local constants
+    const sizeText: TPOSAttribute[] = TEXT_SIZES.map((size, idx) => ({
+      Id: 1000 + idx,
+      Name: size,
+      Code: size
+    }));
+
+    const sizeNumber: TPOSAttribute[] = NUMBER_SIZES.map((size, idx) => ({
+      Id: 2000 + idx,
+      Name: size,
+      Code: `A${size}`
+    }));
+
+    const color: TPOSAttribute[] = COLORS.map((color, idx) => ({
+      Id: 3000 + idx,
+      Name: color,
+      Code: color.substring(0, 2).toUpperCase()
+    }));
+
+    console.log(`✅ [TPOS] Loaded ${sizeText.length} size text, ${sizeNumber.length} size number, ${color.length} colors`);
+
+    return { sizeText, sizeNumber, color };
+  } catch (error) {
+    console.error("❌ getTPOSAttributes error:", error);
+    throw error;
+  }
+}
+
+/**
+ * Tự động detect thuộc tính từ text (tên sản phẩm, ghi chú)
+ */
+export function detectAttributesFromText(text: string): DetectedAttributes {
+  if (!text) return {};
+
+  const detected: DetectedAttributes = {};
+  const upperText = text.toUpperCase();
+
+  // Detect size chữ
+  const foundSizeText = TEXT_SIZES.filter(size => 
+    upperText.includes(size.toUpperCase())
+  );
+  if (foundSizeText.length > 0) {
+    detected.sizeText = foundSizeText;
+  }
+
+  // Detect size số
+  const foundSizeNumber = NUMBER_SIZES.filter(size => {
+    const sizePattern = new RegExp(`\\b${size}\\b`, 'i');
+    return sizePattern.test(text);
+  });
+  if (foundSizeNumber.length > 0) {
+    detected.sizeNumber = foundSizeNumber;
+  }
+
+  // Detect màu sắc
+  const foundColors = COLORS.filter(color => 
+    text.toLowerCase().includes(color.toLowerCase())
+  );
+  if (foundColors.length > 0) {
+    detected.color = foundColors;
+  }
+
+  console.log("🎯 [TPOS] Detected attributes:", detected);
+  return detected;
+}
+
+/**
+ * Tạo attribute values cho TPOS product
+ */
+export function createAttributeValues(detected: DetectedAttributes): any[] {
+  const attributeValues: any[] = [];
+
+  // Add size text attributes
+  if (detected.sizeText) {
+    detected.sizeText.forEach(size => {
+      attributeValues.push({
+        AttributeId: 1, // Size attribute ID
+        Name: size,
+        Code: size
+      });
+    });
+  }
+
+  // Add color attributes
+  if (detected.color) {
+    detected.color.forEach(color => {
+      attributeValues.push({
+        AttributeId: 2, // Color attribute ID
+        Name: color,
+        Code: color.substring(0, 2).toUpperCase()
+      });
+    });
+  }
+
+  // Add size number attributes
+  if (detected.sizeNumber) {
+    detected.sizeNumber.forEach(size => {
+      attributeValues.push({
+        AttributeId: 3, // Size number attribute ID
+        Name: size,
+        Code: `A${size}`
+      });
+    });
+  }
+
+  return attributeValues;
+}
+
 export async function updateProductWithImage(
   productDetail: any,
-  base64Image: string
+  base64Image: string,
+  detectedAttributes?: DetectedAttributes
 ): Promise<any> {
   console.log(`🖼️ [TPOS] Updating product ${productDetail.Id} with image...`);
   
@@ -221,6 +363,15 @@ export async function updateProductWithImage(
   const payload = { ...productDetail };
   delete payload['@odata.context'];
   payload.Image = cleanBase64(base64Image);
+
+  // Add attributes if detected
+  if (detectedAttributes) {
+    const attributeValues = createAttributeValues(detectedAttributes);
+    if (attributeValues.length > 0) {
+      payload.AttributeValues = attributeValues;
+      console.log(`🎨 [TPOS] Adding ${attributeValues.length} attributes`);
+    }
+  }
 
   const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`, {
     method: "POST",
@@ -286,14 +437,22 @@ export async function uploadToTPOS(
       try {
         const imageUrl = item.product_images?.[0];
         
+        // Auto-detect attributes từ tên sản phẩm và variant
+        const textToAnalyze = `${item.product_name} ${item.variant || ''}`.trim();
+        const detectedAttributes = detectAttributesFromText(textToAnalyze);
+        
         if (imageUrl) {
           onProgress?.(3, 3, `Upload ảnh ${i + 1}/${items.length}: ${item.product_name}...`);
           
           const base64Image = await imageUrlToBase64(imageUrl);
           if (base64Image) {
             const detail = await getProductDetail(product.Id);
-            await updateProductWithImage(detail, base64Image);
+            await updateProductWithImage(detail, base64Image, detectedAttributes);
           }
+        } else if (Object.keys(detectedAttributes).length > 0) {
+          // Nếu không có ảnh nhưng có attributes, vẫn update
+          const detail = await getProductDetail(product.Id);
+          await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
         result.productIds.push({
