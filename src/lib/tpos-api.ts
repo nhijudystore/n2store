@@ -58,22 +58,21 @@ export async function imageUrlToBase64(url: string): Promise<string | null> {
 // =====================================================
 
 export function generateTPOSExcel(items: TPOSProductItem[]): Blob {
-  const excelData = items.map((item, index) => ({
-    "STT": index + 1,
-    "Tên sản phẩm": item.product_name,
-    "Mã sản phẩm": item.product_code || `AUTO-${Date.now()}-${index}`,
+  const excelData = items.map((item) => ({
     "Loại sản phẩm": TPOS_CONFIG.DEFAULT_PRODUCT_TYPE,
-    "Danh mục": TPOS_CONFIG.DEFAULT_CATEGORY,
-    "ĐVT": TPOS_CONFIG.DEFAULT_UOM,
-    "Giá bán": item.selling_price || 0,
-    "Giá vốn": item.unit_price || 0,
-    "Tồn kho": 0,
-    "Người tạo": TPOS_CONFIG.CREATED_BY_NAME,
+    "Mã sản phẩm": item.product_code?.toString() || undefined,
+    "Tên sản phẩm": item.product_name?.toString() || undefined,
+    "Giá bán": (item.selling_price || 0) * 1000,
+    "Giá mua": (item.unit_price || 0) * 1000,
+    "Đơn vị": TPOS_CONFIG.DEFAULT_UOM,
+    "Nhóm sản phẩm": TPOS_CONFIG.DEFAULT_CATEGORY,
+    "Mã vạch": item.product_code?.toString() || undefined,
+    "Ghi chú": item.variant || undefined,
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(excelData);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Đặt Hàng");
 
   const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
   return new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
