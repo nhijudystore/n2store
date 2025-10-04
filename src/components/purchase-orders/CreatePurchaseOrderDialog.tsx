@@ -17,6 +17,7 @@ import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
+import { detectAttributesFromText } from "@/lib/tpos-api";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -235,6 +236,36 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     setIsSelectProductOpen(true);
   };
 
+  const handleProductNameBlur = (index: number, productName: string) => {
+    if (!productName.trim()) return;
+    
+    const detected = detectAttributesFromText(productName);
+    
+    // Build variant string from detected attributes
+    const variantParts: string[] = [];
+    if (detected.sizeText && detected.sizeText.length > 0) {
+      variantParts.push(...detected.sizeText);
+    }
+    if (detected.color && detected.color.length > 0) {
+      variantParts.push(...detected.color);
+    }
+    if (detected.sizeNumber && detected.sizeNumber.length > 0) {
+      variantParts.push(...detected.sizeNumber);
+    }
+    
+    if (variantParts.length > 0) {
+      const detectedVariant = variantParts.join(" - ");
+      // Only update if variant is empty
+      if (!items[index].variant.trim()) {
+        updateItem(index, "variant", detectedVariant);
+        toast({
+          title: "Tự động phát hiện biến thể",
+          description: `Đã điền: ${detectedVariant}`,
+        });
+      }
+    }
+  };
+
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
   const finalAmount = totalAmount - formData.discount_amount;
 
@@ -350,6 +381,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           placeholder="Nhập tên sản phẩm"
                           value={item.product_name}
                           onChange={(e) => updateItem(index, "product_name", e.target.value)}
+                          onBlur={(e) => handleProductNameBlur(index, e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 min-h-[60px] resize-none"
                           rows={2}
                         />
