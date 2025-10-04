@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/lib/currency-utils";
+import { convertVietnameseToUpperCase } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -74,13 +75,18 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     enabled: open,
   });
 
-  // Filter products based on search
+  // Filter products based on search (with Vietnamese diacritics normalization)
   const searchFiltered = searchQuery
-    ? products.filter((product) =>
-        product.product_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.variant?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+    ? products.filter((product) => {
+        const normalizedSearch = convertVietnameseToUpperCase(searchQuery);
+        const normalizedCode = convertVietnameseToUpperCase(product.product_code || "");
+        const normalizedName = convertVietnameseToUpperCase(product.product_name || "");
+        const normalizedVariant = convertVietnameseToUpperCase(product.variant || "");
+        
+        return normalizedCode.includes(normalizedSearch) ||
+               normalizedName.includes(normalizedSearch) ||
+               normalizedVariant.includes(normalizedSearch);
+      })
     : products;
 
   // Sort products: highest number first
