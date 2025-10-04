@@ -23,8 +23,8 @@ interface PurchaseOrderItem {
   variant: string;
   product_code: string;
   quantity: number;
-  unit_price: number;
-  selling_price: number;
+  unit_price: number | string;
+  selling_price: number | string;
   total_price: number;
   product_images: string[];
   price_images: string[];
@@ -55,7 +55,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
-    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
+    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }
   ]);
 
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
@@ -96,8 +96,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           variant: item.variant,
           product_code: item.product_code,
           quantity: item.quantity,
-          unit_price: item.unit_price * 1000,
-          selling_price: item.selling_price * 1000,
+          unit_price: Number(item.unit_price || 0) * 1000,
+          selling_price: Number(item.selling_price || 0) * 1000,
           total_price: item.total_price * 1000,
           product_images: item.product_images,
           price_images: item.price_images,
@@ -119,8 +119,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               product_code: item.product_code,
               product_name: item.product_name,
               variant: item.variant || null,
-              purchase_price: item.unit_price * 1000,
-              selling_price: item.selling_price * 1000,
+              purchase_price: Number(item.unit_price || 0) * 1000,
+              selling_price: Number(item.selling_price || 0) * 1000,
               supplier_name: formData.supplier_name,
               product_images: item.product_images.length > 0 ? item.product_images : null,
               price_images: item.price_images.length > 0 ? item.price_images : null,
@@ -167,7 +167,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       discount_amount: 0
     });
     setItems([
-      { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }
+      { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }
     ]);
   };
 
@@ -176,14 +176,14 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     newItems[index] = { ...newItems[index], [field]: value };
     
     if (field === "quantity" || field === "unit_price") {
-      newItems[index].total_price = newItems[index].quantity * newItems[index].unit_price;
+      newItems[index].total_price = newItems[index].quantity * Number(newItems[index].unit_price || 0);
     }
     
     setItems(newItems);
   };
 
   const addItem = () => {
-    setItems([...items, { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
+    setItems([...items, { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }]);
   };
 
   const copyItem = (index: number) => {
@@ -202,7 +202,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       setItems(items.filter((_, i) => i !== index));
     } else {
       // Reset the last item to empty state instead of removing
-      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: 0, selling_price: 0, total_price: 0, product_images: [], price_images: [] }]);
+      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }]);
     }
   };
 
@@ -327,13 +327,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">STT</TableHead>
-                    <TableHead>Tên sản phẩm</TableHead>
-                    <TableHead>Mã sản phẩm</TableHead>
-                    <TableHead>Biến thể</TableHead>
-                    <TableHead className="w-32">Số lượng</TableHead>
-                    <TableHead className="w-40">Giá mua (VND)</TableHead>
-                    <TableHead className="w-40">Giá bán (VND)</TableHead>
-                    <TableHead className="w-40">Thành tiền (VND)</TableHead>
+                    <TableHead className="w-[120px]">Tên sản phẩm</TableHead>
+                    <TableHead className="w-[80px]">Mã sản phẩm</TableHead>
+                    <TableHead className="w-[100px]">Biến thể</TableHead>
+                    <TableHead className="w-[60px]">SL</TableHead>
+                    <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
+                    <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
+                    <TableHead className="w-[120px]">Thành tiền (VND)</TableHead>
                     <TableHead className="w-32">Hình ảnh sản phẩm</TableHead>
                     <TableHead className="w-32">Hình ảnh Giá mua</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
@@ -346,25 +346,28 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         {index + 1}
                       </TableCell>
                       <TableCell>
-                        <Input
+                        <Textarea
                           placeholder="Nhập tên sản phẩm"
                           value={item.product_name}
                           onChange={(e) => updateItem(index, "product_name", e.target.value)}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2"
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 min-h-[60px] resize-none"
+                          rows={2}
                         />
                       </TableCell>
                       <TableCell>
                         <Input
-                          placeholder="Nhập mã sản phẩm"
+                          placeholder="Mã SP"
                           value={item.product_code}
                           onChange={(e) => updateItem(index, "product_code", e.target.value)}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2"
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 w-[80px] text-xs"
+                          maxLength={10}
                         />
                       </TableCell>
                       <TableCell>
                         <VariantSelector
                           value={item.variant}
                           onChange={(value) => updateItem(index, "variant", value)}
+                          className="w-[100px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -380,18 +383,20 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={item.unit_price}
+                          placeholder=""
+                          value={item.unit_price === 0 || item.unit_price === "" ? "" : item.unit_price}
                           onChange={(e) => updateItem(index, "unit_price", parseNumberInput(e.target.value))}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right"
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={item.selling_price}
+                          placeholder=""
+                          value={item.selling_price === 0 || item.selling_price === "" ? "" : item.selling_price}
                           onChange={(e) => updateItem(index, "selling_price", parseNumberInput(e.target.value))}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right"
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">

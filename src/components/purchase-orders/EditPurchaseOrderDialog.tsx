@@ -22,8 +22,8 @@ interface PurchaseOrderItem {
   product_code: string;
   variant: string;
   quantity: number;
-  unit_price: number;
-  selling_price: number;
+  unit_price: number | string;
+  selling_price: number | string;
   total_price: number;
   notes: string;
   product_images: string[];
@@ -121,8 +121,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         product_code: "",
         variant: "",
         quantity: 1,
-        unit_price: 0,
-        selling_price: 0,
+        unit_price: "",
+        selling_price: "",
         total_price: 0,
         notes: "",
         product_images: [],
@@ -143,8 +143,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       product_code: "",
       variant: "",
       quantity: 1,
-      unit_price: 0,
-      selling_price: 0,
+      unit_price: "",
+      selling_price: "",
       total_price: 0,
       notes: "",
       product_images: [],
@@ -159,7 +159,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     if (field === 'quantity' || field === 'unit_price') {
       const qty = field === 'quantity' ? value : newItems[index].quantity;
       const price = field === 'unit_price' ? value : newItems[index].unit_price;
-      newItems[index].total_price = qty * price;
+      newItems[index].total_price = qty * Number(price || 0);
     }
     
     setItems(newItems);
@@ -171,8 +171,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       product_code: "",
       variant: "",
       quantity: 1,
-      unit_price: 0,
-      selling_price: 0,
+      unit_price: "",
+      selling_price: "",
       total_price: 0,
       notes: "",
       product_images: [],
@@ -254,8 +254,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           product_code: item.product_code || null,
           variant: item.variant || null,
           quantity: item.quantity,
-          unit_price: item.unit_price * 1000,
-          selling_price: item.selling_price * 1000,
+          unit_price: Number(item.unit_price || 0) * 1000,
+          selling_price: Number(item.selling_price || 0) * 1000,
           total_price: item.total_price * 1000,
           notes: item.notes || null,
           product_images: item.product_images.length > 0 ? item.product_images : null,
@@ -453,13 +453,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="p-2 text-left min-w-[150px]">Tên sản phẩm</th>
-                    <th className="p-2 text-left min-w-[100px]">Mã SP</th>
-                    <th className="p-2 text-left min-w-[100px]">Biến thể</th>
-                    <th className="p-2 text-left min-w-[80px]">SL</th>
-                    <th className="p-2 text-left min-w-[100px]">Đơn giá (VND)</th>
-                    <th className="p-2 text-left min-w-[100px]">Giá bán (VND)</th>
-                    <th className="p-2 text-left min-w-[100px]">Thành tiền (VND)</th>
+                    <th className="p-2 text-left w-[120px]">Tên sản phẩm</th>
+                    <th className="p-2 text-left w-[80px]">Mã SP</th>
+                    <th className="p-2 text-left w-[100px]">Biến thể</th>
+                    <th className="p-2 text-left w-[60px]">SL</th>
+                    <th className="p-2 text-left w-[90px]">Đơn giá (VND)</th>
+                    <th className="p-2 text-left w-[90px]">Giá bán (VND)</th>
+                    <th className="p-2 text-left w-[120px]">Thành tiền (VND)</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh SP</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh giá</th>
                     <th className="p-2 text-left min-w-[150px]">Ghi chú</th>
@@ -470,10 +470,12 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                   {items.map((item, index) => (
                     <tr key={index} className="border-t">
                       <td className="p-2">
-                        <Input
+                        <Textarea
                           value={item.product_name}
                           onChange={(e) => updateItem(index, 'product_name', e.target.value)}
                           placeholder="Tên sản phẩm"
+                          className="min-h-[60px] resize-none"
+                          rows={2}
                         />
                       </td>
                       <td className="p-2">
@@ -481,12 +483,15 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           value={item.product_code}
                           onChange={(e) => updateItem(index, 'product_code', e.target.value)}
                           placeholder="Mã"
+                          className="w-[80px] text-xs"
+                          maxLength={10}
                         />
                       </td>
                       <td className="p-2">
                         <VariantSelector
                           value={item.variant}
                           onChange={(value) => updateItem(index, 'variant', value)}
+                          className="w-[100px]"
                         />
                       </td>
                       <td className="p-2">
@@ -501,16 +506,20 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={item.unit_price}
+                          placeholder=""
+                          value={item.unit_price === 0 || item.unit_price === "" ? "" : item.unit_price}
                           onChange={(e) => updateItem(index, 'unit_price', parseNumberInput(e.target.value))}
+                          className="w-[90px] text-right text-sm"
                         />
                       </td>
                       <td className="p-2">
                         <Input
                           type="text"
                           inputMode="numeric"
-                          value={item.selling_price}
+                          placeholder=""
+                          value={item.selling_price === 0 || item.selling_price === "" ? "" : item.selling_price}
                           onChange={(e) => updateItem(index, 'selling_price', parseNumberInput(e.target.value))}
+                          className="w-[90px] text-right text-sm"
                         />
                       </td>
                       <td className="p-2">

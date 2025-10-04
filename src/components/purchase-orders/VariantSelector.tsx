@@ -9,9 +9,10 @@ import { COLORS, TEXT_SIZES, NUMBER_SIZES } from "@/lib/variant-attributes";
 interface VariantSelectorProps {
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }
 
-export function VariantSelector({ value, onChange }: VariantSelectorProps) {
+export function VariantSelector({ value, onChange, className }: VariantSelectorProps) {
   const [inputValue, setInputValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [open, setOpen] = useState(false);
@@ -64,7 +65,7 @@ export function VariantSelector({ value, onChange }: VariantSelectorProps) {
     filteredNumberSizes.length > 0;
 
   return (
-    <div className="relative">
+    <div className={className || "relative"}>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="relative">
