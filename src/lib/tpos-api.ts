@@ -61,13 +61,21 @@ export function generateTPOSExcel(items: TPOSProductItem[]): Blob {
   const excelData = items.map((item) => ({
     "Loại sản phẩm": TPOS_CONFIG.DEFAULT_PRODUCT_TYPE,
     "Mã sản phẩm": item.product_code?.toString() || undefined,
+    "Mã chốt đơn": undefined,
     "Tên sản phẩm": item.product_name?.toString() || undefined,
     "Giá bán": (item.selling_price || 0) * 1000,
     "Giá mua": (item.unit_price || 0) * 1000,
     "Đơn vị": TPOS_CONFIG.DEFAULT_UOM,
     "Nhóm sản phẩm": TPOS_CONFIG.DEFAULT_CATEGORY,
     "Mã vạch": item.product_code?.toString() || undefined,
+    "Khối lượng": undefined,
+    "Chiết khấu bán": undefined,
+    "Chiết khấu mua": undefined,
+    "Tồn kho": undefined,
+    "Giá vốn": undefined,
     "Ghi chú": item.variant || undefined,
+    "Cho phép bán ở công ty khác": "FALSE",
+    "Thuộc tính": undefined,
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(excelData);
