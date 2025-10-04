@@ -1,6 +1,5 @@
 import * as XLSX from "xlsx";
-import { TPOS_CONFIG, cleanBase64, randomDelay } from "./tpos-config";
-import { supabase } from "@/integrations/supabase/client";
+import { TPOS_CONFIG, getTPOSHeaders, cleanBase64, randomDelay } from "./tpos-config";
 import { 
   COLORS, 
   TEXT_SIZES, 
@@ -110,19 +109,6 @@ export function generateTPOSExcel(items: TPOSProductItem[]): Blob {
 }
 
 // =====================================================
-// TPOS PROXY HELPER
-// =====================================================
-
-async function callTPOSProxy(action: string, data: any): Promise<any> {
-  const { data: responseData, error } = await supabase.functions.invoke('tpos-proxy', {
-    body: { action, data }
-  });
-
-  if (error) throw error;
-  return responseData;
-}
-
-// =====================================================
 // TPOS API CALLS
 // =====================================================
 
@@ -138,12 +124,41 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<string> {
           throw new Error("Failed to convert Excel to base64");
         }
 
-        console.log("📤 [TPOS] Uploading Excel via proxy...");
+        const payload = {
+          do_inventory: false,
+          file: base64Excel,
+          version: TPOS_CONFIG.API_VERSION,
+        };
 
-        const response = await callTPOSProxy('uploadExcel', { excelBase64: base64Excel });
+        console.log("📤 [TPOS] Uploading Excel...", {
+          base64Length: base64Excel.length,
+          version: TPOS_CONFIG.API_VERSION
+        });
+
+        const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.ActionImportSimple`, {
+          method: "POST",
+          headers: getTPOSHeaders(),
+          body: JSON.stringify(payload),
+        });
+
+        console.log("Upload response status:", response.status);
+
+        const responseText = await response.text();
+        console.log("Upload response:", responseText);
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.status}\n${responseText}`);
+        }
+
+        let responseData;
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+          responseData = { message: responseText };
+        }
 
         console.log("✅ [TPOS] Excel uploaded successfully");
-        resolve(JSON.stringify(response));
+        resolve(responseText);
       } catch (error) {
         console.error("❌ uploadExcelToTPOS error:", error);
         reject(error);
@@ -161,11 +176,24 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<string> {
 
 export async function getLatestProducts(count: number): Promise<any[]> {
   try {
-    console.log(`📥 [TPOS] Fetching latest ${count} products via proxy...`);
+    console.log(`📥 [TPOS] Fetching latest ${count} products...`);
     
     await randomDelay(400, 900);
 
-    const data = await callTPOSProxy('getLatestProducts', { count });
+    const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2`, {
+      method: "GET",
+      headers: getTPOSHeaders(),
+    });
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      throw new Error(`Failed to fetch products: ${response.status} - ${errorText}`);
+    }
+
+    const data = await response.json();
     const items = (data.value || data).filter(
       (item: any) => item.CreatedByName === TPOS_CONFIG.CREATED_BY_NAME
     );
@@ -185,11 +213,23 @@ export async function getLatestProducts(count: number): Promise<any[]> {
 }
 
 export async function getProductDetail(productId: number): Promise<any> {
-  console.log(`🔎 [TPOS] Fetching product detail via proxy: ${productId}`);
+  console.log(`🔎 [TPOS] Fetching product detail: ${productId}`);
   
   await randomDelay(200, 600);
 
-  return callTPOSProxy('getProductDetail', { productId });
+  const expand = 'UOM,UOMCateg,Categ,UOMPO,POSCateg,Taxes,SupplierTaxes,Product_Teams,Images,UOMView,Distributor,Importer,Producer,OriginCountry,ProductVariants($expand=UOM,Categ,UOMPO,POSCateg,AttributeValues),AttributeLines,UOMLines($expand=UOM),ComboProducts,ProductSupplierInfos';
+
+  const response = await fetch(`${TPOS_CONFIG.API_BASE}(${productId})?$expand=${expand}`, {
+    method: "GET",
+    headers: getTPOSHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to fetch product detail: ${response.status} - ${errorText}`);
+  }
+
+  return response.json();
 }
 
 /**
@@ -201,22 +241,43 @@ export async function checkTPOSProductsExist(productIds: number[]): Promise<Map<
     return new Map();
   }
 
-  console.log(`🔍 [TPOS] Checking existence of ${productIds.length} products via proxy...`);
+  console.log(`🔍 [TPOS] Checking existence of ${productIds.length} products...`);
   
   try {
     await randomDelay(300, 700);
     
-    const response = await callTPOSProxy('checkProductsExist', { productIds });
-    const resultsObj = response.results;
+    // Build filter to check multiple IDs at once
+    const idFilter = productIds.map(id => `Id eq ${id}`).join(' or ');
+    const filterQuery = encodeURIComponent(idFilter);
     
-    // Convert object to Map
+    // Fetch only ID and Name to minimize payload
+    const response = await fetch(
+      `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=${filterQuery}&$select=Id,Name`,
+      {
+        method: "GET",
+        headers: getTPOSHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`❌ [TPOS] Check failed: ${response.status}`);
+      // On error, assume all exist (fail-safe)
+      const result = new Map<number, boolean>();
+      productIds.forEach(id => result.set(id, true));
+      return result;
+    }
+
+    const data = await response.json();
+    const existingIds = new Set((data.value || data).map((p: any) => p.Id));
+    
+    // Create map of all requested IDs
     const result = new Map<number, boolean>();
-    Object.entries(resultsObj).forEach(([id, exists]) => {
-      result.set(Number(id), exists as boolean);
+    productIds.forEach(id => {
+      result.set(id, existingIds.has(id));
     });
 
-    const deletedCount = productIds.filter(id => !result.get(id)).length;
-    console.log(`✅ [TPOS] Found ${productIds.length - deletedCount}/${productIds.length} products (${deletedCount} deleted)`);
+    const deletedCount = productIds.length - existingIds.size;
+    console.log(`✅ [TPOS] Found ${existingIds.size}/${productIds.length} products (${deletedCount} deleted)`);
     
     return result;
   } catch (error) {
@@ -556,7 +617,7 @@ export async function updateProductWithImage(
   base64Image: string,
   detectedAttributes?: DetectedAttributes
 ): Promise<any> {
-  console.log(`🖼️ [TPOS] Updating product ${productDetail.Id} with image via proxy...`);
+  console.log(`🖼️ [TPOS] Updating product ${productDetail.Id} with image...`);
   
   await randomDelay(300, 700);
 
@@ -574,13 +635,20 @@ export async function updateProductWithImage(
     }
   }
 
-  const response = await callTPOSProxy('updateProduct', { 
-    productId: productDetail.Id,
-    updateData: payload 
+  const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`, {
+    method: "POST",
+    headers: getTPOSHeaders(),
+    body: JSON.stringify(payload),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("❌ TPOS update failed:", errorText);
+    throw new Error(`Failed to update product: ${response.status} - ${errorText}`);
+  }
+
   console.log(`✅ [TPOS] Product ${productDetail.Id} updated`);
-  return response;
+  return response.json();
 }
 
 // =====================================================
