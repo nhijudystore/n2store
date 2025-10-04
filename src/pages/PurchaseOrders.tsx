@@ -522,10 +522,28 @@ const PurchaseOrders = () => {
       return;
     }
 
-    // Fetch existing product codes from warehouse
+    // Get all unique product codes from allItems (normalize with trim)
+    const productCodesToCheck = [...new Set(
+      allItems
+        .map(item => item.product_code?.trim())
+        .filter(Boolean)
+    )];
+
+    if (productCodesToCheck.length === 0) {
+      toast({
+        title: "Không có mã sản phẩm",
+        description: "Các sản phẩm không có mã để kiểm tra",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Query database to find which product codes already exist
+    // Use .in() with normalized codes - only check relevant codes
     const { data: existingProducts, error } = await supabase
       .from("products")
-      .select("product_code");
+      .select("product_code")
+      .in("product_code", productCodesToCheck);
 
     if (error) {
       console.error("Error fetching existing products:", error);
@@ -537,15 +555,17 @@ const PurchaseOrders = () => {
       return;
     }
 
-    // Create a Set of existing product codes for fast lookup
+    // Create Set of existing codes (normalized: trim for accurate comparison)
     const existingProductCodes = new Set(
-      existingProducts?.map(p => p.product_code).filter(Boolean) || []
+      existingProducts?.map(p => p.product_code?.trim()).filter(Boolean) || []
     );
 
-    // Filter to only include products not yet in warehouse
-    const itemsNotInWarehouse = allItems.filter(
-      item => item.product_code && !existingProductCodes.has(item.product_code)
-    );
+    // Filter to only include products NOT in warehouse
+    const itemsNotInWarehouse = allItems.filter(item => {
+      if (!item.product_code) return false;
+      const normalizedCode = item.product_code.trim();
+      return !existingProductCodes.has(normalizedCode);
+    });
 
     const alreadyInWarehouseCount = allItems.length - itemsNotInWarehouse.length;
 
