@@ -110,6 +110,32 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           .insert(orderItems);
 
         if (itemsError) throw itemsError;
+
+        // Upsert products to inventory
+        for (const item of items.filter(item => item.product_name.trim() && item.product_code.trim())) {
+          const { error: productError } = await supabase
+            .from("products")
+            .upsert({
+              product_code: item.product_code,
+              product_name: item.product_name,
+              variant: item.variant || null,
+              purchase_price: item.unit_price * 1000,
+              selling_price: item.selling_price * 1000,
+              supplier_name: formData.supplier_name,
+              product_images: item.product_images.length > 0 ? item.product_images : null,
+              price_images: item.price_images.length > 0 ? item.price_images : null,
+              stock_quantity: 0, // Initialize with 0, will be updated on goods receiving
+              unit: 'Cái'
+            }, {
+              onConflict: 'product_code',
+              ignoreDuplicates: false
+            });
+
+          if (productError) {
+            console.error('Error upserting product:', productError);
+            // Don't throw error, just log it - we don't want to fail the whole order
+          }
+        }
       }
 
       return order;
@@ -118,6 +144,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       toast({ title: "Tạo đơn đặt hàng thành công!" });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["products-select"] });
       onOpenChange(false);
       resetForm();
     },
