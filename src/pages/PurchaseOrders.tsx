@@ -489,14 +489,14 @@ const PurchaseOrders = () => {
     }
   };
 
-  const handleExportToTPOS = () => {
+  const handleExportToTPOS = async () => {
     // Use selected orders if any, otherwise use filtered orders
     const ordersToExport = selectedOrders.length > 0 
       ? orders?.filter(order => selectedOrders.includes(order.id)) || []
       : filteredOrders;
 
     // Flatten all items from orders to export
-    const items: TPOSProductItem[] = ordersToExport.flatMap(order => 
+    const allItems: TPOSProductItem[] = ordersToExport.flatMap(order => 
       (order.items || []).map(item => ({
         id: item.id || crypto.randomUUID(),
         product_code: item.product_code,
@@ -513,7 +513,7 @@ const PurchaseOrders = () => {
       }))
     );
 
-    if (items.length === 0) {
+    if (allItems.length === 0) {
       toast({
         title: "Không có dữ liệu",
         description: "Không có sản phẩm nào để xuất",
@@ -522,7 +522,50 @@ const PurchaseOrders = () => {
       return;
     }
 
-    setTposItems(items);
+    // Fetch existing product codes from warehouse
+    const { data: existingProducts, error } = await supabase
+      .from("products")
+      .select("product_code");
+
+    if (error) {
+      console.error("Error fetching existing products:", error);
+      toast({
+        title: "Lỗi",
+        description: "Không thể kiểm tra sản phẩm trong kho",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Create a Set of existing product codes for fast lookup
+    const existingProductCodes = new Set(
+      existingProducts?.map(p => p.product_code).filter(Boolean) || []
+    );
+
+    // Filter to only include products not yet in warehouse
+    const itemsNotInWarehouse = allItems.filter(
+      item => item.product_code && !existingProductCodes.has(item.product_code)
+    );
+
+    const alreadyInWarehouseCount = allItems.length - itemsNotInWarehouse.length;
+
+    if (itemsNotInWarehouse.length === 0) {
+      toast({
+        title: "Không có sản phẩm mới",
+        description: "Tất cả sản phẩm đã có trong kho",
+      });
+      return;
+    }
+
+    // Show info if some products were filtered out
+    if (alreadyInWarehouseCount > 0) {
+      toast({
+        title: "Đã lọc sản phẩm",
+        description: `${alreadyInWarehouseCount} sản phẩm đã có trong kho. Hiển thị ${itemsNotInWarehouse.length} sản phẩm mới.`,
+      });
+    }
+
+    setTposItems(itemsNotInWarehouse);
     setIsTPOSDialogOpen(true);
   };
 
