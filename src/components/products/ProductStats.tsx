@@ -2,52 +2,41 @@ import { Package, DollarSign, AlertTriangle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { formatVND } from "@/lib/currency-utils";
 
-interface Product {
-  stock_quantity: number;
-  selling_price: number;
-  purchase_price: number;
-}
-
 interface ProductStatsProps {
-  products: Product[];
+  stats: {
+    total_products: number;
+    total_inventory_value: number;
+    out_of_stock_count: number;
+    negative_stock_count: number;
+  };
 }
 
-export function ProductStats({ products }: ProductStatsProps) {
-  const totalProducts = products.length;
-  
-  const totalInventoryValue = products.reduce(
-    (sum, p) => sum + (p.stock_quantity * (p.purchase_price || 0)),
-    0
-  );
-  
-  const outOfStockCount = products.filter(p => p.stock_quantity <= 0).length;
-  const negativeStockCount = products.filter(p => p.stock_quantity < 0).length;
-
+export function ProductStats({ stats: productStats }: ProductStatsProps) {
   const stats = [
     {
       title: "Tổng sản phẩm",
-      value: totalProducts.toLocaleString("vi-VN"),
+      value: productStats.total_products.toLocaleString("vi-VN"),
       icon: Package,
       bgColor: "bg-blue-500/10",
       iconColor: "text-blue-500",
     },
     {
       title: "Giá trị tồn kho",
-      value: formatVND(totalInventoryValue),
+      value: formatVND(productStats.total_inventory_value),
       icon: DollarSign,
       bgColor: "bg-green-500/10",
       iconColor: "text-green-500",
     },
     {
       title: "Hết hàng",
-      value: outOfStockCount.toLocaleString("vi-VN"),
+      value: productStats.out_of_stock_count.toLocaleString("vi-VN"),
       icon: AlertTriangle,
       bgColor: "bg-orange-500/10",
       iconColor: "text-orange-500",
     },
     {
       title: "Tồn âm (cần check)",
-      value: negativeStockCount.toLocaleString("vi-VN"),
+      value: productStats.negative_stock_count.toLocaleString("vi-VN"),
       icon: AlertTriangle,
       bgColor: "bg-red-500/10",
       iconColor: "text-red-500",

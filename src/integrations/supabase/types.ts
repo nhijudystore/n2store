@@ -602,6 +602,10 @@ export type Database = {
         Args: { session_id: string; start_date: string }
         Returns: undefined
       }
+      get_product_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never

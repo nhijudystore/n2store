@@ -61,16 +61,18 @@ export default function Products() {
     staleTime: 60000,
   });
 
-  // Query for ALL products for stats (Option B)
-  const { data: allProducts = [] } = useQuery({
-    queryKey: ["products-all-for-stats"],
+  // Query for product stats using RPC function
+  const { data: productStats } = useQuery({
+    queryKey: ["products-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .range(0, 9999);
+      const { data, error } = await supabase.rpc("get_product_stats");
       if (error) throw error;
-      return data;
+      return data as {
+        total_products: number;
+        total_inventory_value: number;
+        out_of_stock_count: number;
+        negative_stock_count: number;
+      };
     },
     staleTime: 60000,
   });
@@ -92,7 +94,7 @@ export default function Products() {
         </div>
 
         {/* Stats - Always show for entire database */}
-        {!isMobile && <ProductStats products={allProducts} />}
+        {!isMobile && productStats && <ProductStats stats={productStats} />}
 
         {/* Search & Actions */}
         <Card className="p-4 space-y-3">
