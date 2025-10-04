@@ -110,14 +110,41 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     );
   }, [debouncedSearchQuery, normalizedProducts]);
 
-  // Sort only the filtered results
-  const sortedProducts = useMemo(() => 
-    sortProductsByNumber(searchFiltered),
-  [searchFiltered]);
+  // Sort products - prioritize exact matches when searching
+  const sortedProducts = useMemo(() => {
+    if (!debouncedSearchQuery) {
+      // No search - sort by number descending
+      return sortProductsByNumber(searchFiltered);
+    }
+    
+    // When searching - prioritize exact matches
+    const normalizedSearch = convertVietnameseToUpperCase(debouncedSearchQuery);
+    return [...searchFiltered].sort((a, b) => {
+      // Check exact match with product code
+      const aExactCode = a._normalized.code === normalizedSearch;
+      const bExactCode = b._normalized.code === normalizedSearch;
+      if (aExactCode && !bExactCode) return -1;
+      if (!aExactCode && bExactCode) return 1;
+      
+      // Check if search starts with the code
+      const aStartsWithCode = a._normalized.code.startsWith(normalizedSearch);
+      const bStartsWithCode = b._normalized.code.startsWith(normalizedSearch);
+      if (aStartsWithCode && !bStartsWithCode) return -1;
+      if (!aStartsWithCode && bStartsWithCode) return 1;
+      
+      // Then sort by number descending as usual
+      const { number: aNum } = extractCodeParts(a.product_code);
+      const { number: bNum } = extractCodeParts(b.product_code);
+      if (bNum !== aNum) return bNum - aNum;
+      return a.product_name.localeCompare(b.product_name);
+    });
+  }, [debouncedSearchQuery, searchFiltered]);
 
-  // Limit displayed results
-  const displayedProducts = sortedProducts.slice(0, MAX_DISPLAY_RESULTS);
-  const hasMoreResults = sortedProducts.length > MAX_DISPLAY_RESULTS;
+  // When searching, show ALL results. When not searching, limit to MAX_DISPLAY_RESULTS
+  const displayedProducts = debouncedSearchQuery 
+    ? sortedProducts 
+    : sortedProducts.slice(0, MAX_DISPLAY_RESULTS);
+  const hasMoreResults = !debouncedSearchQuery && sortedProducts.length > MAX_DISPLAY_RESULTS;
   const hiddenCount = sortedProducts.length - MAX_DISPLAY_RESULTS;
 
   const handleSelect = (product: Product) => {
