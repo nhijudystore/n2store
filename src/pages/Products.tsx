@@ -20,7 +20,7 @@ export default function Products() {
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const { data: products = [], isLoading, refetch } = useQuery({
-    queryKey: ["products"],
+    queryKey: ["products", "v2"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
@@ -29,10 +29,12 @@ export default function Products() {
         .range(0, 9999);
 
       if (error) throw error;
+      console.log(`✅ Loaded ${data?.length || 0} products from database`);
       return data;
     },
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: 'always',
   });
 
   const { data: categories = [] } = useQuery({
@@ -63,6 +65,12 @@ export default function Products() {
 
     return matchesSearch && matchesCategory;
   });
+
+  // Debug logs
+  console.log(`🔍 Total products loaded: ${products.length}`);
+  console.log(`🔍 Filtered products: ${filteredProducts.length}`);
+  console.log(`🔍 Search query: "${searchQuery}"`);
+  console.log(`🔍 Category filter: "${categoryFilter}"`);
 
   return (
     <div className="min-h-screen bg-background">
