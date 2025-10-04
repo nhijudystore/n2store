@@ -91,6 +91,10 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<void> {
       try {
         const base64Excel = cleanBase64(reader.result as string);
         
+        if (!base64Excel) {
+          throw new Error("Failed to convert Excel to base64");
+        }
+
         const payload = {
           ActionName: "ActionImportSimple",
           ProductTemplate: { Id: 0 },
@@ -98,41 +102,94 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<void> {
           FileName: `TPOS_Import_${Date.now()}.xlsx`,
         };
 
+        console.log("Uploading Excel to TPOS...", {
+          fileName: payload.FileName,
+          base64Length: base64Excel.length
+        });
+
         const response = await fetch(TPOS_CONFIG.API_BASE, {
           method: "POST",
           headers: getTPOSHeaders(),
           body: JSON.stringify(payload),
         });
 
+        console.log("Upload response status:", response.status);
+
         if (!response.ok) {
-          throw new Error(`Upload failed: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error("Upload error response:", errorText);
+          throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
         }
+
+        const responseData = await response.json();
+        console.log("Upload response data:", responseData);
 
         resolve();
       } catch (error) {
+        console.error("uploadExcelToTPOS error:", error);
         reject(error);
       }
     };
 
-    reader.onerror = reject;
+    reader.onerror = (error) => {
+      console.error("FileReader error:", error);
+      reject(error);
+    };
+    
     reader.readAsDataURL(excelBlob);
   });
 }
 
 export async function getLatestProducts(limit = 100): Promise<any[]> {
-  const url = `${TPOS_CONFIG.API_BASE}?$orderby=CreatedDate desc&$top=${limit}&$filter=CreatedBy eq '${TPOS_CONFIG.CREATED_BY_NAME}'`;
+  try {
+    // Try with filter first
+    let url = `${TPOS_CONFIG.API_BASE}?$orderby=CreatedDate desc&$top=${limit}`;
+    
+    // Add filter for created by user (optional - may not work on all TPOS versions)
+    if (TPOS_CONFIG.CREATED_BY_NAME) {
+      url += `&$filter=CreatedBy eq '${TPOS_CONFIG.CREATED_BY_NAME}'`;
+    }
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: getTPOSHeaders(),
-  });
+    console.log("Fetching products from:", url);
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch products: ${response.statusText}`);
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getTPOSHeaders(),
+    });
+
+    console.log("Response status:", response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      
+      // If filter fails, try without filter
+      if (response.status === 400 || response.status === 500) {
+        console.log("Retrying without filter...");
+        const simpleUrl = `${TPOS_CONFIG.API_BASE}?$orderby=CreatedDate desc&$top=${limit}`;
+        const retryResponse = await fetch(simpleUrl, {
+          method: "GET",
+          headers: getTPOSHeaders(),
+        });
+        
+        if (!retryResponse.ok) {
+          throw new Error(`Failed to fetch products: ${retryResponse.statusText}`);
+        }
+        
+        const data = await retryResponse.json();
+        return data.value || [];
+      }
+      
+      throw new Error(`Failed to fetch products: ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    console.log("Fetched products count:", data.value?.length || 0);
+    return data.value || [];
+  } catch (error) {
+    console.error("getLatestProducts error:", error);
+    throw error;
   }
-
-  const data = await response.json();
-  return data.value || [];
 }
 
 export async function getProductDetail(productId: number): Promise<any> {
@@ -198,21 +255,35 @@ export async function uploadToTPOS(
     // Step 1: Generate Excel
     onProgress?.(1, 3, "Đang tạo file Excel...");
     const excelBlob = generateTPOSExcel(items);
+    console.log("Excel generated, size:", excelBlob.size);
 
     // Step 2: Upload Excel to TPOS
     onProgress?.(2, 3, "Đang upload Excel lên TPOS...");
     await uploadExcelToTPOS(excelBlob);
-    await randomDelay(2000, 3000); // Wait for TPOS to process
+    console.log("Excel uploaded successfully");
+    
+    // Wait longer for TPOS to process
+    onProgress?.(2, 3, "Đợi TPOS xử lý file...");
+    await randomDelay(3000, 5000); // Increase wait time to 3-5 seconds
 
     // Step 3: Get created products and update with images
-    onProgress?.(3, 3, "Đang lấy danh sách sản phẩm và upload hình ảnh...");
-    const latestProducts = await getLatestProducts(items.length);
+    onProgress?.(3, 3, "Đang lấy danh sách sản phẩm...");
+    let latestProducts = await getLatestProducts(items.length * 2); // Get more products to ensure we catch all
+    console.log("Fetched products:", latestProducts.length);
+
+    // Filter by created by name if not done by API
+    if (TPOS_CONFIG.CREATED_BY_NAME) {
+      latestProducts = latestProducts.filter(
+        (p) => p.CreatedBy === TPOS_CONFIG.CREATED_BY_NAME
+      );
+      console.log("Filtered products by CreatedBy:", latestProducts.length);
+    }
 
     // Match products by name
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const matchedProduct = latestProducts.find(
-        (p) => p.Name === item.product_name
+        (p) => p.Name?.trim().toLowerCase() === item.product_name?.trim().toLowerCase()
       );
 
       if (matchedProduct) {
@@ -221,10 +292,11 @@ export async function uploadToTPOS(
           const imageUrl = item.product_images?.[0];
           
           if (imageUrl) {
+            onProgress?.(3, 3, `Đang upload ảnh cho ${item.product_name}...`);
             const base64Image = await imageUrlToBase64(imageUrl);
             if (base64Image) {
               await updateProductWithImage(matchedProduct.Id, base64Image);
-              await randomDelay(300, 800);
+              await randomDelay(500, 1000); // Longer delay between image uploads
             }
           }
 
@@ -233,25 +305,32 @@ export async function uploadToTPOS(
             tposId: matchedProduct.Id,
           });
           result.successCount++;
+          console.log(`✓ Matched: ${item.product_name} -> TPOS ID: ${matchedProduct.Id}`);
         } catch (error) {
-          result.errors.push(`${item.product_name}: ${error}`);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          result.errors.push(`${item.product_name}: ${errorMsg}`);
           result.failedCount++;
+          console.error(`✗ Error with ${item.product_name}:`, error);
         }
       } else {
         result.errors.push(`Không tìm thấy sản phẩm: ${item.product_name}`);
         result.failedCount++;
+        console.warn(`✗ Not found: ${item.product_name}`);
       }
 
       onProgress?.(
         3,
         3,
-        `Đang xử lý sản phẩm ${i + 1}/${items.length}...`
+        `Đã xử lý ${i + 1}/${items.length} sản phẩm...`
       );
     }
 
     result.success = true;
+    console.log("Upload completed:", result);
   } catch (error) {
-    result.errors.push(`Upload failed: ${error}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    result.errors.push(`Upload failed: ${errorMsg}`);
+    console.error("Upload error:", error);
   }
 
   return result;
