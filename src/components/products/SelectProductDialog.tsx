@@ -65,12 +65,12 @@ const sortProductsByNumber = (products: Product[]): Product[] => {
   });
 };
 
-const MAX_DISPLAY_RESULTS = 200;
+const MAX_DISPLAY_RESULTS = 30;
 
 export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProductDialogProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const debouncedSearchQuery = useDebounce(searchQuery, 150);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products-select"],
