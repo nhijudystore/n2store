@@ -129,7 +129,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               stock_quantity: 0, // Initialize with 0, will be updated on goods receiving
               unit: 'Cái'
             }, {
-              onConflict: 'product_code,variant',
+              onConflict: 'product_code',
               ignoreDuplicates: false
             });
 
