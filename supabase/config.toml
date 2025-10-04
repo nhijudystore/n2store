@@ -1,1 +1,4 @@
 project_id = "xneoovjmwhzzphwlwojc"
+
+[functions.tpos-proxy]
+verify_jwt = true
