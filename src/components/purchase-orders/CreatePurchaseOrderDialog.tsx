@@ -240,45 +240,18 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const handleProductNameBlur = async (index: number, productName: string) => {
     if (!productName.trim()) return;
     
-    const updates: string[] = [];
-    
     // Generate product code if empty
     if (!items[index].product_code.trim()) {
       try {
         const code = await generateProductCode(productName);
         updateItem(index, "product_code", code);
-        updates.push(`Mã SP: ${code}`);
+        toast({
+          title: "Đã tạo mã SP",
+          description: `Mã SP: ${code}`,
+        });
       } catch (error) {
         console.error("Error generating product code:", error);
       }
-    }
-    
-    // Detect variant from product name
-    const detected = detectAttributesFromText(productName);
-    const variantParts: string[] = [];
-    
-    if (detected.sizeText && detected.sizeText.length > 0) {
-      variantParts.push(...detected.sizeText);
-    }
-    if (detected.color && detected.color.length > 0) {
-      variantParts.push(...detected.color);
-    }
-    if (detected.sizeNumber && detected.sizeNumber.length > 0) {
-      variantParts.push(...detected.sizeNumber);
-    }
-    
-    if (variantParts.length > 0 && !items[index].variant.trim()) {
-      const detectedVariant = variantParts.join(" - ");
-      updateItem(index, "variant", detectedVariant);
-      updates.push(`Biến thể: ${detectedVariant}`);
-    }
-    
-    // Show combined toast notification
-    if (updates.length > 0) {
-      toast({
-        title: "Tự động điền thông tin",
-        description: updates.join(" | "),
-      });
     }
   };
 
