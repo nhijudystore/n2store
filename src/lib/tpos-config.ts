@@ -16,6 +16,9 @@ export const TPOS_CONFIG = {
   DEFAULT_CATEGORY: "QUẦN ÁO",
   DEFAULT_UOM: "CÁI",
   DEFAULT_PRODUCT_TYPE: "Có thể lưu trữ",
+  
+  // API version
+  API_VERSION: "2701",
 } as const;
 
 // =====================================================
