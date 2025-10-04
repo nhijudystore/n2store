@@ -264,7 +264,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           <DialogTitle>Tạo đơn đặt hàng mới</DialogTitle>
           <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 border border-destructive/30 hover:border-destructive/50">
                 <RotateCcw className="w-4 h-4" />
                 Clear
               </Button>

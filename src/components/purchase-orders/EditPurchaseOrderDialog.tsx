@@ -431,7 +431,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           <DialogTitle>Chỉnh sửa đơn hàng #{order?.invoice_number || order?.id.slice(0, 8)}</DialogTitle>
           <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 border border-destructive/30 hover:border-destructive/50">
                 <RotateCcw className="w-4 h-4" />
                 Clear
               </Button>
