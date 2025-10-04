@@ -146,6 +146,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         setCurrentStep(message);
       });
 
+      // Log TPOS response
+      console.log("TPOS Upload Result:", JSON.stringify(result, null, 2));
+
       // Save TPOS IDs to Supabase
       if (result.productIds.length > 0) {
         setCurrentStep("Đang lưu TPOS IDs vào database...");
@@ -161,16 +164,34 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Thông báo kết quả chi tiết
       const successRate = ((result.successCount / result.totalProducts) * 100).toFixed(1);
       
+      // Show TPOS response in notification
+      const tposResponseInfo = result.productIds.length > 0 
+        ? `\n🔗 TPOS Product IDs: ${result.productIds.map(p => p.tposId).join(', ')}`
+        : '';
+      
       toast({
         title: result.failedCount === 0 ? "🎉 Upload thành công!" : "⚠️ Upload hoàn tất",
         description: (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-96 overflow-y-auto">
             <div className="font-semibold">
               Tỷ lệ thành công: {successRate}%
             </div>
             <div className="space-y-1 text-sm">
               <p>✅ Thành công: {result.successCount}/{result.totalProducts} sản phẩm</p>
               <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
+              {result.productIds.length > 0 && (
+                <div className="mt-2 p-2 bg-muted rounded text-xs">
+                  <p className="font-medium mb-1">TPOS Product IDs:</p>
+                  {result.productIds.slice(0, 10).map((p, i) => (
+                    <p key={i}>• ID {p.tposId}</p>
+                  ))}
+                  {result.productIds.length > 10 && (
+                    <p className="text-muted-foreground italic">
+                      ... và {result.productIds.length - 10} IDs khác
+                    </p>
+                  )}
+                </div>
+              )}
               {result.failedCount > 0 && (
                 <p className="text-destructive font-medium">
                   ❌ Thất bại: {result.failedCount} sản phẩm
@@ -182,37 +203,42 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                     Xem chi tiết lỗi
                   </summary>
                   <div className="mt-2 space-y-1 text-xs max-h-32 overflow-y-auto">
-                    {result.errors.slice(0, 5).map((error, i) => (
+                    {result.errors.map((error, i) => (
                       <p key={i} className="text-destructive">• {error}</p>
                     ))}
-                    {result.errors.length > 5 && (
-                      <p className="text-muted-foreground italic">
-                        ... và {result.errors.length - 5} lỗi khác
-                      </p>
-                    )}
                   </div>
                 </details>
               )}
             </div>
           </div>
         ),
-        duration: 8000, // Hiển thị lâu hơn để user đọc kết quả
+        duration: 10000, // Hiển thị lâu hơn để user đọc kết quả
       });
 
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Không thể upload lên TPOS";
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("Upload error:", errorMessage);
+      
       toast({
         title: "❌ Lỗi upload",
         description: (
-          <div className="space-y-1">
-            <p>{errorMessage}</p>
-            <p className="text-sm text-muted-foreground">Vui lòng thử lại hoặc kiểm tra kết nối mạng</p>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            <p className="font-medium">Chi tiết lỗi từ TPOS:</p>
+            <pre className="text-xs bg-destructive/10 p-2 rounded overflow-x-auto whitespace-pre-wrap">
+              {errorMessage}
+            </pre>
+            <p className="text-sm text-muted-foreground">
+              💡 Kiểm tra:
+              <br />• Kết nối mạng
+              <br />• Token TPOS còn hiệu lực
+              <br />• Format dữ liệu Excel
+            </p>
           </div>
         ),
         variant: "destructive",
-        duration: 6000,
+        duration: 12000,
       });
     } finally {
       setIsUploading(false);

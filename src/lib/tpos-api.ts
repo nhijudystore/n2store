@@ -114,15 +114,25 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<void> {
         });
 
         console.log("Upload response status:", response.status);
+        console.log("Upload response headers:", Object.fromEntries(response.headers.entries()));
+
+        // Get response text first
+        const responseText = await response.text();
+        console.log("Upload response text:", responseText);
 
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error("Upload error response:", errorText);
-          throw new Error(`Upload failed: ${response.status} ${response.statusText} - ${errorText}`);
+          throw new Error(`Upload failed: ${response.status} ${response.statusText}\nResponse: ${responseText}`);
         }
 
-        const responseData = await response.json();
-        console.log("Upload response data:", responseData);
+        // Try to parse as JSON, but don't fail if it's not JSON
+        let responseData;
+        try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+          console.log("Upload response data:", responseData);
+        } catch (e) {
+          console.log("Response is not JSON, treating as success:", responseText);
+          responseData = { message: responseText };
+        }
 
         resolve();
       } catch (error) {
