@@ -38,13 +38,11 @@ export function detectProductCategory(productName: string): 'N' | 'P' {
  */
 export async function getNextProductCode(category: 'N' | 'P'): Promise<string> {
   try {
-    // Query for the highest code in this category
+    // Query for ALL codes in this category
     const { data, error } = await supabase
       .from("products")
       .select("product_code")
-      .like("product_code", `${category}%`)
-      .order("product_code", { ascending: false })
-      .limit(1);
+      .like("product_code", `${category}%`);
     
     if (error) throw error;
     
@@ -53,18 +51,19 @@ export async function getNextProductCode(category: 'N' | 'P'): Promise<string> {
       return `${category}1`;
     }
     
-    // Extract number from the code
-    const lastCode = data[0].product_code;
-    const numberMatch = lastCode.match(/\d+$/);
+    // Parse all numbers and find the maximum
+    let maxNumber = 0;
+    data.forEach(item => {
+      const numberMatch = item.product_code.match(/\d+$/);
+      if (numberMatch) {
+        const num = parseInt(numberMatch[0], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    });
     
-    if (!numberMatch) {
-      // Invalid format, start with 1
-      return `${category}1`;
-    }
-    
-    const lastNumber = parseInt(numberMatch[0], 10);
-    const nextNumber = lastNumber + 1;
-    
+    const nextNumber = maxNumber + 1;
     return `${category}${nextNumber}`;
   } catch (error) {
     console.error("Error getting next product code:", error);
@@ -136,12 +135,11 @@ export async function getMaxNumberFromDatabase(
   category: 'N' | 'P'
 ): Promise<number> {
   try {
+    // Query for ALL codes in this category
     const { data, error } = await supabase
       .from("products")
       .select("product_code")
-      .like("product_code", `${category}%`)
-      .order("product_code", { ascending: false })
-      .limit(1);
+      .like("product_code", `${category}%`);
     
     if (error) throw error;
     
@@ -149,10 +147,19 @@ export async function getMaxNumberFromDatabase(
       return 0;
     }
     
-    const match = data[0].product_code.match(/\d+$/);
-    if (!match) return 0;
+    // Parse all numbers and find the maximum
+    let maxNumber = 0;
+    data.forEach(item => {
+      const match = item.product_code.match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    });
     
-    return parseInt(match[0], 10);
+    return maxNumber;
   } catch (error) {
     console.error("Error getting max number from database:", error);
     return 0;
