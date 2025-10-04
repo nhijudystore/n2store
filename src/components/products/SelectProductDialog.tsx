@@ -73,7 +73,7 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
   const debouncedSearchQuery = useDebounce(searchQuery, 150);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products-select"],
+    queryKey: ["products-select", "v2"], // Force cache refresh
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
@@ -81,6 +81,8 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
         .order("product_code", { ascending: false });
 
       if (error) throw error;
+      console.log('📦 Products loaded:', data.length);
+      console.log('🔍 LAO products:', data.filter(p => p.product_code.includes('LAO')).length);
       return data as Product[];
     },
     enabled: open,
@@ -98,16 +100,24 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     })), 
   [products]);
 
-  // Filter products using pre-normalized data
+  // Filter products using simple lowercase search (consistent with Products page)
   const searchFiltered = useMemo(() => {
     if (!debouncedSearchQuery) return normalizedProducts;
     
-    const normalizedSearch = convertVietnameseToUpperCase(debouncedSearchQuery);
-    return normalizedProducts.filter((product) => 
-      product._normalized.code.includes(normalizedSearch) ||
-      product._normalized.name.includes(normalizedSearch) ||
-      product._normalized.variant.includes(normalizedSearch)
+    const searchLower = debouncedSearchQuery.toLowerCase();
+    const filtered = normalizedProducts.filter((product) => 
+      product.product_code.toLowerCase().includes(searchLower) ||
+      product.product_name.toLowerCase().includes(searchLower) ||
+      (product.variant || "").toLowerCase().includes(searchLower)
     );
+    
+    console.log('🔍 Search query:', debouncedSearchQuery);
+    console.log('📊 Filtered results:', filtered.length);
+    if (filtered.length > 0) {
+      console.log('🎯 Sample results:', filtered.slice(0, 3).map(p => ({ code: p.product_code, name: p.product_name })));
+    }
+    
+    return filtered;
   }, [debouncedSearchQuery, normalizedProducts]);
 
   // Sort products - prioritize exact matches when searching
