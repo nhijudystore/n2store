@@ -289,10 +289,12 @@ export function detectAttributesFromText(text: string): DetectedAttributes {
   const detected: DetectedAttributes = {};
   const textLower = text.toLowerCase();
 
-  // Detect size chữ
+  // Detect size chữ - tránh match chữ cái đơn trong từ tiếng Việt
   const foundSizeText: string[] = [];
   TEXT_SIZES.forEach(size => {
-    const pattern = new RegExp(`\\b${size.toLowerCase()}\\b`, 'gi');
+    // Chỉ match nếu trước và sau là khoảng trắng, dấu, hoặc đầu/cuối chuỗi
+    // Không match nếu là phần của từ dài hơn
+    const pattern = new RegExp(`(?:^|[\\s,./+\\-()\\[\\]{}])${size.toLowerCase()}(?=[\\s,./+\\-()\\[\\]{}]|$)`, 'gi');
     if (pattern.test(textLower) && !foundSizeText.includes(size)) {
       foundSizeText.push(size);
     }
