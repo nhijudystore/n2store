@@ -453,13 +453,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               <table className="w-full">
                 <thead className="bg-muted">
                   <tr>
-                    <th className="p-2 text-left w-[120px]">Tên sản phẩm</th>
-                    <th className="p-2 text-left w-[80px]">Mã SP</th>
-                    <th className="p-2 text-left w-[100px]">Biến thể</th>
+                    <th className="p-2 text-left w-[260px]">Tên sản phẩm</th>
+                    <th className="p-2 text-left w-[70px]">Mã SP</th>
+                    <th className="p-2 text-left w-[150px]">Biến thể</th>
                     <th className="p-2 text-left w-[60px]">SL</th>
                     <th className="p-2 text-left w-[90px]">Đơn giá (VND)</th>
                     <th className="p-2 text-left w-[90px]">Giá bán (VND)</th>
-                    <th className="p-2 text-left w-[120px]">Thành tiền (VND)</th>
+                    <th className="p-2 text-left w-[130px]">Thành tiền (VND)</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh SP</th>
                     <th className="p-2 text-left min-w-[150px]">Ảnh giá</th>
                     <th className="p-2 text-left min-w-[150px]">Ghi chú</th>
@@ -483,7 +483,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           value={item.product_code}
                           onChange={(e) => updateItem(index, 'product_code', e.target.value)}
                           placeholder="Mã"
-                          className="w-[80px] text-xs"
+                          className="w-[70px] text-xs"
                           maxLength={10}
                         />
                       </td>
@@ -491,7 +491,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         <VariantSelector
                           value={item.variant}
                           onChange={(value) => updateItem(index, 'variant', value)}
-                          className="w-[100px]"
+                          className="w-[150px]"
                         />
                       </td>
                       <td className="p-2">

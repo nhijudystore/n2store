@@ -327,16 +327,16 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-16">STT</TableHead>
-                    <TableHead className="w-[120px]">Tên sản phẩm</TableHead>
-                    <TableHead className="w-[80px]">Mã sản phẩm</TableHead>
-                    <TableHead className="w-[100px]">Biến thể</TableHead>
-                    <TableHead className="w-[60px]">SL</TableHead>
-                    <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
-                    <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
-                    <TableHead className="w-[120px]">Thành tiền (VND)</TableHead>
-                    <TableHead className="w-32">Hình ảnh sản phẩm</TableHead>
-                    <TableHead className="w-32">Hình ảnh Giá mua</TableHead>
-                    <TableHead className="w-16">Thao tác</TableHead>
+              <TableHead className="w-[260px]">Tên sản phẩm</TableHead>
+              <TableHead className="w-[70px]">Mã sản phẩm</TableHead>
+              <TableHead className="w-[150px]">Biến thể</TableHead>
+              <TableHead className="w-[60px]">SL</TableHead>
+              <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
+              <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
+              <TableHead className="w-[130px]">Thành tiền (VND)</TableHead>
+              <TableHead className="w-[100px]">Hình ảnh sản phẩm</TableHead>
+              <TableHead className="w-[100px]">Hình ảnh Giá mua</TableHead>
+              <TableHead className="w-16">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -354,22 +354,22 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           rows={2}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Input
-                          placeholder="Mã SP"
-                          value={item.product_code}
-                          onChange={(e) => updateItem(index, "product_code", e.target.value)}
-                          className="border-0 shadow-none focus-visible:ring-0 p-2 w-[80px] text-xs"
-                          maxLength={10}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <VariantSelector
-                          value={item.variant}
-                          onChange={(value) => updateItem(index, "variant", value)}
-                          className="w-[100px]"
-                        />
-                      </TableCell>
+            <TableCell>
+              <Input
+                placeholder="Mã SP"
+                value={item.product_code}
+                onChange={(e) => updateItem(index, "product_code", e.target.value)}
+                className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
+                maxLength={10}
+              />
+            </TableCell>
+            <TableCell>
+              <VariantSelector
+                value={item.variant}
+                onChange={(value) => updateItem(index, "variant", value)}
+                className="w-[150px]"
+              />
+            </TableCell>
                       <TableCell>
                         <Input
                           type="number"
