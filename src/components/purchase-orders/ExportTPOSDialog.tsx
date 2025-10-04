@@ -183,6 +183,39 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             .eq("id", itemId);
         }
         result.savedIds = result.productIds.length;
+
+        // Upsert products to inventory after successful TPOS upload
+        setCurrentStep("Đang thêm sản phẩm vào kho hàng...");
+        const successfulItems = selectedItems.filter(item => 
+          result.productIds.some(p => p.itemId === item.id)
+        );
+
+        for (const item of successfulItems) {
+          const { error: productError } = await supabase
+            .from("products")
+            .upsert({
+              product_code: item.product_code,
+              product_name: item.product_name,
+              variant: item.variant || null,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              supplier_name: item.supplier_name || '',
+              product_images: item.product_images?.length > 0 ? item.product_images : null,
+              price_images: item.price_images?.length > 0 ? item.price_images : null,
+              stock_quantity: 0, // Initialize with 0, will be updated on goods receiving
+              unit: 'Cái'
+            }, {
+              onConflict: 'product_code',
+              ignoreDuplicates: false
+            });
+
+          if (productError) {
+            console.error('Error upserting product:', productError);
+          }
+        }
+        
+        // Store count of products added to inventory
+        result.productsAddedToInventory = successfulItems.length;
       }
 
       // Thông báo kết quả chi tiết
@@ -203,6 +236,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             <div className="space-y-1 text-sm">
               <p>✅ Thành công: {result.successCount}/{result.totalProducts} sản phẩm</p>
               <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
+              <p>📦 Đã thêm vào kho: {result.productsAddedToInventory || 0} sản phẩm</p>
               {result.productIds.length > 0 && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <p className="font-medium mb-1">TPOS Product IDs:</p>

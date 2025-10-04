@@ -36,6 +36,7 @@ export interface TPOSUploadResult {
   successCount: number;
   failedCount: number;
   savedIds: number;
+  productsAddedToInventory?: number;
   errors: Array<{
     productName: string;
     productCode: string;
