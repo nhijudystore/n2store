@@ -25,7 +25,8 @@ export default function Products() {
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(10000);
 
       if (error) throw error;
       return data;
@@ -38,7 +39,8 @@ export default function Products() {
       const { data, error } = await supabase
         .from("products")
         .select("category")
-        .not("category", "is", null);
+        .not("category", "is", null)
+        .limit(10000);
 
       if (error) throw error;
       

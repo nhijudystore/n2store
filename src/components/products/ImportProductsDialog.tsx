@@ -51,7 +51,8 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
       // Get existing product codes
       const { data: existingProducts } = await supabase
         .from("products")
-        .select("product_code");
+        .select("product_code")
+        .limit(10000);
 
       const existingCodes = new Set(existingProducts?.map((p) => p.product_code) || []);
 
