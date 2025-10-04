@@ -40,25 +40,20 @@ const extractCodeParts = (code: string): { prefix: string; number: number } => {
   return { prefix: code, number: 0 };
 };
 
-// Filter to keep only products with max number for each prefix
-const getMaxNumberProducts = (products: Product[]): Product[] => {
-  const grouped = new Map<string, Product>();
-  
-  products.forEach(product => {
-    const { prefix, number } = extractCodeParts(product.product_code);
-    const existing = grouped.get(prefix);
+// Sort products by number (largest first), then by name
+const sortProductsByNumber = (products: Product[]): Product[] => {
+  return [...products].sort((a, b) => {
+    const aNum = extractCodeParts(a.product_code).number;
+    const bNum = extractCodeParts(b.product_code).number;
     
-    if (!existing) {
-      grouped.set(prefix, product);
-    } else {
-      const existingNumber = extractCodeParts(existing.product_code).number;
-      if (number > existingNumber) {
-        grouped.set(prefix, product);
-      }
+    // Sort by number descending (largest first)
+    if (aNum !== bNum) {
+      return bNum - aNum;
     }
+    
+    // If same number, sort by product name
+    return a.product_name.localeCompare(b.product_name);
   });
-  
-  return Array.from(grouped.values());
 };
 
 export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProductDialogProps) {
@@ -79,15 +74,17 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     enabled: open,
   });
 
-  // Apply max number filter first
-  const maxNumberProducts = getMaxNumberProducts(products);
+  // Filter products based on search
+  const searchFiltered = searchQuery
+    ? products.filter((product) =>
+        product.product_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.variant?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : products;
 
-  // Then apply search filter
-  const filteredProducts = maxNumberProducts.filter((product) =>
-    product.product_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.variant?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Sort products: highest number first
+  const filteredProducts = sortProductsByNumber(searchFiltered);
 
   const handleSelect = (product: Product) => {
     onSelect(product);
