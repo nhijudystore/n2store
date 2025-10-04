@@ -108,12 +108,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       URL.revokeObjectURL(url);
 
       toast({
-        title: "Thành công",
-        description: `Đã tải xuống ${selectedItems.length} sản phẩm`,
+        title: "📥 Tải xuống thành công",
+        description: `Đã tạo file Excel với ${selectedItems.length} sản phẩm`,
       });
     } catch (error) {
       toast({
-        title: "Lỗi",
+        title: "❌ Lỗi",
         description: "Không thể tạo file Excel",
         variant: "destructive",
       });
@@ -130,6 +130,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       return;
     }
 
+    // Thông báo bắt đầu upload
+    toast({
+      title: "Bắt đầu upload",
+      description: `Đang upload ${selectedItems.length} sản phẩm lên TPOS...`,
+    });
+
     setIsUploading(true);
     setProgress(0);
     setCurrentStep("Đang bắt đầu...");
@@ -142,6 +148,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
       // Save TPOS IDs to Supabase
       if (result.productIds.length > 0) {
+        setCurrentStep("Đang lưu TPOS IDs vào database...");
         for (const { itemId, tposId } of result.productIds) {
           await supabase
             .from("purchase_order_items")
@@ -151,26 +158,61 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         result.savedIds = result.productIds.length;
       }
 
+      // Thông báo kết quả chi tiết
+      const successRate = ((result.successCount / result.totalProducts) * 100).toFixed(1);
+      
       toast({
-        title: "Hoàn thành",
+        title: result.failedCount === 0 ? "🎉 Upload thành công!" : "⚠️ Upload hoàn tất",
         description: (
-          <div className="space-y-1">
-            <p>✅ Thành công: {result.successCount}/{result.totalProducts}</p>
-            <p>💾 Đã lưu IDs: {result.savedIds}</p>
-            {result.failedCount > 0 && (
-              <p className="text-destructive">❌ Thất bại: {result.failedCount}</p>
-            )}
+          <div className="space-y-2">
+            <div className="font-semibold">
+              Tỷ lệ thành công: {successRate}%
+            </div>
+            <div className="space-y-1 text-sm">
+              <p>✅ Thành công: {result.successCount}/{result.totalProducts} sản phẩm</p>
+              <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
+              {result.failedCount > 0 && (
+                <p className="text-destructive font-medium">
+                  ❌ Thất bại: {result.failedCount} sản phẩm
+                </p>
+              )}
+              {result.errors.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Xem chi tiết lỗi
+                  </summary>
+                  <div className="mt-2 space-y-1 text-xs max-h-32 overflow-y-auto">
+                    {result.errors.slice(0, 5).map((error, i) => (
+                      <p key={i} className="text-destructive">• {error}</p>
+                    ))}
+                    {result.errors.length > 5 && (
+                      <p className="text-muted-foreground italic">
+                        ... và {result.errors.length - 5} lỗi khác
+                      </p>
+                    )}
+                  </div>
+                </details>
+              )}
+            </div>
           </div>
         ),
+        duration: 8000, // Hiển thị lâu hơn để user đọc kết quả
       });
 
       onSuccess?.();
       onOpenChange(false);
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Không thể upload lên TPOS";
       toast({
-        title: "Lỗi",
-        description: "Không thể upload lên TPOS",
+        title: "❌ Lỗi upload",
+        description: (
+          <div className="space-y-1">
+            <p>{errorMessage}</p>
+            <p className="text-sm text-muted-foreground">Vui lòng thử lại hoặc kiểm tra kết nối mạng</p>
+          </div>
+        ),
         variant: "destructive",
+        duration: 6000,
       });
     } finally {
       setIsUploading(false);
@@ -242,12 +284,20 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
           {/* Progress */}
           {isUploading && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{currentStep}</span>
-                <span className="text-sm font-medium">{Math.round(progress)}%</span>
+            <div className="border border-primary/20 rounded-lg p-4 bg-primary/5 space-y-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-primary">{currentStep}</span>
+                    <span className="text-sm font-bold text-primary">{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
               </div>
-              <Progress value={progress} />
+              <p className="text-xs text-muted-foreground">
+                ⏳ Đang xử lý {selectedItems.length} sản phẩm. Vui lòng không đóng cửa sổ này...
+              </p>
             </div>
           )}
 
