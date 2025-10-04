@@ -94,7 +94,7 @@ export default function Products() {
         </div>
 
         {/* Stats - Always show for entire database */}
-        {!isMobile && productStats && <ProductStats stats={productStats} />}
+        {!isMobile && <ProductStats stats={productStats} />}
 
         {/* Search & Actions */}
         <Card className="p-4 space-y-3">

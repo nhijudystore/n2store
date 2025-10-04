@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { formatVND } from "@/lib/currency-utils";
 
 interface ProductStatsProps {
-  stats: {
+  stats?: {
     total_products: number;
     total_inventory_value: number;
     out_of_stock_count: number;
@@ -12,6 +12,10 @@ interface ProductStatsProps {
 }
 
 export function ProductStats({ stats: productStats }: ProductStatsProps) {
+  if (!productStats) {
+    return null;
+  }
+
   const stats = [
     {
       title: "Tổng sản phẩm",
