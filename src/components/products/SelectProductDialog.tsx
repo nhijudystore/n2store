@@ -30,6 +30,37 @@ interface SelectProductDialogProps {
   onSelect: (product: Product) => void;
 }
 
+// Extract prefix (text) and number from product code
+const extractCodeParts = (code: string): { prefix: string; number: number } => {
+  const match = code.match(/^([^\d]+)(\d+)$/);
+  if (match) {
+    return { prefix: match[1], number: parseInt(match[2], 10) };
+  }
+  // If no number found, treat the whole code as prefix with number 0
+  return { prefix: code, number: 0 };
+};
+
+// Filter to keep only products with max number for each prefix
+const getMaxNumberProducts = (products: Product[]): Product[] => {
+  const grouped = new Map<string, Product>();
+  
+  products.forEach(product => {
+    const { prefix, number } = extractCodeParts(product.product_code);
+    const existing = grouped.get(prefix);
+    
+    if (!existing) {
+      grouped.set(prefix, product);
+    } else {
+      const existingNumber = extractCodeParts(existing.product_code).number;
+      if (number > existingNumber) {
+        grouped.set(prefix, product);
+      }
+    }
+  });
+  
+  return Array.from(grouped.values());
+};
+
 export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProductDialogProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,7 +79,11 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     enabled: open,
   });
 
-  const filteredProducts = products.filter((product) =>
+  // Apply max number filter first
+  const maxNumberProducts = getMaxNumberProducts(products);
+
+  // Then apply search filter
+  const filteredProducts = maxNumberProducts.filter((product) =>
     product.product_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     product.variant?.toLowerCase().includes(searchQuery.toLowerCase())
