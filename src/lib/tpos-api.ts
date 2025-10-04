@@ -559,16 +559,10 @@ export async function updateProductWithImage(
   // Add attributes if detected
   if (detectedAttributes) {
     const attributeLines = createAttributeLines(detectedAttributes);
-    const attributeValues = createAttributeValues(detectedAttributes);
     
     if (attributeLines.length > 0) {
       payload.AttributeLines = attributeLines;
-      console.log(`🎨 [TOPS] Adding ${attributeLines.length} attribute lines`);
-    }
-    
-    if (attributeValues.length > 0) {
-      payload.AttributeValues = attributeValues;
-      console.log(`🎨 [TPOS] Adding ${attributeValues.length} attribute values`);
+      console.log(`🎨 [TPOS] Adding ${attributeLines.length} attribute lines`);
     }
   }
 
