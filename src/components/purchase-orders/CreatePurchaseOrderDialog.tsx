@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
-import { generateProductCode } from "@/lib/product-code-generator";
+import { generateProductCode, incrementProductCode } from "@/lib/product-code-generator";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -193,6 +193,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     // Deep copy the product_images and price_images arrays
     itemToCopy.product_images = [...itemToCopy.product_images];
     itemToCopy.price_images = [...itemToCopy.price_images];
+    
+    // Auto-increment product code if it exists
+    if (itemToCopy.product_code.trim()) {
+      const existingCodes = items.map(item => item.product_code);
+      const newCode = incrementProductCode(itemToCopy.product_code, existingCodes);
+      if (newCode) {
+        itemToCopy.product_code = newCode;
+        toast({
+          title: "Đã sao chép và tăng mã SP",
+          description: `Mã mới: ${newCode}`,
+        });
+      }
+    }
     
     const newItems = [...items];
     newItems.splice(index + 1, 0, itemToCopy);

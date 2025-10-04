@@ -74,6 +74,35 @@ export async function getNextProductCode(category: 'N' | 'P'): Promise<string> {
 }
 
 /**
+ * Increment product code by 1
+ * @param productCode - Current product code (e.g., 'N123' or 'P45')
+ * @param existingCodes - Array of existing codes to avoid duplicates
+ * @returns Incremented code (e.g., 'N124' or 'P46') or null if invalid
+ */
+export function incrementProductCode(
+  productCode: string, 
+  existingCodes: string[] = []
+): string | null {
+  if (!productCode.trim()) return null;
+  
+  // Extract prefix and number
+  const match = productCode.match(/^([NP])(\d+)$/);
+  if (!match) return null; // Invalid format
+  
+  const prefix = match[1];
+  let number = parseInt(match[2], 10);
+  
+  // Increment and check for duplicates
+  let newCode: string;
+  do {
+    number++;
+    newCode = `${prefix}${number}`;
+  } while (existingCodes.includes(newCode));
+  
+  return newCode;
+}
+
+/**
  * Generate product code based on product name
  * @param productName - Product name to generate code from
  * @returns Generated product code (e.g., 'N126' or 'P45')

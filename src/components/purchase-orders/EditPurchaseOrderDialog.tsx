@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
-import { generateProductCode } from "@/lib/product-code-generator";
+import { generateProductCode, incrementProductCode } from "@/lib/product-code-generator";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -185,6 +185,20 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const copyItem = (index: number) => {
     const itemToCopy = { ...items[index] };
     delete itemToCopy.id; // Remove id so it will be inserted as new
+    
+    // Auto-increment product code if it exists
+    if (itemToCopy.product_code.trim()) {
+      const existingCodes = items.map(item => item.product_code);
+      const newCode = incrementProductCode(itemToCopy.product_code, existingCodes);
+      if (newCode) {
+        itemToCopy.product_code = newCode;
+        toast({
+          title: "Đã sao chép và tăng mã SP",
+          description: `Mã mới: ${newCode}`,
+        });
+      }
+    }
+    
     setItems([...items, itemToCopy]);
   };
 
