@@ -103,6 +103,90 @@ export function incrementProductCode(
 }
 
 /**
+ * Get max product number from form items for a category
+ * @param items - Array of items in the form
+ * @param category - 'N' or 'P'
+ * @returns Max number found, or 0 if none
+ */
+export function getMaxNumberFromItems(
+  items: Array<{ product_code: string }>, 
+  category: 'N' | 'P'
+): number {
+  let maxNumber = 0;
+  
+  items.forEach(item => {
+    const match = item.product_code.match(/^([NP])(\d+)$/);
+    if (match && match[1] === category) {
+      const num = parseInt(match[2], 10);
+      if (num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
+  
+  return maxNumber;
+}
+
+/**
+ * Get max product number from database for a category
+ * @param category - 'N' or 'P'
+ * @returns Max number found, or 0 if none
+ */
+export async function getMaxNumberFromDatabase(
+  category: 'N' | 'P'
+): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from("products")
+      .select("product_code")
+      .like("product_code", `${category}%`)
+      .order("product_code", { ascending: false })
+      .limit(1);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return 0;
+    }
+    
+    const match = data[0].product_code.match(/\d+$/);
+    if (!match) return 0;
+    
+    return parseInt(match[0], 10);
+  } catch (error) {
+    console.error("Error getting max number from database:", error);
+    return 0;
+  }
+}
+
+/**
+ * Generate product code based on max from both form and database
+ * @param productName - Product name to detect category
+ * @param formItems - Current items in the form
+ * @returns Generated product code (e.g., 'N128')
+ */
+export async function generateProductCodeFromMax(
+  productName: string,
+  formItems: Array<{ product_code: string }>
+): Promise<string> {
+  if (!productName.trim()) {
+    throw new Error("Tên sản phẩm không được để trống");
+  }
+  
+  const category = detectProductCategory(productName);
+  
+  // Get max from both sources
+  const maxFromForm = getMaxNumberFromItems(formItems, category);
+  const maxFromDB = await getMaxNumberFromDatabase(category);
+  
+  // Take the larger one and add 1
+  const maxNumber = Math.max(maxFromForm, maxFromDB);
+  const nextNumber = maxNumber + 1;
+  
+  return `${category}${nextNumber}`;
+}
+
+/**
  * Generate product code based on product name
  * @param productName - Product name to generate code from
  * @returns Generated product code (e.g., 'N126' or 'P45')

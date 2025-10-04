@@ -16,7 +16,7 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
-import { generateProductCode, incrementProductCode } from "@/lib/product-code-generator";
+import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -214,7 +214,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     // Generate product code if empty
     if (!items[index].product_code.trim()) {
       try {
-        const code = await generateProductCode(productName);
+        const code = await generateProductCodeFromMax(productName, items);
         updateItem(index, "product_code", code);
         toast({
           title: "Đã tạo mã SP",
