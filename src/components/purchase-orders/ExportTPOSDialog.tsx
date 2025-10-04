@@ -25,7 +25,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(items.map(item => item.id)));
-  const [imageFilter, setImageFilter] = useState<"all" | "with-images" | "without-images">("all");
+  const [imageFilter, setImageFilter] = useState<"all" | "with-images" | "without-images" | "uploaded-tpos" | "not-uploaded-tpos">("all");
 
   // Filter items based on image filter
   const filteredItems = useMemo(() => {
@@ -34,6 +34,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         return items.filter(item => item.product_images && item.product_images.length > 0);
       case "without-images":
         return items.filter(item => !item.product_images || item.product_images.length === 0);
+      case "uploaded-tpos":
+        return items.filter(item => item.tpos_product_id);
+      case "not-uploaded-tpos":
+        return items.filter(item => !item.tpos_product_id);
       default:
         return items;
     }
@@ -50,6 +54,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const itemsWithoutImages = items.filter(
     (item) => !item.product_images || item.product_images.length === 0
   );
+  const itemsUploadedToTPOS = items.filter(item => item.tpos_product_id);
+  const itemsNotUploadedToTPOS = items.filter(item => !item.tpos_product_id);
 
   // Toggle single item
   const toggleItem = (id: string) => {
@@ -96,6 +102,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       return;
     }
 
+    // Check if any selected items already have TPOS ID
+    const itemsWithTPOS = selectedItems.filter(item => item.tpos_product_id);
+    if (itemsWithTPOS.length > 0) {
+      toast({
+        title: "⚠️ Cảnh báo",
+        description: `${itemsWithTPOS.length} sản phẩm đã có TPOS ID. Bạn có chắc muốn tải lại?`,
+      });
+    }
+
     try {
       const excelBlob = generateTPOSExcel(selectedItems);
       const url = URL.createObjectURL(excelBlob);
@@ -128,6 +143,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         variant: "destructive",
       });
       return;
+    }
+
+    // Check if any selected items already have TPOS ID
+    const itemsWithTPOS = selectedItems.filter(item => item.tpos_product_id);
+    if (itemsWithTPOS.length > 0) {
+      const confirmed = window.confirm(
+        `⚠️ Cảnh báo: ${itemsWithTPOS.length} sản phẩm đã có TPOS ID.\n\nBạn có chắc muốn upload lại không? Điều này có thể tạo duplicate trên TPOS.`
+      );
+      if (!confirmed) return;
     }
 
     // Thông báo bắt đầu upload
@@ -256,7 +280,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
         <div className="space-y-4">
           {/* Summary */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             <div className="bg-muted p-3 rounded-lg">
               <p className="text-sm text-muted-foreground">Tổng sản phẩm</p>
               <p className="text-2xl font-bold">{items.length}</p>
@@ -270,8 +294,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               <p className="text-2xl font-bold text-green-600">{itemsWithImages.length}</p>
             </div>
             <div className="bg-muted p-3 rounded-lg">
-              <p className="text-sm text-muted-foreground">Không có ảnh</p>
-              <p className="text-2xl font-bold text-orange-600">{itemsWithoutImages.length}</p>
+              <p className="text-sm text-muted-foreground">Đã upload TPOS</p>
+              <p className="text-2xl font-bold text-blue-600">{itemsUploadedToTPOS.length}</p>
+            </div>
+            <div className="bg-muted p-3 rounded-lg">
+              <p className="text-sm text-muted-foreground">Chưa upload</p>
+              <p className="text-2xl font-bold text-orange-600">{itemsNotUploadedToTPOS.length}</p>
             </div>
           </div>
 
@@ -286,6 +314,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 <SelectItem value="all">Tất cả ({items.length})</SelectItem>
                 <SelectItem value="with-images">Có hình ảnh ({itemsWithImages.length})</SelectItem>
                 <SelectItem value="without-images">Không có ảnh ({itemsWithoutImages.length})</SelectItem>
+                <SelectItem value="uploaded-tpos">Đã upload TPOS ({itemsUploadedToTPOS.length})</SelectItem>
+                <SelectItem value="not-uploaded-tpos">Chưa upload TPOS ({itemsNotUploadedToTPOS.length})</SelectItem>
               </SelectContent>
             </Select>
             <Button
@@ -350,6 +380,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                     <TableHead>Biến thể</TableHead>
                     <TableHead className="text-right">Giá bán</TableHead>
                     <TableHead>Hình ảnh</TableHead>
+                    <TableHead>TPOS Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -384,6 +415,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                           </Badge>
                         ) : (
                           <Badge variant="secondary">Không có</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.tpos_product_id ? (
+                          <Badge variant="default" className="bg-green-600">
+                            ✓ ID: {item.tpos_product_id}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Chưa upload</Badge>
                         )}
                       </TableCell>
                     </TableRow>

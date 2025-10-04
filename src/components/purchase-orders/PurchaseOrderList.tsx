@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Pencil, Search, Filter, Calendar, Trash2, Check } from "lucide-react";
+import { Pencil, Search, Filter, Calendar, Trash2, Check, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -18,8 +18,10 @@ import { cn } from "@/lib/utils";
 import { EditPurchaseOrderDialog } from "./EditPurchaseOrderDialog";
 import { useToast } from "@/hooks/use-toast";
 import { formatVND } from "@/lib/currency-utils";
+import { generateTPOSProductLink } from "@/lib/tpos-api";
 
 interface PurchaseOrderItem {
+  id?: string;
   product_name: string;
   product_code: string | null;
   variant: string | null;
@@ -29,6 +31,7 @@ interface PurchaseOrderItem {
   product_images: string[] | null;
   price_images: string[] | null;
   position?: number;
+  tpos_product_id?: number | null;
 }
 
 interface PurchaseOrder {
@@ -372,6 +375,7 @@ export function PurchaseOrderList({
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá mua (VND)</TableHead>
               <TableHead>Giá bán (VND)</TableHead>
+              <TableHead>TPOS ID</TableHead>
               <TableHead>Ghi chú</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>
@@ -526,6 +530,29 @@ export function PurchaseOrderList({
                       )}
                       <span>{flatItem.item ? formatVND(flatItem.item.selling_price || 0) : "-"}</span>
                     </div>
+                  </TableCell>
+                  
+                  <TableCell className="border-r">
+                    {flatItem.item?.tpos_product_id ? (
+                      <div className="flex flex-col gap-1">
+                        <Badge variant="default" className="bg-green-600 w-fit">
+                          ✓ Đã đồng bộ
+                        </Badge>
+                        <a
+                          href={generateTPOSProductLink(flatItem.item.tpos_product_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          ID: {flatItem.item.tpos_product_id}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <Badge variant="secondary" className="text-muted-foreground">
+                        Chưa upload
+                      </Badge>
+                    )}
                   </TableCell>
                   
                   {flatItem.isFirstItem && (

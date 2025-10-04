@@ -18,6 +18,7 @@ import { convertVietnameseToUpperCase } from "@/lib/utils";
 import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
 
 interface PurchaseOrderItem {
+  id?: string;
   product_name: string;
   product_code: string | null;
   variant: string | null;
@@ -27,6 +28,7 @@ interface PurchaseOrderItem {
   product_images: string[] | null;
   price_images: string[] | null;
   position?: number;
+  tpos_product_id?: number | null;
 }
 
 interface PurchaseOrder {
@@ -157,6 +159,7 @@ const PurchaseOrders = () => {
         .select(`
           *,
           items:purchase_order_items(
+            id,
             product_name, 
             product_code, 
             variant, 
@@ -165,7 +168,8 @@ const PurchaseOrders = () => {
             selling_price, 
             product_images, 
             price_images,
-            position
+            position,
+            tpos_product_id
           ),
           receiving:goods_receiving(
             id,
@@ -408,7 +412,7 @@ const PurchaseOrders = () => {
     // Flatten all items from orders to export
     const items: TPOSProductItem[] = ordersToExport.flatMap(order => 
       (order.items || []).map(item => ({
-        id: crypto.randomUUID(),
+        id: item.id || crypto.randomUUID(),
         product_code: item.product_code,
         product_name: item.product_name,
         variant: item.variant,
@@ -419,6 +423,7 @@ const PurchaseOrders = () => {
         price_images: item.price_images,
         purchase_order_id: order.id,
         supplier_name: order.supplier_name || '',
+        tpos_product_id: item.tpos_product_id,
       }))
     );
 

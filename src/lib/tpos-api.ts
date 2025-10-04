@@ -27,6 +27,7 @@ export interface TPOSProductItem {
   price_images: string[] | null;
   purchase_order_id: string;
   supplier_name: string;
+  tpos_product_id?: number | null;
 }
 
 export interface TPOSUploadResult {
@@ -37,6 +38,17 @@ export interface TPOSUploadResult {
   savedIds: number;
   errors: string[];
   productIds: Array<{ itemId: string; tposId: number }>;
+}
+
+// =====================================================
+// TPOS UTILITIES
+// =====================================================
+
+/**
+ * Generate TPOS product link
+ */
+export function generateTPOSProductLink(productId: number): string {
+  return `https://tomato.tpos.vn/#/product/${productId}/edit`;
 }
 
 // =====================================================

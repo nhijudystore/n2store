@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, DollarSign, TrendingUp, Clock } from "lucide-react";
+import { FileText, DollarSign, TrendingUp, Clock, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 
@@ -13,6 +13,7 @@ interface PurchaseOrderItem {
   product_images: string[] | null;
   price_images: string[] | null;
   position?: number;
+  tpos_product_id?: number | null;
 }
 
 interface PurchaseOrder {
@@ -51,9 +52,14 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
   const todayOrdersCount = todayOrders.length;
   const todayTotalAmount = todayOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
 
+  // Calculate TPOS sync stats from filteredOrders
+  const allItems = filteredOrders.flatMap(order => order.items || []);
+  const syncedItems = allItems.filter(item => item.tpos_product_id);
+  const tposSyncRatio = allItems.length > 0 ? ((syncedItems.length / allItems.length) * 100).toFixed(1) : '0';
+
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Tổng đơn hàng</CardTitle>
@@ -95,6 +101,21 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
           <div className="text-2xl font-bold">
             {isLoading ? "..." : formatVND(todayTotalAmount)}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Đồng bộ TPOS</CardTitle>
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold text-green-600">
+            {isLoading ? "..." : `${syncedItems.length}/${allItems.length}`}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {tposSyncRatio}% đã upload
+          </p>
         </CardContent>
       </Card>
     </div>
