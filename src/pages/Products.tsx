@@ -5,72 +5,75 @@ import { Package } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ProductStats } from "@/components/products/ProductStats";
 import { ProductList } from "@/components/products/ProductList";
 import { CreateProductDialog } from "@/components/products/CreateProductDialog";
 import { ImportProductsDialog } from "@/components/products/ImportProductsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/use-debounce";
 
 export default function Products() {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
+  // Query for displayed products (search results or 50 latest)
   const { data: products = [], isLoading, refetch } = useQuery({
-    queryKey: ["products", "v2"],
+    queryKey: ["products-search", debouncedSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("products")
-        .select("*", { count: 'exact' })
-        .order("created_at", { ascending: false })
-        .range(0, 9999);
-
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      // If search query exists (>= 2 chars), search in database
+      if (debouncedSearch.length >= 2) {
+        query = query.or(
+          `product_code.ilike.%${debouncedSearch}%,` +
+          `product_name.ilike.%${debouncedSearch}%,` +
+          `barcode.ilike.%${debouncedSearch}%`
+        );
+      } else {
+        // Otherwise, load 50 latest products
+        query = query.range(0, 49);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
-      console.log(`✅ Loaded ${data?.length || 0} products from database`);
       return data;
     },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30000,
+    gcTime: 60000,
   });
 
-  const { data: categories = [] } = useQuery({
-    queryKey: ["product-categories"],
+  // Query for total count
+  const { data: totalCount = 0 } = useQuery({
+    queryKey: ["products-total-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("products")
+        .select("*", { count: 'exact', head: true });
+      if (error) throw error;
+      return count || 0;
+    },
+    staleTime: 60000,
+  });
+
+  // Query for ALL products for stats (Option B)
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ["products-all-for-stats"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("category")
-        .not("category", "is", null)
+        .select("*")
         .range(0, 9999);
-
       if (error) throw error;
-      
-      const uniqueCategories = [...new Set(data.map(p => p.category))].filter(Boolean);
-      return uniqueCategories as string[];
+      return data;
     },
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 60000,
   });
-
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = 
-      product.product_code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.product_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.barcode?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-
-    return matchesSearch && matchesCategory;
-  });
-
-  // Debug logs
-  console.log(`🔍 Total products loaded: ${products.length}`);
-  console.log(`🔍 Filtered products: ${filteredProducts.length}`);
-  console.log(`🔍 Search query: "${searchQuery}"`);
-  console.log(`🔍 Category filter: "${categoryFilter}"`);
 
   return (
     <div className="min-h-screen bg-background">
@@ -88,32 +91,18 @@ export default function Products() {
           </div>
         </div>
 
-        {/* Stats */}
-        {!isMobile && <ProductStats products={products} />}
+        {/* Stats - Always show for entire database */}
+        {!isMobile && <ProductStats products={allProducts} />}
 
-        {/* Filters & Actions */}
-        <Card className="p-4">
+        {/* Search & Actions */}
+        <Card className="p-4 space-y-3">
           <div className={`flex ${isMobile ? "flex-col" : "flex-row items-center"} gap-4`}>
             <Input
-              placeholder="Tìm kiếm theo mã SP, tên, mã vạch..."
+              placeholder="Tìm kiếm theo mã SP, tên, mã vạch (tối thiểu 2 ký tự)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
             />
-            
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className={isMobile ? "w-full" : "w-[200px]"}>
-                <SelectValue placeholder="Nhóm sản phẩm" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tất cả</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
             <div className={`flex gap-2 ${isMobile ? "w-full" : ""}`}>
               <Button
@@ -131,11 +120,18 @@ export default function Products() {
               </Button>
             </div>
           </div>
+          
+          <div className="text-sm text-muted-foreground">
+            {debouncedSearch.length >= 2 
+              ? `Tìm thấy ${products.length} sản phẩm`
+              : `Hiển thị ${products.length} sản phẩm mới nhất (Tổng ${totalCount})`
+            }
+          </div>
         </Card>
 
         {/* Product List */}
         <ProductList
-          products={filteredProducts}
+          products={products}
           isLoading={isLoading}
           onRefetch={refetch}
         />
