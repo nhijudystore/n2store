@@ -167,7 +167,47 @@ export async function getMaxNumberFromDatabase(
 }
 
 /**
- * Generate product code based on max from both form and database
+ * Get max product number from purchase order items for a category
+ * @param category - 'N' or 'P'
+ * @returns Max number found, or 0 if none
+ */
+export async function getMaxNumberFromPurchaseOrderItems(
+  category: 'N' | 'P'
+): Promise<number> {
+  try {
+    // Query for ALL codes in this category from purchase order items
+    const { data, error } = await supabase
+      .from("purchase_order_items")
+      .select("product_code")
+      .like("product_code", `${category}%`);
+    
+    if (error) throw error;
+    
+    if (!data || data.length === 0) {
+      return 0;
+    }
+    
+    // Parse all numbers and find the maximum
+    let maxNumber = 0;
+    data.forEach(item => {
+      const match = item.product_code?.match(/\d+$/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    });
+    
+    return maxNumber;
+  } catch (error) {
+    console.error("Error getting max number from purchase order items:", error);
+    return 0;
+  }
+}
+
+/**
+ * Generate product code based on max from form, database, and purchase orders
  * @param productName - Product name to detect category
  * @param formItems - Current items in the form
  * @returns Generated product code (e.g., 'N128')
@@ -182,12 +222,13 @@ export async function generateProductCodeFromMax(
   
   const category = detectProductCategory(productName);
   
-  // Get max from both sources
+  // Get max from all three sources
   const maxFromForm = getMaxNumberFromItems(formItems, category);
   const maxFromDB = await getMaxNumberFromDatabase(category);
+  const maxFromPurchaseOrders = await getMaxNumberFromPurchaseOrderItems(category);
   
-  // Take the larger one and add 1
-  const maxNumber = Math.max(maxFromForm, maxFromDB);
+  // Take the largest one and add 1
+  const maxNumber = Math.max(maxFromForm, maxFromDB, maxFromPurchaseOrders);
   const nextNumber = maxNumber + 1;
   
   return `${category}${nextNumber}`;
