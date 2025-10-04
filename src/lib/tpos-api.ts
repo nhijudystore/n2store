@@ -48,7 +48,7 @@ export interface TPOSUploadResult {
  * Generate TPOS product link
  */
 export function generateTPOSProductLink(productId: number): string {
-  return `https://tomato.tpos.vn/#/product/${productId}/edit`;
+  return `https://tomato.tpos.vn/#/app/producttemplate/form?id=${productId}`;
 }
 
 // =====================================================
