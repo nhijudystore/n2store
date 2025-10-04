@@ -24,9 +24,9 @@ export default function Products() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
+        .select("*", { count: 'exact' })
         .order("created_at", { ascending: false })
-        .limit(10000);
+        .range(0, 9999);
 
       if (error) throw error;
       return data;
@@ -42,7 +42,7 @@ export default function Products() {
         .from("products")
         .select("category")
         .not("category", "is", null)
-        .limit(10000);
+        .range(0, 9999);
 
       if (error) throw error;
       

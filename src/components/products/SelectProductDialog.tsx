@@ -40,7 +40,7 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
         .from("products")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(10000);
+        .range(0, 9999);
 
       if (error) throw error;
       return data as Product[];
