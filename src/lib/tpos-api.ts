@@ -287,86 +287,172 @@ export function detectAttributesFromText(text: string): DetectedAttributes {
   if (!text) return {};
 
   const detected: DetectedAttributes = {};
-  const upperText = text.toUpperCase();
+  const textLower = text.toLowerCase();
 
   // Detect size chữ
-  const foundSizeText = TEXT_SIZES.filter(size => 
-    upperText.includes(size.toUpperCase())
-  );
-  if (foundSizeText.length > 0) {
-    detected.sizeText = foundSizeText;
-  }
+  const foundSizeText: string[] = [];
+  TEXT_SIZES.forEach(size => {
+    const pattern = new RegExp(`\\b${size.toLowerCase()}\\b`, 'gi');
+    if (pattern.test(textLower) && !foundSizeText.includes(size)) {
+      foundSizeText.push(size);
+    }
+  });
+
+  // Detect màu sắc - sort by length để match longer phrases trước
+  const foundColors: string[] = [];
+  const sortedColors = [...COLORS].sort((a, b) => b.length - a.length);
+  
+  sortedColors.forEach(color => {
+    const pattern = new RegExp(`\\b${color.toLowerCase()}\\b`, 'gi');
+    if (pattern.test(textLower) && !foundColors.includes(color)) {
+      foundColors.push(color);
+    }
+  });
 
   // Detect size số
-  const foundSizeNumber = NUMBER_SIZES.filter(size => {
-    const sizePattern = new RegExp(`\\b${size}\\b`, 'i');
-    return sizePattern.test(text);
+  const foundSizeNumber: string[] = [];
+  NUMBER_SIZES.forEach(size => {
+    const pattern = new RegExp(`\\b${size}\\b`, 'g');
+    if (pattern.test(textLower) && !foundSizeNumber.includes(size)) {
+      foundSizeNumber.push(size);
+    }
   });
-  if (foundSizeNumber.length > 0) {
-    detected.sizeNumber = foundSizeNumber;
-  }
 
-  // Detect màu sắc
-  const foundColors = COLORS.filter(color => 
-    text.toLowerCase().includes(color.toLowerCase())
-  );
-  if (foundColors.length > 0) {
-    detected.color = foundColors;
-  }
+  if (foundSizeText.length > 0) detected.sizeText = foundSizeText;
+  if (foundColors.length > 0) detected.color = foundColors;
+  if (foundSizeNumber.length > 0) detected.sizeNumber = foundSizeNumber;
 
   console.log("🎯 [TPOS] Detected attributes:", detected);
   return detected;
 }
 
 /**
- * Tạo AttributeLines cho TPOS product (format đúng với TPOS API)
+ * Tạo AttributeLines cho TPOS product (format đầy đủ như backend)
  */
 export function createAttributeLines(detected: DetectedAttributes): any[] {
   const attributeLines: any[] = [];
 
-  // Add size text attributes
+  // Helper để tìm attribute config
+  const getAttributeConfig = (type: 'sizeText' | 'color' | 'sizeNumber') => {
+    switch (type) {
+      case 'sizeText':
+        return { id: TPOS_ATTRIBUTE_IDS.SIZE_TEXT, name: "Size Chữ", code: "SZCh" };
+      case 'color':
+        return { id: TPOS_ATTRIBUTE_IDS.COLOR, name: "Màu", code: "Mau" };
+      case 'sizeNumber':
+        return { id: TPOS_ATTRIBUTE_IDS.SIZE_NUMBER, name: "Size Số", code: "SZNu" };
+    }
+  };
+
+  // Process size text
   if (detected.sizeText && detected.sizeText.length > 0) {
-    const valueIds = detected.sizeText
-      .map(size => TPOS_SIZE_TEXT_MAP[size])
-      .filter(id => id !== undefined);
+    const config = getAttributeConfig('sizeText');
+    const values = detected.sizeText
+      .map(size => {
+        const id = TPOS_SIZE_TEXT_MAP[size];
+        if (!id) return null;
+        return {
+          Id: id,
+          Name: size,
+          Code: size,
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${size}`,
+          DateCreated: null
+        };
+      })
+      .filter(v => v !== null);
 
-    if (valueIds.length > 0) {
+    if (values.length > 0) {
       attributeLines.push({
-        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_TEXT,
-        ValueIds: valueIds
+        Attribute: {
+          Id: config.id,
+          Name: config.name,
+          Code: config.code,
+          Sequence: 1,
+          CreateVariant: true
+        },
+        Values: values,
+        AttributeId: config.id
       });
     }
   }
 
-  // Add color attributes
+  // Process colors
   if (detected.color && detected.color.length > 0) {
-    const valueIds = detected.color
-      .map(color => TPOS_COLOR_MAP[color])
-      .filter(id => id !== undefined);
+    const config = getAttributeConfig('color');
+    const values = detected.color
+      .map(color => {
+        const id = TPOS_COLOR_MAP[color];
+        if (!id) return null;
+        return {
+          Id: id,
+          Name: color,
+          Code: color.toLowerCase().replace(/\s+/g, ''),
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${color}`,
+          DateCreated: null
+        };
+      })
+      .filter(v => v !== null);
 
-    if (valueIds.length > 0) {
+    if (values.length > 0) {
       attributeLines.push({
-        AttributeId: TPOS_ATTRIBUTE_IDS.COLOR,
-        ValueIds: valueIds
+        Attribute: {
+          Id: config.id,
+          Name: config.name,
+          Code: config.code,
+          Sequence: null,
+          CreateVariant: true
+        },
+        Values: values,
+        AttributeId: config.id
       });
     }
   }
 
-  // Add size number attributes
+  // Process size number
   if (detected.sizeNumber && detected.sizeNumber.length > 0) {
-    const valueIds = detected.sizeNumber
-      .map(size => TPOS_SIZE_NUMBER_MAP[size])
-      .filter(id => id !== undefined);
+    const config = getAttributeConfig('sizeNumber');
+    const values = detected.sizeNumber
+      .map(size => {
+        const id = TPOS_SIZE_NUMBER_MAP[size];
+        if (!id) return null;
+        return {
+          Id: id,
+          Name: size,
+          Code: size,
+          Sequence: null,
+          AttributeId: config.id,
+          AttributeName: config.name,
+          PriceExtra: null,
+          NameGet: `${config.name}: ${size}`,
+          DateCreated: null
+        };
+      })
+      .filter(v => v !== null);
 
-    if (valueIds.length > 0) {
+    if (values.length > 0) {
       attributeLines.push({
-        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_NUMBER,
-        ValueIds: valueIds
+        Attribute: {
+          Id: config.id,
+          Name: config.name,
+          Code: config.code,
+          Sequence: null,
+          CreateVariant: true
+        },
+        Values: values,
+        AttributeId: config.id
       });
     }
   }
 
-  console.log("🎨 [TPOS] Created AttributeLines:", attributeLines);
+  console.log("🎨 [TPOS] Created AttributeLines:", JSON.stringify(attributeLines, null, 2));
   return attributeLines;
 }
 
