@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/lib/currency-utils";
 import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface Product {
   id: string;
@@ -32,41 +33,36 @@ interface SelectProductDialogProps {
 export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProductDialogProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 300);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products-select", "v2"],
+    queryKey: ["products-select", debouncedSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("products")
         .select("*")
-        .order("created_at", { ascending: false })
-        .range(0, 9999);
-
+        .order("product_code", { ascending: false });
+      
+      // Nếu có search (>= 2 ký tự): Search trong database
+      if (debouncedSearch.length >= 2) {
+        query = query.or(
+          `product_code.ilike.%${debouncedSearch}%,` +
+          `product_name.ilike.%${debouncedSearch}%,` +
+          `variant.ilike.%${debouncedSearch}%`
+        );
+      } else {
+        // Load 50 SP mới nhất (không search)
+        query = query.range(0, 49);
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as Product[];
     },
     enabled: open,
+    staleTime: 30000,
+    gcTime: 60000,
   });
-
-  // Simple filter with client-side sorting
-  const filteredProducts = useMemo(() => {
-    let result = products;
-    
-    // Filter by search query
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      result = products.filter((product) =>
-        product.product_code?.toLowerCase().includes(searchLower) ||
-        product.product_name?.toLowerCase().includes(searchLower) ||
-        product.variant?.toLowerCase().includes(searchLower)
-      );
-    }
-    
-    // Sort by product_code DESC (like before)
-    return [...result].sort((a, b) => 
-      b.product_code.localeCompare(a.product_code)
-    );
-  }, [searchQuery, products]);
 
   const handleSelect = (product: Product) => {
     onSelect(product);
@@ -83,10 +79,17 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
 
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
             <Input
-              placeholder="Tìm kiếm sản phẩm..."
+              placeholder="Tìm kiếm theo mã SP, tên, variant (tối thiểu 2 ký tự)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            
+            <div className="text-sm text-muted-foreground">
+              {debouncedSearch.length >= 2 
+                ? `Tìm thấy ${products.length} sản phẩm`
+                : `Hiển thị ${products.length} sản phẩm mới nhất`
+              }
+            </div>
 
             {isLoading ? (
               <div className="space-y-2">
@@ -100,12 +103,12 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
               </div>
             ) : (
               <div className="space-y-2 overflow-y-auto flex-1">
-                {filteredProducts.length === 0 ? (
+                {products.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    {searchQuery ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
+                    {debouncedSearch.length >= 2 ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
                   </div>
                 ) : (
-                  filteredProducts.map((product) => (
+                  products.map((product) => (
                     <Card
                       key={product.id}
                       className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
@@ -153,11 +156,20 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          <Input
-            placeholder="Tìm kiếm theo mã SP, tên sản phẩm, variant..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="space-y-2">
+            <Input
+              placeholder="Tìm kiếm theo mã SP, tên, variant (tối thiểu 2 ký tự)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            
+            <div className="text-sm text-muted-foreground">
+              {debouncedSearch.length >= 2 
+                ? `Tìm thấy ${products.length} sản phẩm`
+                : `Hiển thị ${products.length} sản phẩm mới nhất`
+              }
+            </div>
+          </div>
 
           <div className="border rounded-lg overflow-hidden flex-1 overflow-y-auto">
             <Table>
@@ -187,14 +199,14 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                       <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                     </TableRow>
                   ))
-                ) : filteredProducts.length === 0 ? (
+                ) : products.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      {searchQuery ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
+                      {debouncedSearch.length >= 2 ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredProducts.map((product) => (
+                  products.map((product) => (
                     <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
                       <TableCell className="font-medium">{product.product_code}</TableCell>
                       <TableCell>{product.product_name}</TableCell>
