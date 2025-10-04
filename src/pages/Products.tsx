@@ -31,6 +31,8 @@ export default function Products() {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const { data: categories = [] } = useQuery({
@@ -47,6 +49,8 @@ export default function Products() {
       const uniqueCategories = [...new Set(data.map(p => p.category))].filter(Boolean);
       return uniqueCategories as string[];
     },
+    staleTime: 0,
+    gcTime: 0,
   });
 
   const filteredProducts = products.filter((product) => {
