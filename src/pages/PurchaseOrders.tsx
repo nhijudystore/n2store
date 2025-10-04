@@ -138,11 +138,15 @@ const PurchaseOrders = () => {
 
       setDeletedTPOSIds(deletedIds);
 
-      // Update database: set tpos_product_id to null for deleted items
+      // Update database: set tpos_product_id to null and mark as deleted
       if (itemsToUpdate.length > 0) {
         const { error: updateError } = await supabase
           .from("purchase_order_items")
-          .update({ tpos_product_id: null })
+          .update({ 
+            tpos_product_id: null,
+            tpos_deleted: true,
+            tpos_deleted_at: new Date().toISOString()
+          })
           .in("id", itemsToUpdate);
 
         if (updateError) {

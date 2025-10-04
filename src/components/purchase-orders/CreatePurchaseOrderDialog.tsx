@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -19,6 +19,7 @@ import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -62,6 +63,32 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
+
+  // Debounce product names for auto-generating codes
+  const debouncedProductNames = useDebounce(
+    items.map(i => i.product_name).join('|'),
+    500
+  );
+
+  // Auto-generate product code when product name changes (with debounce)
+  useEffect(() => {
+    items.forEach(async (item, index) => {
+      if (item.product_name.trim() && !item.product_code.trim()) {
+        try {
+          const code = await generateProductCodeFromMax(item.product_name, items);
+          setItems(prev => {
+            const newItems = [...prev];
+            if (newItems[index] && !newItems[index].product_code.trim()) {
+              newItems[index] = { ...newItems[index], product_code: code };
+            }
+            return newItems;
+          });
+        } catch (error) {
+          console.error("Error generating product code:", error);
+        }
+      }
+    });
+  }, [debouncedProductNames]);
 
 
   const createOrderMutation = useMutation({
@@ -250,23 +277,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     setIsSelectProductOpen(true);
   };
 
-  const handleProductNameBlur = async (index: number, productName: string) => {
-    if (!productName.trim()) return;
-    
-    // Generate product code if empty
-    if (!items[index].product_code.trim()) {
-      try {
-        const code = await generateProductCodeFromMax(productName, items);
-        updateItem(index, "product_code", code);
-        toast({
-          title: "Đã tạo mã SP",
-          description: `Mã SP: ${code}`,
-        });
-      } catch (error) {
-        console.error("Error generating product code:", error);
-      }
-    }
-  };
 
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
   const finalAmount = totalAmount - formData.discount_amount;
@@ -383,7 +393,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           placeholder="Nhập tên sản phẩm"
                           value={item.product_name}
                           onChange={(e) => updateItem(index, "product_name", e.target.value)}
-                          onBlur={(e) => handleProductNameBlur(index, e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 min-h-[60px] resize-none"
                           rows={2}
                         />

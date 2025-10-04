@@ -17,6 +17,7 @@ import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -70,6 +71,32 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const [invoiceImages, setInvoiceImages] = useState<string[]>([]);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [items, setItems] = useState<PurchaseOrderItem[]>([]);
+
+  // Debounce product names for auto-generating codes
+  const debouncedProductNames = useDebounce(
+    items.map(i => i.product_name).join('|'),
+    500
+  );
+
+  // Auto-generate product code when product name changes (with debounce)
+  useEffect(() => {
+    items.forEach(async (item, index) => {
+      if (item.product_name.trim() && !item.product_code.trim()) {
+        try {
+          const code = await generateProductCodeFromMax(item.product_name, items);
+          setItems(prev => {
+            const newItems = [...prev];
+            if (newItems[index] && !newItems[index].product_code.trim()) {
+              newItems[index] = { ...newItems[index], product_code: code };
+            }
+            return newItems;
+          });
+        } catch (error) {
+          console.error("Error generating product code:", error);
+        }
+      }
+    });
+  }, [debouncedProductNames]);
 
   // Fetch existing items when order changes
   const { data: existingItems } = useQuery({
@@ -208,23 +235,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     }
   };
 
-  const handleProductNameBlur = async (index: number, productName: string) => {
-    if (!productName.trim()) return;
-    
-    // Generate product code if empty
-    if (!items[index].product_code.trim()) {
-      try {
-        const code = await generateProductCodeFromMax(productName, items);
-        updateItem(index, "product_code", code);
-        toast({
-          title: "Đã tạo mã SP",
-          description: `Mã SP: ${code}`,
-        });
-      } catch (error) {
-        console.error("Error generating product code:", error);
-      }
-    }
-  };
 
   const updateOrderMutation = useMutation({
     mutationFn: async () => {
@@ -533,7 +543,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         <Textarea
                           value={item.product_name}
                           onChange={(e) => updateItem(index, 'product_name', e.target.value)}
-                          onBlur={(e) => handleProductNameBlur(index, e.target.value)}
                           placeholder="Tên sản phẩm"
                           className="min-h-[60px] resize-none"
                           rows={2}
