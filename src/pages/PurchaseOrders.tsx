@@ -123,21 +123,47 @@ const PurchaseOrders = () => {
     try {
       const existenceMap = await checkTPOSProductsExist(tposIds);
       const deletedIds = new Set<number>();
+      const itemsToUpdate: string[] = [];
       
       existenceMap.forEach((exists, id) => {
         if (!exists) {
           deletedIds.add(id);
+          // Find all item IDs with this TPOS ID
+          const itemIds = allItems
+            .filter(item => item.tpos_product_id === id && item.id)
+            .map(item => item.id as string);
+          itemsToUpdate.push(...itemIds);
         }
       });
 
       setDeletedTPOSIds(deletedIds);
+
+      // Update database: set tpos_product_id to null for deleted items
+      if (itemsToUpdate.length > 0) {
+        const { error: updateError } = await supabase
+          .from("purchase_order_items")
+          .update({ tpos_product_id: null })
+          .in("id", itemsToUpdate);
+
+        if (updateError) {
+          console.error("Error updating items:", updateError);
+          toast({
+            title: "⚠️ Lỗi cập nhật",
+            description: "Không thể cập nhật trạng thái sản phẩm trong database",
+            variant: "destructive",
+          });
+        } else {
+          // Refresh data after update
+          queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
+        }
+      }
 
       const deletedCount = deletedIds.size;
       const activeCount = tposIds.length - deletedCount;
 
       toast({
         title: "✅ Kiểm tra hoàn tất",
-        description: `Còn ${activeCount}/${tposIds.length} sản phẩm trên TPOS${deletedCount > 0 ? ` (${deletedCount} đã bị xóa)` : ''}`,
+        description: `Còn ${activeCount}/${tposIds.length} sản phẩm trên TPOS${deletedCount > 0 ? ` (${deletedCount} đã bị xóa và đã xóa TPOS ID khỏi database)` : ''}`,
         duration: 5000,
       });
     } catch (error) {
