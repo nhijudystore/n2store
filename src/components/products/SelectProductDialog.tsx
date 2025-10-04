@@ -39,7 +39,8 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
       const { data, error } = await supabase
         .from("products")
         .select("*")
-        .order("product_code", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(10000);
 
       if (error) throw error;
       return data as Product[];
@@ -47,15 +48,23 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
     enabled: open,
   });
 
-  // Simple filter - exactly like Products page
+  // Simple filter with client-side sorting
   const filteredProducts = useMemo(() => {
-    if (!searchQuery) return products;
+    let result = products;
     
-    const searchLower = searchQuery.toLowerCase();
-    return products.filter((product) =>
-      product.product_code?.toLowerCase().includes(searchLower) ||
-      product.product_name?.toLowerCase().includes(searchLower) ||
-      product.variant?.toLowerCase().includes(searchLower)
+    // Filter by search query
+    if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      result = products.filter((product) =>
+        product.product_code?.toLowerCase().includes(searchLower) ||
+        product.product_name?.toLowerCase().includes(searchLower) ||
+        product.variant?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    // Sort by product_code DESC (like before)
+    return [...result].sort((a, b) => 
+      b.product_code.localeCompare(a.product_code)
     );
   }, [searchQuery, products]);
 
