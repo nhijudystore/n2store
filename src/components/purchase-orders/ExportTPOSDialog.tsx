@@ -224,11 +224,18 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               {result.errors.length > 0 && (
                 <details className="mt-2">
                   <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    Xem chi tiết lỗi
+                    Xem chi tiết {result.errors.length} lỗi
                   </summary>
-                  <div className="mt-2 space-y-1 text-xs max-h-32 overflow-y-auto">
+                  <div className="mt-2 space-y-2 text-xs max-h-64 overflow-y-auto">
                     {result.errors.map((error, i) => (
-                      <p key={i} className="text-destructive">• {error}</p>
+                      <div key={i} className="border-l-2 border-destructive pl-2 py-1">
+                        <p className="font-semibold text-destructive">
+                          {error.productName} ({error.productCode})
+                        </p>
+                        <pre className="mt-1 bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[10px] leading-tight">
+                          {error.errorMessage}
+                        </pre>
+                      </div>
                     ))}
                   </div>
                 </details>

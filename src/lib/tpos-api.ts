@@ -36,7 +36,12 @@ export interface TPOSUploadResult {
   successCount: number;
   failedCount: number;
   savedIds: number;
-  errors: string[];
+  errors: Array<{
+    productName: string;
+    productCode: string;
+    errorMessage: string;
+    fullError: any;
+  }>;
   productIds: Array<{ itemId: string; tposId: number }>;
 }
 
@@ -717,6 +722,7 @@ export async function uploadToTPOS(
           await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
+        // ✅ CHỈ thêm vào productIds khi upload THÀNH CÔNG
         result.productIds.push({
           itemId: item.id,
           tposId: product.Id,
@@ -724,10 +730,33 @@ export async function uploadToTPOS(
         result.successCount++;
         console.log(`✅ [${i + 1}/${items.length}] ${item.product_name} -> TPOS ID: ${product.Id}`);
       } catch (error) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        result.errors.push(`${item.product_name}: ${errorMsg}`);
+        // ❌ Capture TOÀN BỘ error info
+        let errorDetail = '';
+        
+        if (error instanceof Error) {
+          errorDetail = error.message;
+          // Parse JSON error response nếu có
+          try {
+            const errorJson = JSON.parse(error.message);
+            errorDetail = JSON.stringify(errorJson, null, 2);
+          } catch {
+            // Keep original error.message if not JSON
+          }
+        } else {
+          errorDetail = JSON.stringify(error, null, 2);
+        }
+        
+        result.errors.push({
+          productName: item.product_name,
+          productCode: item.product_code || 'N/A',
+          errorMessage: errorDetail,
+          fullError: error,
+        });
+        
         result.failedCount++;
-        console.error(`❌ Error with ${item.product_name}:`, error);
+        console.error(`❌ [${i + 1}/${items.length}] FAILED: ${item.product_name}`, error);
+        
+        // ⚠️ KHÔNG thêm vào productIds → KHÔNG lưu database
       }
     }
 
@@ -738,7 +767,12 @@ export async function uploadToTPOS(
     console.log("=".repeat(60));
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    result.errors.push(`Upload failed: ${errorMsg}`);
+    result.errors.push({
+      productName: 'General Upload Error',
+      productCode: 'N/A',
+      errorMessage: errorMsg,
+      fullError: error,
+    });
     console.error("❌ Upload error:", error);
   }
 
