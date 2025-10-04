@@ -12,6 +12,7 @@ import Products from "./pages/Products";
 import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
 import GoodsReceiving from "./pages/GoodsReceiving";
+import SearchProducts from "./pages/SearchProducts";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -70,6 +71,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <GoodsReceiving />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/search-products" element={
+              <ProtectedRoute>
+                <Layout>
+                  <SearchProducts />
                 </Layout>
               </ProtectedRoute>
             } />

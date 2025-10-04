@@ -4,7 +4,8 @@ import {
   ShoppingBag,
   BarChart3,
   Package,
-  Warehouse
+  Warehouse,
+  Search
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -30,6 +31,11 @@ const menuItems = [
     title: "Kho Sản Phẩm",
     url: "/products",
     icon: Warehouse,
+  },
+  {
+    title: "Tìm Kiếm SP",
+    url: "/search-products",
+    icon: Search,
   },
   {
     title: "Kiểm hàng",
