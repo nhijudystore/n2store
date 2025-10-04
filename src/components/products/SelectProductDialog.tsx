@@ -8,10 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { formatVND } from "@/lib/currency-utils";
-import { convertVietnameseToUpperCase } from "@/lib/utils";
-import { Check, Info } from "lucide-react";
+import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useDebounce } from "@/hooks/use-debounce";
 
 interface Product {
   id: string;
@@ -25,137 +23,41 @@ interface Product {
   supplier_name?: string;
 }
 
-interface NormalizedProduct extends Product {
-  _normalized: {
-    code: string;
-    name: string;
-    variant: string;
-  };
-}
-
 interface SelectProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (product: Product) => void;
 }
 
-// Extract prefix (text) and number from product code
-const extractCodeParts = (code: string): { prefix: string; number: number } => {
-  const match = code.match(/^([^\d]+)(\d+)$/);
-  if (match) {
-    return { prefix: match[1], number: parseInt(match[2], 10) };
-  }
-  // If no number found, treat the whole code as prefix with number 0
-  return { prefix: code, number: 0 };
-};
-
-// Sort products by number (largest first), then by name
-const sortProductsByNumber = (products: Product[]): Product[] => {
-  return [...products].sort((a, b) => {
-    const aNum = extractCodeParts(a.product_code).number;
-    const bNum = extractCodeParts(b.product_code).number;
-    
-    // Sort by number descending (largest first)
-    if (aNum !== bNum) {
-      return bNum - aNum;
-    }
-    
-    // If same number, sort by product name
-    return a.product_name.localeCompare(b.product_name);
-  });
-};
-
-const MAX_DISPLAY_RESULTS = 30;
-
 export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProductDialogProps) {
   const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState("");
-  const debouncedSearchQuery = useDebounce(searchQuery, 150);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products-select", "v2"], // Force cache refresh
+    queryKey: ["products-select", "v2"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, product_code, product_name, variant, selling_price, purchase_price, unit, stock_quantity, supplier_name")
+        .select("*")
         .order("product_code", { ascending: false });
 
       if (error) throw error;
-      console.log('📦 Products loaded:', data.length);
-      console.log('🔍 LAO products:', data.filter(p => p.product_code.includes('LAO')).length);
       return data as Product[];
     },
     enabled: open,
   });
 
-  // Memoize normalized products - only run once when products change
-  const normalizedProducts = useMemo<NormalizedProduct[]>(() => 
-    products.map(p => ({
-      ...p,
-      _normalized: {
-        code: convertVietnameseToUpperCase(p.product_code || ""),
-        name: convertVietnameseToUpperCase(p.product_name || ""),
-        variant: convertVietnameseToUpperCase(p.variant || "")
-      }
-    })), 
-  [products]);
-
-  // Filter products using simple lowercase search (consistent with Products page)
-  const searchFiltered = useMemo(() => {
-    if (!debouncedSearchQuery) return normalizedProducts;
+  // Simple filter - exactly like Products page
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery) return products;
     
-    const searchLower = debouncedSearchQuery.toLowerCase();
-    const filtered = normalizedProducts.filter((product) => 
-      product.product_code.toLowerCase().includes(searchLower) ||
-      product.product_name.toLowerCase().includes(searchLower) ||
-      (product.variant || "").toLowerCase().includes(searchLower)
+    const searchLower = searchQuery.toLowerCase();
+    return products.filter((product) =>
+      product.product_code?.toLowerCase().includes(searchLower) ||
+      product.product_name?.toLowerCase().includes(searchLower) ||
+      product.variant?.toLowerCase().includes(searchLower)
     );
-    
-    console.log('🔍 Search query:', debouncedSearchQuery);
-    console.log('📊 Filtered results:', filtered.length);
-    if (filtered.length > 0) {
-      console.log('🎯 Sample results:', filtered.slice(0, 3).map(p => ({ code: p.product_code, name: p.product_name })));
-    }
-    
-    return filtered;
-  }, [debouncedSearchQuery, normalizedProducts]);
-
-  // Sort products - prioritize exact matches when searching
-  const sortedProducts = useMemo(() => {
-    if (!debouncedSearchQuery) {
-      // No search - sort by number descending
-      return sortProductsByNumber(searchFiltered);
-    }
-    
-    // When searching - prioritize exact matches
-    const normalizedSearch = convertVietnameseToUpperCase(debouncedSearchQuery);
-    return [...searchFiltered].sort((a, b) => {
-      // Check exact match with product code
-      const aExactCode = a._normalized.code === normalizedSearch;
-      const bExactCode = b._normalized.code === normalizedSearch;
-      if (aExactCode && !bExactCode) return -1;
-      if (!aExactCode && bExactCode) return 1;
-      
-      // Check if search starts with the code
-      const aStartsWithCode = a._normalized.code.startsWith(normalizedSearch);
-      const bStartsWithCode = b._normalized.code.startsWith(normalizedSearch);
-      if (aStartsWithCode && !bStartsWithCode) return -1;
-      if (!aStartsWithCode && bStartsWithCode) return 1;
-      
-      // Then sort by number descending as usual
-      const { number: aNum } = extractCodeParts(a.product_code);
-      const { number: bNum } = extractCodeParts(b.product_code);
-      if (bNum !== aNum) return bNum - aNum;
-      return a.product_name.localeCompare(b.product_name);
-    });
-  }, [debouncedSearchQuery, searchFiltered]);
-
-  // When searching, show ALL results. When not searching, limit to MAX_DISPLAY_RESULTS
-  const displayedProducts = debouncedSearchQuery 
-    ? sortedProducts 
-    : sortedProducts.slice(0, MAX_DISPLAY_RESULTS);
-  const hasMoreResults = !debouncedSearchQuery && sortedProducts.length > MAX_DISPLAY_RESULTS;
-  const hiddenCount = sortedProducts.length - MAX_DISPLAY_RESULTS;
+  }, [searchQuery, products]);
 
   const handleSelect = (product: Product) => {
     onSelect(product);
@@ -177,64 +79,54 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-          {isLoading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <Card key={i} className="p-4">
-                  <Skeleton className="h-4 w-3/4 mb-2" />
-                  <Skeleton className="h-3 w-1/2 mb-2" />
-                  <Skeleton className="h-3 w-full" />
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2 overflow-y-auto flex-1">
-              {displayedProducts.map((product) => (
-                  <Card
-                    key={product.id}
-                    className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleSelect(product)}
-                  >
-                    <div className="space-y-2">
-                      <div className="font-semibold">{product.product_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {product.product_code}
-                        {product.variant && ` - ${product.variant}`}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Giá mua: </span>
-                          <span className="font-medium">{formatVND(product.purchase_price)}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Giá bán: </span>
-                          <span className="font-medium">{formatVND(product.selling_price)}</span>
-                        </div>
-                      </div>
-                      <div className="text-sm">
-                        <span className="text-muted-foreground">Tồn: </span>
-                        <span className={product.stock_quantity < 0 ? 'text-red-500' : ''}>
-                          {product.stock_quantity}
-                        </span>
-                      </div>
-                    </div>
+            {isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Card key={i} className="p-4">
+                    <Skeleton className="h-4 w-3/4 mb-2" />
+                    <Skeleton className="h-3 w-1/2 mb-2" />
+                    <Skeleton className="h-3 w-full" />
                   </Card>
                 ))}
-                {displayedProducts.length === 0 && (
+              </div>
+            ) : (
+              <div className="space-y-2 overflow-y-auto flex-1">
+                {filteredProducts.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
-                    Không tìm thấy sản phẩm
+                    {searchQuery ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
                   </div>
-                )}
-                {hasMoreResults && (
-                  <Card className="p-3 bg-muted/50 border-dashed">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Info className="h-4 w-4" />
-                      <span>
-                        Đang hiển thị {MAX_DISPLAY_RESULTS} kết quả đầu tiên. 
-                        Còn {hiddenCount} sản phẩm khác - hãy tìm kiếm cụ thể hơn.
-                      </span>
-                    </div>
-                  </Card>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <Card
+                      key={product.id}
+                      className="p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => handleSelect(product)}
+                    >
+                      <div className="space-y-2">
+                        <div className="font-semibold">{product.product_name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {product.product_code}
+                          {product.variant && ` - ${product.variant}`}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Giá mua: </span>
+                            <span className="font-medium">{formatVND(product.purchase_price)}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Giá bán: </span>
+                            <span className="font-medium">{formatVND(product.selling_price)}</span>
+                          </div>
+                        </div>
+                        <div className="text-sm">
+                          <span className="text-muted-foreground">Tồn: </span>
+                          <span className={product.stock_quantity < 0 ? 'text-red-500' : ''}>
+                            {product.stock_quantity}
+                          </span>
+                        </div>
+                      </div>
+                    </Card>
+                  ))
                 )}
               </div>
             )}
@@ -258,23 +150,23 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
             onChange={(e) => setSearchQuery(e.target.value)}
           />
 
-          {isLoading ? (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Mã SP</TableHead>
-                    <TableHead>Tên sản phẩm</TableHead>
-                    <TableHead>Variant</TableHead>
-                    <TableHead>Giá mua</TableHead>
-                    <TableHead>Giá bán</TableHead>
-                    <TableHead>Tồn</TableHead>
-                    <TableHead>NCC</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...Array(5)].map((_, i) => (
+          <div className="border rounded-lg overflow-hidden flex-1 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Mã SP</TableHead>
+                  <TableHead>Tên sản phẩm</TableHead>
+                  <TableHead>Variant</TableHead>
+                  <TableHead>Giá mua</TableHead>
+                  <TableHead>Giá bán</TableHead>
+                  <TableHead>Tồn</TableHead>
+                  <TableHead>NCC</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-32" /></TableCell>
@@ -285,28 +177,15 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <>
-              <div className="border rounded-lg overflow-hidden flex-1 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mã SP</TableHead>
-                      <TableHead>Tên sản phẩm</TableHead>
-                      <TableHead>Variant</TableHead>
-                      <TableHead>Giá mua</TableHead>
-                      <TableHead>Giá bán</TableHead>
-                      <TableHead>Tồn</TableHead>
-                      <TableHead>NCC</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {displayedProducts.map((product) => (
+                  ))
+                ) : filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                      {searchQuery ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredProducts.map((product) => (
                     <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
                       <TableCell className="font-medium">{product.product_code}</TableCell>
                       <TableCell>{product.product_name}</TableCell>
@@ -333,28 +212,11 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                         </Button>
                       </TableCell>
                     </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                {displayedProducts.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    Không tìm thấy sản phẩm
-                  </div>
+                  ))
                 )}
-              </div>
-              {hasMoreResults && (
-                <Card className="p-3 bg-muted/50 border-dashed mt-2">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Info className="h-4 w-4" />
-                    <span>
-                      Đang hiển thị {MAX_DISPLAY_RESULTS} kết quả đầu tiên. 
-                      Còn {hiddenCount} sản phẩm khác - hãy tìm kiếm cụ thể hơn.
-                    </span>
-                  </div>
-                </Card>
-              )}
-            </>
-          )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
