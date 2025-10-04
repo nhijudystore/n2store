@@ -68,6 +68,7 @@ interface PurchaseOrderListProps {
   selectedOrders: string[];
   onToggleSelect: (orderId: string) => void;
   onToggleSelectAll: () => void;
+  deletedTPOSIds: Set<number>;
 }
 
 export function PurchaseOrderList({
@@ -85,7 +86,8 @@ export function PurchaseOrderList({
   applyQuickFilter,
   selectedOrders,
   onToggleSelect,
-  onToggleSelectAll
+  onToggleSelectAll,
+  deletedTPOSIds
 }: PurchaseOrderListProps) {
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -534,20 +536,31 @@ export function PurchaseOrderList({
                   
                   <TableCell className="border-r">
                     {flatItem.item?.tpos_product_id ? (
-                      <div className="flex flex-col gap-1">
-                        <Badge variant="default" className="bg-green-600 w-fit">
-                          ✓ Đã đồng bộ
-                        </Badge>
-                        <a
-                          href={generateTPOSProductLink(flatItem.item.tpos_product_id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                        >
-                          ID: {flatItem.item.tpos_product_id}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
+                      deletedTPOSIds.has(flatItem.item.tpos_product_id) ? (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="destructive" className="w-fit">
+                            ⚠️ Đã xóa trên TPOS
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            ID: {flatItem.item.tpos_product_id}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-1">
+                          <Badge variant="default" className="bg-green-600 w-fit">
+                            ✓ Đã đồng bộ
+                          </Badge>
+                          <a
+                            href={generateTPOSProductLink(flatItem.item.tpos_product_id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                          >
+                            ID: {flatItem.item.tpos_product_id}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )
                     ) : (
                       <Badge variant="secondary" className="text-muted-foreground">
                         Chưa upload

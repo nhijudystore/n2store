@@ -232,6 +232,63 @@ export async function getProductDetail(productId: number): Promise<any> {
   return response.json();
 }
 
+/**
+ * Check if products exist on TPOS (batch check)
+ * Returns a Map of productId -> exists (true/false)
+ */
+export async function checkTPOSProductsExist(productIds: number[]): Promise<Map<number, boolean>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+
+  console.log(`🔍 [TPOS] Checking existence of ${productIds.length} products...`);
+  
+  try {
+    await randomDelay(300, 700);
+    
+    // Build filter to check multiple IDs at once
+    const idFilter = productIds.map(id => `Id eq ${id}`).join(' or ');
+    const filterQuery = encodeURIComponent(idFilter);
+    
+    // Fetch only ID and Name to minimize payload
+    const response = await fetch(
+      `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=${filterQuery}&$select=Id,Name`,
+      {
+        method: "GET",
+        headers: getTPOSHeaders(),
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`❌ [TPOS] Check failed: ${response.status}`);
+      // On error, assume all exist (fail-safe)
+      const result = new Map<number, boolean>();
+      productIds.forEach(id => result.set(id, true));
+      return result;
+    }
+
+    const data = await response.json();
+    const existingIds = new Set((data.value || data).map((p: any) => p.Id));
+    
+    // Create map of all requested IDs
+    const result = new Map<number, boolean>();
+    productIds.forEach(id => {
+      result.set(id, existingIds.has(id));
+    });
+
+    const deletedCount = productIds.length - existingIds.size;
+    console.log(`✅ [TPOS] Found ${existingIds.size}/${productIds.length} products (${deletedCount} deleted)`);
+    
+    return result;
+  } catch (error) {
+    console.error("❌ checkTPOSProductsExist error:", error);
+    // On error, assume all exist (fail-safe)
+    const result = new Map<number, boolean>();
+    productIds.forEach(id => result.set(id, true));
+    return result;
+  }
+}
+
 // =====================================================
 // ATTRIBUTES MANAGEMENT
 // =====================================================

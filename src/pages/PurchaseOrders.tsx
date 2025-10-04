@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2, X, Upload } from "lucide-react";
+import { Plus, Package, FileText, Download, ShoppingCart, FileSpreadsheet, Trash2, X, Upload, RefreshCw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderList";
@@ -13,6 +13,7 @@ import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePu
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 import { ExportTPOSDialog } from "@/components/purchase-orders/ExportTPOSDialog";
 import type { TPOSProductItem } from "@/lib/tpos-api";
+import { checkTPOSProductsExist } from "@/lib/tpos-api";
 import { format } from "date-fns";
 import { convertVietnameseToUpperCase } from "@/lib/utils";
 import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
@@ -56,6 +57,8 @@ const PurchaseOrders = () => {
   const [isTPOSDialogOpen, setIsTPOSDialogOpen] = useState(false);
   const [tposItems, setTposItems] = useState<TPOSProductItem[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [isCheckingTPOS, setIsCheckingTPOS] = useState(false);
+  const [deletedTPOSIds, setDeletedTPOSIds] = useState<Set<number>>(new Set());
   const queryClient = useQueryClient();
 
   // Helper function to format date as DD-MM
@@ -94,6 +97,59 @@ const PurchaseOrders = () => {
 
   const clearSelection = () => {
     setSelectedOrders([]);
+  };
+
+  // Check TPOS sync status
+  const handleCheckTPOSSync = async () => {
+    const allItems = orders?.flatMap(order => order.items || []) || [];
+    const tposIds = allItems
+      .filter(item => item.tpos_product_id)
+      .map(item => item.tpos_product_id as number);
+
+    if (tposIds.length === 0) {
+      toast({
+        title: "Không có sản phẩm để kiểm tra",
+        description: "Chưa có sản phẩm nào được đồng bộ lên TPOS",
+      });
+      return;
+    }
+
+    setIsCheckingTPOS(true);
+    toast({
+      title: "Đang kiểm tra TPOS...",
+      description: `Đang kiểm tra ${tposIds.length} sản phẩm trên TPOS`,
+    });
+
+    try {
+      const existenceMap = await checkTPOSProductsExist(tposIds);
+      const deletedIds = new Set<number>();
+      
+      existenceMap.forEach((exists, id) => {
+        if (!exists) {
+          deletedIds.add(id);
+        }
+      });
+
+      setDeletedTPOSIds(deletedIds);
+
+      const deletedCount = deletedIds.size;
+      const activeCount = tposIds.length - deletedCount;
+
+      toast({
+        title: "✅ Kiểm tra hoàn tất",
+        description: `Còn ${activeCount}/${tposIds.length} sản phẩm trên TPOS${deletedCount > 0 ? ` (${deletedCount} đã bị xóa)` : ''}`,
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Error checking TPOS sync:", error);
+      toast({
+        title: "❌ Lỗi kiểm tra",
+        description: "Không thể kiểm tra trạng thái trên TPOS",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingTPOS(false);
+    }
   };
 
   // Filter states moved from PurchaseOrderList
@@ -708,6 +764,24 @@ const PurchaseOrders = () => {
                         <Upload className="w-4 h-4 mr-2" />
                         Export & Upload TPOS
                       </Button>
+                      <Button 
+                        onClick={handleCheckTPOSSync} 
+                        variant="outline" 
+                        size="sm"
+                        disabled={isCheckingTPOS}
+                      >
+                        {isCheckingTPOS ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                            Đang kiểm tra...
+                          </>
+                        ) : (
+                          <>
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Kiểm tra TPOS
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -730,27 +804,46 @@ const PurchaseOrders = () => {
                     <Upload className="w-4 h-4" />
                     Export & Upload TPOS
                   </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleCheckTPOSSync}
+                    disabled={isCheckingTPOS}
+                    className="gap-2"
+                  >
+                    {isCheckingTPOS ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Đang kiểm tra...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-4 h-4" />
+                        Kiểm tra TPOS Sync
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              <PurchaseOrderList 
-                filteredOrders={filteredOrders}
-                isLoading={isLoading}
-                searchTerm={searchTerm}
-                setSearchTerm={setSearchTerm}
-                statusFilter={statusFilter}
-                setStatusFilter={setStatusFilter}
-                dateFrom={dateFrom}
-                setDateFrom={setDateFrom}
-                dateTo={dateTo}
-                setDateTo={setDateTo}
-                quickFilter={quickFilter}
-                applyQuickFilter={applyQuickFilter}
-                selectedOrders={selectedOrders}
-                onToggleSelect={toggleSelectOrder}
-                onToggleSelectAll={toggleSelectAll}
-              />
+            <PurchaseOrderList
+              filteredOrders={filteredOrders}
+              isLoading={isLoading}
+              searchTerm={searchTerm}
+              setSearchTerm={setSearchTerm}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              dateFrom={dateFrom}
+              setDateFrom={setDateFrom}
+              dateTo={dateTo}
+              setDateTo={setDateTo}
+              quickFilter={quickFilter}
+              applyQuickFilter={applyQuickFilter}
+              selectedOrders={selectedOrders}
+              onToggleSelect={toggleSelectOrder}
+              onToggleSelectAll={toggleSelectAll}
+              deletedTPOSIds={deletedTPOSIds}
+            />
             </CardContent>
           </Card>
         </TabsContent>
