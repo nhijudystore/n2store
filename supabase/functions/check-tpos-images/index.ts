@@ -36,18 +36,19 @@ Deno.serve(async (req) => {
 
     while (hasMore) {
       const params = new URLSearchParams({
+        'Active': 'true',
+        'priceId': '0',
         '$top': batchSize.toString(),
         '$skip': skip.toString(),
         '$orderby': 'DateCreated desc',
         '$filter': 'Active eq true',
-        '$count': 'true',
-        '$expand': 'Images'
+        '$count': 'true'
       })
 
       console.log(`Fetching TPOS batch ${batchNumber} (skip: ${skip})...`)
 
       const response = await fetch(
-        `https://tomato.tpos.vn/odata/ProductTemplate?${params.toString()}`,
+        `https://tomato.tpos.vn/odata/ProductTemplate/ODataService.GetViewV2?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
