@@ -255,6 +255,32 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                   ❌ Thất bại: {result.failedCount} sản phẩm
                 </p>
               )}
+              {result.imageUploadWarnings && result.imageUploadWarnings.length > 0 && (
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 font-semibold">
+                    ⚠️ {result.imageUploadWarnings.length} sản phẩm upload ảnh thất bại (đã tạo trên TPOS)
+                  </summary>
+                  <div className="mt-2 space-y-2 text-xs max-h-64 overflow-y-auto">
+                    {result.imageUploadWarnings.map((warning, i) => (
+                      <div key={i} className="border-l-4 border-yellow-500 pl-3 py-2 bg-yellow-50 dark:bg-yellow-950/20 rounded">
+                        <p className="font-bold text-yellow-800 dark:text-yellow-200 text-sm mb-1">
+                          {i + 1}. {warning.productName} 
+                          <span className="text-muted-foreground"> ({warning.productCode})</span>
+                        </p>
+                        <p className="text-xs text-green-600 dark:text-green-400 mb-1">
+                          ✅ Đã tạo trên TPOS - ID: {warning.tposId}
+                        </p>
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">Lỗi upload ảnh:</p>
+                          <pre className="bg-muted/80 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed font-mono border border-yellow-200 dark:border-yellow-800">
+                            {warning.errorMessage}
+                          </pre>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
               {result.errors.length > 0 && (
                 <details className="mt-2" open>
                   <summary className="cursor-pointer text-destructive hover:text-destructive/80 font-semibold">

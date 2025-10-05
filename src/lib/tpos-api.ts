@@ -44,6 +44,12 @@ export interface TPOSUploadResult {
     errorMessage: string;
     fullError: any;
   }>;
+  imageUploadWarnings: Array<{
+    productName: string;
+    productCode: string;
+    tposId: number;
+    errorMessage: string;
+  }>;
   productIds: Array<{ itemId: string; tposId: number }>;
 }
 
@@ -683,6 +689,7 @@ export async function uploadToTPOS(
     failedCount: 0,
     savedIds: 0,
     errors: [],
+    imageUploadWarnings: [],
     productIds: [],
   };
 
@@ -780,6 +787,14 @@ export async function uploadToTPOS(
         continue;
       }
 
+      // ✅ LUÔN LUÔN thêm vào productIds vì TPOS đã tạo product thành công
+      result.productIds.push({
+        itemId: item.id,
+        tposId: tposProduct.Id,
+      });
+      result.successCount++;
+
+      // Attempt to upload image and attributes (best effort)
       try {
         const imageUrl = item.product_images?.[0];
         
@@ -801,15 +816,9 @@ export async function uploadToTPOS(
           await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
-        // ✅ CHỈ thêm vào productIds khi upload THÀNH CÔNG
-        result.productIds.push({
-          itemId: item.id,
-          tposId: tposProduct.Id,
-        });
-        result.successCount++;
         console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (${productCode}) -> TPOS ID: ${tposProduct.Id}`);
       } catch (error) {
-        // ❌ Capture TOÀN BỘ error info
+        // ⚠️ Log warning nhưng KHÔNG tăng failedCount vì TPOS đã tạo product
         let errorDetail = '';
         
         if (error instanceof Error) {
@@ -825,17 +834,14 @@ export async function uploadToTPOS(
           errorDetail = JSON.stringify(error, null, 2);
         }
         
-        result.errors.push({
+        result.imageUploadWarnings.push({
           productName: item.product_name,
           productCode: item.product_code || 'N/A',
+          tposId: tposProduct.Id,
           errorMessage: errorDetail,
-          fullError: error,
         });
         
-        result.failedCount++;
-        console.error(`❌ [${i + 1}/${latestProducts.length}] FAILED: ${item.product_name}`, error);
-        
-        // ⚠️ KHÔNG thêm vào productIds → KHÔNG lưu database
+        console.warn(`⚠️ [${i + 1}/${latestProducts.length}] Image upload failed for: ${item.product_name} (Product created in TPOS)`, error);
       }
     }
 
