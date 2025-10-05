@@ -25,26 +25,69 @@ Deno.serve(async (req) => {
       throw new Error('TPOS_BEARER_TOKEN not configured')
     }
 
-    console.log('Fetching all TPOS products...')
+    console.log('Fetching all TPOS products with pagination...')
 
-    // Fetch all products from TPOS (no pagination needed with OData)
-    // Using $top to get all products (max 10000)
-    const response = await fetch(
-      `https://ghn.mfast.vn/api/products?$top=10000&$expand=Images`,
-      {
-        headers: {
-          'Authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+    // Fetch products from TPOS in batches of 1000 (TPOS limit)
+    let allProducts: TPOSProduct[] = []
+    const batchSize = 1000
+    let skip = 0
+    let hasMore = true
+    let batchNumber = 1
+
+    while (hasMore) {
+      const params = new URLSearchParams({
+        'Active': 'true',
+        'priceId': '0',
+        '$top': batchSize.toString(),
+        '$skip': skip.toString(),
+        '$orderby': 'DateCreated desc',
+        '$filter': 'Active eq true',
+        '$count': 'true',
+        '$expand': 'Images'
+      })
+
+      console.log(`Fetching batch ${batchNumber} (skip: ${skip})...`)
+
+      const response = await fetch(
+        `https://ghn.mfast.vn/api/products?${params.toString()}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+
+      if (!response.ok) {
+        console.error(`Failed to fetch batch ${batchNumber}:`, response.status)
+        throw new Error(`Failed to fetch TPOS products: ${response.status}`)
       }
-    )
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch TPOS products: ${response.status}`)
+      const data = await response.json()
+      const products = data.value || []
+      const totalCount = data['@odata.count'] || 0
+      
+      console.log(`Batch ${batchNumber}: Got ${products.length} products (Total in TPOS: ${totalCount})`)
+      
+      if (products.length === 0) {
+        hasMore = false
+      } else {
+        allProducts = [...allProducts, ...products]
+        skip += batchSize
+        batchNumber++
+        
+        // Stop if we've fetched all available products
+        if (allProducts.length >= totalCount) {
+          hasMore = false
+        }
+      }
+
+      // Safety limit to prevent infinite loops
+      if (batchNumber > 10) {
+        console.warn('Reached batch limit of 10')
+        break
+      }
     }
-
-    const data = await response.json()
-    const allProducts: TPOSProduct[] = data.value || data
 
     console.log(`Total products fetched: ${allProducts.length}`)
 
