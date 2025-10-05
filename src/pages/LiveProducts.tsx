@@ -756,15 +756,16 @@ export default function LiveProducts() {
       const data = await response.json();
       console.log('[TPOS Sync] Response data:', data);
       
-      // 2. Create mapping: SessionIndex -> Id (TPOS Order ID)
+      // 2. Create mapping: SessionIndex -> "Id-Code"
       const tposMap = new Map<string, string>();
       data.value?.forEach((order: any) => {
-        if (order.SessionIndex && order.Id) {
+        if (order.SessionIndex && order.Id && order.Code) {
           // Convert SessionIndex to string and trim whitespace
           const sessionIndexStr = String(order.SessionIndex).trim();
-          // Store the TPOS Order Id instead of Code
-          tposMap.set(sessionIndexStr, order.Id);
-          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" -> TPOS Id "${order.Id}"`);
+          // Store both Id and Code as "Id-Code"
+          const tposValue = `${order.Id}-${order.Code}`;
+          tposMap.set(sessionIndexStr, tposValue);
+          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" -> TPOS "${tposValue}" (Id: ${order.Id}, Code: ${order.Code})`);
         }
       });
       
@@ -792,24 +793,24 @@ export default function LiveProducts() {
       for (const [orderCode, orders] of Object.entries(orderGroups)) {
         // Normalize order_code to string and trim
         const normalizedOrderCode = String(orderCode).trim();
-        const tposId = tposMap.get(normalizedOrderCode);
+        const tposValue = tposMap.get(normalizedOrderCode);
         
-        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposId ? `Found TPOS Id "${tposId}"` : 'NOT FOUND');
+        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposValue ? `Found TPOS "${tposValue}"` : 'NOT FOUND');
         
-        if (tposId) {
+        if (tposValue) {
           // Update all orders with this order_code
           try {
             const orderIds = orders.map(o => o.id);
             
             const { error } = await supabase
               .from('live_orders')
-              .update({ tpos_order_id: tposId })
+              .update({ tpos_order_id: tposValue })
               .in('id', orderIds);
             
             if (error) throw error;
             
             matched += orders.length;
-            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS Id "${tposId}"`);
+            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS "${tposValue}"`);
           } catch (err) {
             console.error(`[TPOS Sync] ✗ Error updating order ${orderCode}:`, err);
             errors += orders.length;
@@ -894,11 +895,19 @@ export default function LiveProducts() {
   };
 
   const handleUploadToTPOS = async (orderCode: string, orders: OrderWithProduct[]) => {
-    // Get TPOS Order ID from first order in group
-    const tposOrderId = orders[0]?.tpos_order_id;
+    // Get TPOS Order ID from first order in group (format: "Id-Code")
+    const tposOrderData = orders[0]?.tpos_order_id;
+    
+    if (!tposOrderData) {
+      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
+      return;
+    }
+    
+    // Extract Id from "Id-Code" format
+    const tposOrderId = tposOrderData.split('-')[0];
     
     if (!tposOrderId) {
-      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
+      toast.error("Định dạng mã TPOS không hợp lệ.");
       return;
     }
     
