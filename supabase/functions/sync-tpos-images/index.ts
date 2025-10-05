@@ -42,8 +42,6 @@ Deno.serve(async (req) => {
 
     while (hasMore) {
       const params = new URLSearchParams({
-        'Active': 'true',
-        'priceId': '0',
         '$top': batchSize.toString(),
         '$skip': skip.toString(),
         '$orderby': 'DateCreated desc',
@@ -55,17 +53,19 @@ Deno.serve(async (req) => {
       console.log(`Fetching TPOS batch ${batchNumber} (skip: ${skip})...`)
 
       const response = await fetch(
-        `https://ghn.mfast.vn/api/products?${params.toString()}`,
+        `https://tomato.tpos.vn/odata/ProductTemplate?${params.toString()}`,
         {
           headers: {
             'Authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
             'Content-Type': 'application/json',
+            'Accept': 'application/json',
           },
         }
       )
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch TPOS products: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`Failed to fetch TPOS products: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
