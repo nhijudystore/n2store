@@ -29,16 +29,6 @@ const menuItems = [
     icon: ShoppingBag,
   },
   {
-    title: "Kho Sản Phẩm",
-    url: "/products",
-    icon: Warehouse,
-  },
-  {
-    title: "Tìm Kiếm SP",
-    url: "/search-products",
-    icon: Search,
-  },
-  {
     title: "Kiểm hàng",
     url: "/goods-receiving",
     icon: Package,
@@ -56,6 +46,16 @@ const menuItems = [
 ];
 
 const adminItems = [
+  {
+    title: "Kho Sản Phẩm",
+    url: "/products",
+    icon: Warehouse,
+  },
+  {
+    title: "Tìm Kiếm SP",
+    url: "/search-products",
+    icon: Search,
+  },
   {
     title: "Lịch sử chỉnh sửa",
     url: "/activity-log",
