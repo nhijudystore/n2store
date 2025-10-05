@@ -708,10 +708,10 @@ export default function LiveProducts() {
       const startDate = new Date(today.setHours(0, 0, 0, 0));
       const endDate = new Date(today.setHours(23, 59, 59, 999));
       
-      const startISO = startDate.toISOString().replace(/\.\d{3}Z$/, '+00:00');
-      const endISO = endDate.toISOString().replace(/\.\d{3}Z$/, '+00:00');
+      const startDateStr = startDate.toISOString();
+      const endDateStr = endDate.toISOString();
       
-      const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${tposTopValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startISO} and DateCreated le ${endISO})&$count=true`;
+      const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${tposTopValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startDateStr} and DateCreated le ${endDateStr})&$count=true`;
       
       const response = await fetch(url, {
         headers: getTPOSHeaders()
