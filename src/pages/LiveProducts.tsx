@@ -29,13 +29,17 @@ import {
   Copy,
   AlertTriangle,
   RefreshCw,
-  Maximize2
+  Maximize2,
+  Download,
+  CheckCircle
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { getTPOSHeaders } from "@/lib/tpos-config";
 
 interface LiveSession {
   id: string;
@@ -156,6 +160,13 @@ export default function LiveProducts() {
     orders?: OrderWithProduct[];
   } | null>(null);
   const [isFullScreenProductViewOpen, setIsFullScreenProductViewOpen] = useState(false);
+  const [tposTopValue, setTposTopValue] = useState("20");
+  const [isSyncingTpos, setIsSyncingTpos] = useState(false);
+  const [tposSyncResult, setTposSyncResult] = useState<{
+    matched: number;
+    notFound: number;
+    errors: number;
+  } | null>(null);
   
   const queryClient = useQueryClient();
 
@@ -687,6 +698,94 @@ export default function LiveProducts() {
     }
   };
 
+  const handleSyncTposOrders = async () => {
+    setIsSyncingTpos(true);
+    setTposSyncResult(null);
+    
+    try {
+      // 1. Fetch TPOS orders
+      const today = new Date();
+      const startDate = new Date(today.setHours(0, 0, 0, 0));
+      const endDate = new Date(today.setHours(23, 59, 59, 999));
+      
+      const startISO = startDate.toISOString().replace(/\.\d{3}Z$/, '+00:00');
+      const endISO = endDate.toISOString().replace(/\.\d{3}Z$/, '+00:00');
+      
+      const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${tposTopValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startISO} and DateCreated le ${endISO})&$count=true`;
+      
+      const response = await fetch(url, {
+        headers: getTPOSHeaders()
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch TPOS orders");
+      
+      const data = await response.json();
+      
+      // 2. Create mapping: SessionIndex -> Code
+      const tposMap = new Map<string, string>();
+      data.value?.forEach((order: any) => {
+        if (order.SessionIndex && order.Code) {
+          tposMap.set(order.SessionIndex, order.Code);
+        }
+      });
+      
+      // 3. Match and update
+      let matched = 0;
+      let notFound = 0;
+      let errors = 0;
+      
+      // Group orders by order_code
+      const orderGroups = ordersWithProducts.reduce((groups, order) => {
+        if (!groups[order.order_code]) {
+          groups[order.order_code] = [];
+        }
+        groups[order.order_code].push(order);
+        return groups;
+      }, {} as Record<string, typeof ordersWithProducts>);
+      
+      // Process each order group
+      for (const [orderCode, orders] of Object.entries(orderGroups)) {
+        const tposCode = tposMap.get(orderCode);
+        
+        if (tposCode) {
+          // Update all orders with this order_code
+          try {
+            const orderIds = orders.map(o => o.id);
+            
+            const { error } = await supabase
+              .from('live_orders')
+              .update({ tpos_order_id: tposCode })
+              .in('id', orderIds);
+            
+            if (error) throw error;
+            
+            matched += orders.length;
+          } catch (err) {
+            console.error(`Error updating order ${orderCode}:`, err);
+            errors += orders.length;
+          }
+        } else {
+          notFound += orders.length;
+        }
+      }
+      
+      // 4. Refresh data
+      await queryClient.invalidateQueries({ queryKey: ['live-orders', selectedPhase] });
+      await queryClient.invalidateQueries({ queryKey: ['orders-with-products', selectedPhase] });
+      
+      setTposSyncResult({ matched, notFound, errors });
+      
+      toast.success(`Đã cập nhật ${matched} đơn hàng${notFound > 0 ? `, ${notFound} không tìm thấy` : ''}`);
+      
+    } catch (error) {
+      console.error("Error syncing TPOS orders:", error);
+      toast.error("Không thể lấy dữ liệu từ TPOS");
+    } finally {
+      setIsSyncingTpos(false);
+    }
+  };
+
+
   const handleEditProduct = (product: LiveProduct) => {
     setEditingProduct({
       id: product.id,
@@ -1187,6 +1286,76 @@ export default function LiveProducts() {
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
+              {ordersWithProducts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Đồng bộ mã TPOS</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex gap-3 items-end">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Số lượng đơn hàng</label>
+                        <Select value={tposTopValue} onValueChange={setTposTopValue}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="20">20 đơn</SelectItem>
+                            <SelectItem value="50">50 đơn</SelectItem>
+                            <SelectItem value="200">200 đơn</SelectItem>
+                            <SelectItem value="1000">1000 đơn</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button
+                        onClick={handleSyncTposOrders}
+                        disabled={isSyncingTpos}
+                      >
+                        {isSyncingTpos ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Đang đồng bộ...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Thêm mã TPOS
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {tposSyncResult && (
+                      <Alert className="mt-4">
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertTitle>Kết quả</AlertTitle>
+                        <AlertDescription>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span>Đã cập nhật:</span>
+                              <Badge>{tposSyncResult.matched}</Badge>
+                            </div>
+                            {tposSyncResult.notFound > 0 && (
+                              <div className="flex justify-between">
+                                <span>Không tìm thấy:</span>
+                                <Badge variant="outline">{tposSyncResult.notFound}</Badge>
+                              </div>
+                            )}
+                            {tposSyncResult.errors > 0 && (
+                              <div className="flex justify-between">
+                                <span>Lỗi:</span>
+                                <Badge variant="destructive">{tposSyncResult.errors}</Badge>
+                              </div>
+                            )}
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              
               {ordersWithProducts.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
