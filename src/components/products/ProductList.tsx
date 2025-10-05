@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2, ImageIcon } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { formatVND } from "@/lib/currency-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EditProductDialog } from "./EditProductDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ProductImage } from "./ProductImage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,8 @@ interface Product {
   supplier_name?: string;
   product_images?: string[];
   price_images?: string[];
+  tpos_image_url?: string;
+  tpos_product_id?: number;
 }
 
 interface ProductListProps {
@@ -106,14 +109,26 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
                     </div>
                     {product.variant && (
                       <div className="text-xs text-muted-foreground">
-                        {product.variant}
-                      </div>
-                    )}
-                  </div>
-                  {product.product_images && product.product_images.length > 0 && (
-                    <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      {product.variant}
+                    </div>
                   )}
                 </div>
+                <ProductImage 
+                  productId={product.id}
+                  productCode={product.product_code}
+                  productImages={product.product_images}
+                  tposImageUrl={product.tpos_image_url}
+                  tposProductId={product.tpos_product_id}
+                />
+                </div>
+                
+                <ProductImage 
+                  productId={product.id}
+                  productCode={product.product_code}
+                  productImages={product.product_images}
+                  tposImageUrl={product.tpos_image_url}
+                  tposProductId={product.tpos_product_id}
+                />
 
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div>
@@ -190,6 +205,7 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Hình ảnh</TableHead>
               <TableHead>Mã SP</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Variant</TableHead>
@@ -204,15 +220,17 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
           <TableBody>
             {products.map((product) => (
               <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.product_code}</TableCell>
                 <TableCell>
-                  <div className="flex items-center gap-2">
-                    {product.product_images && product.product_images.length > 0 && (
-                      <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    {product.product_name}
-                  </div>
+                  <ProductImage 
+                    productId={product.id}
+                    productCode={product.product_code}
+                    productImages={product.product_images}
+                    tposImageUrl={product.tpos_image_url}
+                    tposProductId={product.tpos_product_id}
+                  />
                 </TableCell>
+                <TableCell className="font-medium">{product.product_code}</TableCell>
+                <TableCell>{product.product_name}</TableCell>
                 <TableCell className="text-muted-foreground">{product.variant || "-"}</TableCell>
                 <TableCell>{formatVND(product.selling_price)}</TableCell>
                 <TableCell>{formatVND(product.purchase_price)}</TableCell>

@@ -360,6 +360,8 @@ export type Database = {
           selling_price: number | null
           stock_quantity: number | null
           supplier_name: string | null
+          tpos_image_url: string | null
+          tpos_product_id: number | null
           unit: string | null
           updated_at: string
           variant: string | null
@@ -377,6 +379,8 @@ export type Database = {
           selling_price?: number | null
           stock_quantity?: number | null
           supplier_name?: string | null
+          tpos_image_url?: string | null
+          tpos_product_id?: number | null
           unit?: string | null
           updated_at?: string
           variant?: string | null
@@ -394,6 +398,8 @@ export type Database = {
           selling_price?: number | null
           stock_quantity?: number | null
           supplier_name?: string | null
+          tpos_image_url?: string | null
+          tpos_product_id?: number | null
           unit?: string | null
           updated_at?: string
           variant?: string | null
