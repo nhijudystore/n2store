@@ -13,6 +13,59 @@ import {
 import { detectVariantsFromText, getSimpleDetection } from "./variant-detector";
 
 // =====================================================
+// CACHE MANAGEMENT
+// =====================================================
+
+const CACHE_KEY = 'tpos_product_cache';
+const CACHE_TTL = 1000 * 60 * 30; // 30 phút
+
+/**
+ * Lấy cached TPOS IDs từ localStorage
+ */
+export function getCachedTPOSIds(): Map<string, number> {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY);
+    if (!cached) return new Map();
+    
+    const { data, timestamp } = JSON.parse(cached);
+    
+    // Check TTL
+    if (Date.now() - timestamp > CACHE_TTL) {
+      localStorage.removeItem(CACHE_KEY);
+      return new Map();
+    }
+    
+    return new Map(Object.entries(data));
+  } catch (error) {
+    console.error('❌ Cache read error:', error);
+    return new Map();
+  }
+}
+
+/**
+ * Lưu TPOS IDs vào localStorage
+ */
+export function saveCachedTPOSIds(ids: Map<string, number>) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify({
+      data: Object.fromEntries(ids),
+      timestamp: Date.now()
+    }));
+    console.log(`💾 Cached ${ids.size} TPOS IDs (TTL: 30 phút)`);
+  } catch (error) {
+    console.error('❌ Cache write error:', error);
+  }
+}
+
+/**
+ * Xóa cache (dùng khi cần refresh)
+ */
+export function clearTPOSCache() {
+  localStorage.removeItem(CACHE_KEY);
+  console.log('🗑️ TPOS Cache cleared');
+}
+
+// =====================================================
 // TYPE DEFINITIONS
 // =====================================================
 
@@ -775,7 +828,7 @@ export async function uploadToTPOS(
       console.log(`🔍 [${currentStep}/${items.length}] Found TPOS product: ${latestProduct.DefaultCode} (ID: ${latestProduct.Id})`);
 
       // Step 5: Lấy chi tiết đầy đủ với $expand
-      const expandParams = "UOM,Categ,UOMPO,POSCateg,ProductVariants($expand=UOM,Categ,UOMPO,POSCateg,AttributeValues),AttributeLines,Images";
+      const expandParams = "Images,ProductVariants($select=Id,Name)";
       const detailResponse = await fetch(
         `${TPOS_CONFIG.API_BASE}(${latestProduct.Id})?$expand=${encodeURIComponent(expandParams)}`,
         { headers: getTPOSHeaders() }
@@ -795,44 +848,30 @@ export async function uploadToTPOS(
           productDetail.Image = base64Image;
           hasImage = true;
           console.log(`📸 [${currentStep}/${items.length}] Added image to product`);
+          
+          // Upload ảnh lên TPOS
+          delete productDetail["@odata.context"];
+          const updateResponse = await fetch(
+            `${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`,
+            {
+              method: "POST",
+              headers: getTPOSHeaders(),
+              body: JSON.stringify(productDetail)
+            }
+          );
+
+          if (!updateResponse.ok) {
+            const errorText = await updateResponse.text();
+            throw new Error(`Upload ảnh thất bại: ${errorText}`);
+          }
+          
+          console.log(`✅ [${currentStep}/${items.length}] Complete with image: ${item.product_name} → TPOS ID: ${latestProduct.Id}`);
         } else {
           console.warn(`⚠️ [${currentStep}/${items.length}] Failed to convert image to base64`);
+          console.log(`✅ [${currentStep}/${items.length}] Created without image: ${item.product_name} → TPOS ID: ${latestProduct.Id}`);
         }
-      }
-
-      // Step 7: Thêm attributes nếu có
-      let hasAttributes = false;
-      const textToAnalyze = `${item.product_name} ${item.variant || ""}`.trim();
-      const detectedAttributes = detectAttributesFromText(textToAnalyze);
-      
-      if (detectedAttributes.sizeText?.length || detectedAttributes.sizeNumber?.length || detectedAttributes.color?.length) {
-        const attributeLines = createAttributeLines(detectedAttributes);
-        productDetail.AttributeLines = attributeLines;
-        hasAttributes = true;
-        console.log(`🏷️ [${currentStep}/${items.length}] Added attributes: ${JSON.stringify(detectedAttributes)}`);
-      }
-
-      // Step 8: Upload đầy đủ data lên TPOS (nếu có ảnh hoặc attributes)
-      if (hasImage || hasAttributes) {
-        delete productDetail["@odata.context"]; // Remove metadata
-        
-        const updateResponse = await fetch(
-          `${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`,
-          {
-            method: "POST",
-            headers: getTPOSHeaders(),
-            body: JSON.stringify(productDetail)
-          }
-        );
-
-        if (!updateResponse.ok) {
-          const errorText = await updateResponse.text();
-          throw new Error(`Upload data thất bại: ${errorText}`);
-        }
-
-        console.log(`✅ [${currentStep}/${items.length}] Complete: ${item.product_name} → TPOS ID: ${latestProduct.Id}`);
       } else {
-        console.log(`✅ [${currentStep}/${items.length}] Created (no image/attributes): ${item.product_name} → TPOS ID: ${latestProduct.Id}`);
+        console.log(`✅ [${currentStep}/${items.length}] Created without image: ${item.product_name} → TPOS ID: ${latestProduct.Id}`);
       }
 
       result.successCount++;
@@ -840,6 +879,13 @@ export async function uploadToTPOS(
         itemId: item.id,
         tposId: latestProduct.Id,
       });
+
+      // Lưu vào cache
+      const cache = getCachedTPOSIds();
+      if (item.product_code) {
+        cache.set(item.product_code, latestProduct.Id);
+        saveCachedTPOSIds(cache);
+      }
 
     } catch (error) {
       console.error(`❌ [${currentStep}/${items.length}] Failed to upload ${item.product_name}:`, error);
