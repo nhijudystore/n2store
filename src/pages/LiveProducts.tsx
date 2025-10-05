@@ -713,6 +713,8 @@ export default function LiveProducts() {
       
       const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${tposTopValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startDateStr} and DateCreated le ${endDateStr})&$count=true`;
       
+      console.log('[TPOS Sync] Fetching from URL:', url);
+      
       const response = await fetch(url, {
         headers: getTPOSHeaders()
       });
@@ -720,14 +722,18 @@ export default function LiveProducts() {
       if (!response.ok) throw new Error("Failed to fetch TPOS orders");
       
       const data = await response.json();
+      console.log('[TPOS Sync] Response data:', data);
       
       // 2. Create mapping: SessionIndex -> Code
       const tposMap = new Map<string, string>();
       data.value?.forEach((order: any) => {
         if (order.SessionIndex && order.Code) {
           tposMap.set(order.SessionIndex, order.Code);
+          console.log(`[TPOS Sync] Mapping: SessionIndex "${order.SessionIndex}" -> Code "${order.Code}"`);
         }
       });
+      
+      console.log('[TPOS Sync] Total TPOS mappings:', tposMap.size);
       
       // 3. Match and update
       let matched = 0;
@@ -743,9 +749,13 @@ export default function LiveProducts() {
         return groups;
       }, {} as Record<string, typeof ordersWithProducts>);
       
+      console.log('[TPOS Sync] Local order codes:', Object.keys(orderGroups));
+      
       // Process each order group
       for (const [orderCode, orders] of Object.entries(orderGroups)) {
         const tposCode = tposMap.get(orderCode);
+        
+        console.log(`[TPOS Sync] Checking order_code "${orderCode}":`, tposCode ? `Found TPOS Code "${tposCode}"` : 'NOT FOUND');
         
         if (tposCode) {
           // Update all orders with this order_code
@@ -760,14 +770,17 @@ export default function LiveProducts() {
             if (error) throw error;
             
             matched += orders.length;
+            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS "${tposCode}"`);
           } catch (err) {
-            console.error(`Error updating order ${orderCode}:`, err);
+            console.error(`[TPOS Sync] ✗ Error updating order ${orderCode}:`, err);
             errors += orders.length;
           }
         } else {
           notFound += orders.length;
         }
       }
+      
+      console.log('[TPOS Sync] Summary:', { matched, notFound, errors });
       
       // 4. Refresh data
       await queryClient.invalidateQueries({ queryKey: ['live-orders', selectedPhase] });
