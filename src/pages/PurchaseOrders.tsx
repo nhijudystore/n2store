@@ -857,24 +857,6 @@ const PurchaseOrders = () => {
                         <Upload className="w-4 h-4 mr-2" />
                         Export & Upload TPOS
                       </Button>
-                      <Button 
-                        onClick={handleCheckTPOSSync} 
-                        variant="outline" 
-                        size="sm"
-                        disabled={isCheckingTPOS}
-                      >
-                        {isCheckingTPOS ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                            Đang kiểm tra...
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Kiểm tra TPOS
-                          </>
-                        )}
-                      </Button>
                     </div>
                   </div>
                 )}
@@ -896,24 +878,6 @@ const PurchaseOrders = () => {
                   <Button onClick={handleExportToTPOS} variant="default" className="gap-2">
                     <Upload className="w-4 h-4" />
                     Export & Upload TPOS
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleCheckTPOSSync}
-                    disabled={isCheckingTPOS}
-                    className="gap-2"
-                  >
-                    {isCheckingTPOS ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                        Đang kiểm tra...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-4 h-4" />
-                        Kiểm tra TPOS Sync
-                      </>
-                    )}
                   </Button>
                 </div>
               </div>
