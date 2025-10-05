@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { getTPOSHeaders } from "@/lib/tpos-config";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -14,6 +16,12 @@ const Settings = () => {
   const [checkResult, setCheckResult] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+  
+  const [topValue, setTopValue] = useState("20");
+  const [isFetchingOrders, setIsFetchingOrders] = useState(false);
+  const [ordersResult, setOrdersResult] = useState<any>(null);
+  const [isOrdersJsonOpen, setIsOrdersJsonOpen] = useState(false);
+  
   const { toast } = useToast();
 
   const copyToClipboard = (text: string) => {
@@ -85,6 +93,48 @@ const Settings = () => {
       });
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handleFetchOrders = async () => {
+    setIsFetchingOrders(true);
+    setOrdersResult(null);
+    
+    try {
+      // Get today's date range (00:00:00 to 23:59:59)
+      const today = new Date();
+      const startDate = new Date(today.setHours(0, 0, 0, 0));
+      const endDate = new Date(today.setHours(23, 59, 59, 999));
+      
+      const startDateStr = startDate.toISOString();
+      const endDateStr = endDate.toISOString();
+      
+      const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${topValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startDateStr} and DateCreated le ${endDateStr})&$count=true`;
+      
+      const response = await fetch(url, {
+        headers: getTPOSHeaders(),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setOrdersResult(data);
+      
+      toast({
+        title: "Lấy đơn hàng thành công",
+        description: `Tìm thấy ${data["@odata.count"] || data.value?.length || 0} đơn hàng`,
+      });
+    } catch (error: any) {
+      console.error("Fetch orders error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi lấy đơn hàng",
+        description: error.message,
+      });
+    } finally {
+      setIsFetchingOrders(false);
     }
   };
 
@@ -260,6 +310,111 @@ const Settings = () => {
                         </div>
                       )}
                     </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5" />
+            Đơn hàng TPOS
+          </CardTitle>
+          <CardDescription>
+            Lấy danh sách đơn hàng online từ TPOS theo ngày hôm nay
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-3 items-end">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Số lượng đơn hàng</label>
+              <Select value={topValue} onValueChange={setTopValue}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Chọn số lượng" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20 đơn</SelectItem>
+                  <SelectItem value="50">50 đơn</SelectItem>
+                  <SelectItem value="200">200 đơn</SelectItem>
+                  <SelectItem value="1000">1000 đơn</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <Button
+              onClick={handleFetchOrders}
+              disabled={isFetchingOrders}
+            >
+              {isFetchingOrders ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Đang lấy...
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Lấy đơn hàng
+                </>
+              )}
+            </Button>
+          </div>
+
+          {ordersResult && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Kết quả</AlertTitle>
+              <AlertDescription>
+                <div className="mt-2 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Tổng số đơn hàng:</span>
+                    <Badge variant="secondary">
+                      {ordersResult["@odata.count"] || ordersResult.value?.length || 0}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Đơn hàng hiển thị:</span>
+                    <Badge>{ordersResult.value?.length || 0}</Badge>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {ordersResult && (
+            <Collapsible open={isOrdersJsonOpen} onOpenChange={setIsOrdersJsonOpen}>
+              <Card className="border-dashed">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader className="hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Chi tiết JSON Response</CardTitle>
+                      {isOrdersJsonOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Orders Response:</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(JSON.stringify(ordersResult, null, 2))}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                      {JSON.stringify(ordersResult, null, 2)}
+                    </pre>
                   </CardContent>
                 </CollapsibleContent>
               </Card>
