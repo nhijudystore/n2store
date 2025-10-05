@@ -1500,6 +1500,7 @@ export default function LiveProducts() {
                           return aggregatedProducts.map((product, index) => (
                             <TableRow 
                               key={`${orderCode}-${product.product_code}`}
+                              id={orders[0]?.tpos_order_id || undefined}
                               className={`h-12 ${
                                 index === aggregatedProducts.length - 1 
                                   ? 'border-b-2 border-border/60' 
