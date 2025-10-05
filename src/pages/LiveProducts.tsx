@@ -181,6 +181,15 @@ export default function LiveProducts() {
     };
   });
   
+  // States for Product ID sync
+  const [isSyncingProductIds, setIsSyncingProductIds] = useState(false);
+  const [productIdSyncResult, setProductIdSyncResult] = useState<{
+    matched: number;
+    notFound: number;
+    errors: number;
+  } | null>(null);
+  const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
+  
   const queryClient = useQueryClient();
 
   // Helper function to get color based on copy status
@@ -850,6 +859,36 @@ export default function LiveProducts() {
     queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase, selectedSession] });
     toast.success("Đã làm mới danh sách sản phẩm");
   };
+  
+  const handleSyncProductIds = async () => {
+    if (!window.confirm("Đồng bộ mã biến thể cho các sản phẩm chưa có productid_bienthe?\n\nQuá trình này có thể mất vài phút tùy theo số lượng records.")) {
+      return;
+    }
+    
+    setIsSyncingProductIds(true);
+    setProductIdSyncResult(null);
+    
+    try {
+      const { syncTPOSProductIds } = await import("@/lib/tpos-api");
+      const maxRecords = parseInt(maxRecordsToFetch);
+      
+      const result = await syncTPOSProductIds(maxRecords);
+      
+      setProductIdSyncResult({
+        matched: result.matched,
+        notFound: result.notFound,
+        errors: result.errors
+      });
+      
+      toast.success(`Đã cập nhật ${result.matched} sản phẩm${result.notFound > 0 ? `, ${result.notFound} không tìm thấy` : ''}`);
+      
+    } catch (error) {
+      console.error("Error syncing product IDs:", error);
+      toast.error("Không thể đồng bộ mã biến thể từ TPOS");
+    } finally {
+      setIsSyncingProductIds(false);
+    }
+  };
 
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
@@ -1329,7 +1368,7 @@ export default function LiveProducts() {
               {ordersWithProducts.length > 0 && (
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="text-base">Đồng bộ mã TPOS</CardTitle>
+                    <CardTitle className="text-base">Đồng bộ mã TPOS Order</CardTitle>
                     <UploadTposDialog orders={ordersWithProducts} />
                   </CardHeader>
                   <CardContent>
@@ -1423,6 +1462,83 @@ export default function LiveProducts() {
                               <div className="flex justify-between">
                                 <span>Lỗi:</span>
                                 <Badge variant="destructive">{tposSyncResult.errors}</Badge>
+                              </div>
+                            )}
+                          </div>
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Sync Product IDs Card */}
+              {ordersWithProducts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Đồng bộ mã biến thể (Product ID)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Số lượng records</label>
+                        <Select value={maxRecordsToFetch} onValueChange={setMaxRecordsToFetch}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1000">1,000 records</SelectItem>
+                            <SelectItem value="2000">2,000 records</SelectItem>
+                            <SelectItem value="3000">3,000 records</SelectItem>
+                            <SelectItem value="4000">4,000 records (mặc định)</SelectItem>
+                            <SelectItem value="5000">5,000 records</SelectItem>
+                            <SelectItem value="10000">10,000 records</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <Button
+                        onClick={handleSyncProductIds}
+                        disabled={isSyncingProductIds}
+                      >
+                        {isSyncingProductIds ? (
+                          <>
+                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                            Đang đồng bộ...
+                          </>
+                        ) : (
+                          <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Đồng bộ mã biến thể
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-3 text-sm text-muted-foreground">
+                      Đồng bộ <strong>productid_bienthe</strong> cho các sản phẩm trong kho chưa có mã (bỏ qua N/A)
+                    </div>
+                    
+                    {productIdSyncResult && (
+                      <Alert className="mt-4">
+                        <CheckCircle className="h-4 w-4" />
+                        <AlertTitle>Kết quả</AlertTitle>
+                        <AlertDescription>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span>Đã cập nhật:</span>
+                              <Badge>{productIdSyncResult.matched}</Badge>
+                            </div>
+                            {productIdSyncResult.notFound > 0 && (
+                              <div className="flex justify-between">
+                                <span>Không tìm thấy:</span>
+                                <Badge variant="outline">{productIdSyncResult.notFound}</Badge>
+                              </div>
+                            )}
+                            {productIdSyncResult.errors > 0 && (
+                              <div className="flex justify-between">
+                                <span>Lỗi:</span>
+                                <Badge variant="destructive">{productIdSyncResult.errors}</Badge>
                               </div>
                             )}
                           </div>

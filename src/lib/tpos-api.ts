@@ -66,6 +66,160 @@ export function clearTPOSCache() {
 }
 
 // =====================================================
+// TPOS PRODUCT SYNC FUNCTIONS
+// =====================================================
+
+interface TPOSProduct {
+  Id: number;
+  DefaultCode: string;
+  Name: string;
+  Active: boolean;
+}
+
+interface SyncTPOSProductIdsResult {
+  matched: number;
+  notFound: number;
+  errors: number;
+  details: {
+    product_code: string;
+    tpos_id?: number;
+    error?: string;
+  }[];
+}
+
+/**
+ * Fetch TPOS Products with pagination
+ */
+async function fetchTPOSProducts(skip: number = 0): Promise<TPOSProduct[]> {
+  const url = `https://tomato.tpos.vn/odata/Product/ODataService.GetViewV2?Active=true&$top=1000&$skip=${skip}&$orderby=DateCreated desc&$filter=Active eq true&$count=true`;
+  
+  console.log(`[TPOS Product Sync] Fetching from skip=${skip}`);
+  
+  const response = await fetch(url, {
+    headers: getTPOSHeaders()
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch TPOS products at skip=${skip}`);
+  }
+  
+  const data = await response.json();
+  return data.value || [];
+}
+
+/**
+ * Sync TPOS Product IDs (biến thể) cho products trong kho
+ * @param maxRecords - Số lượng records tối đa muốn lấy (mặc định 4000)
+ */
+export async function syncTPOSProductIds(
+  maxRecords: number = 4000
+): Promise<SyncTPOSProductIdsResult> {
+  const result: SyncTPOSProductIdsResult = {
+    matched: 0,
+    notFound: 0,
+    errors: 0,
+    details: []
+  };
+  
+  try {
+    // 1. Lấy tất cả products từ Supabase (bỏ qua N/A và đã có productid_bienthe)
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    const { data: products, error: productsError } = await supabase
+      .from("products")
+      .select("id, product_code, productid_bienthe")
+      .neq("product_code", "N/A")
+      .is("productid_bienthe", null);
+    
+    if (productsError) throw productsError;
+    
+    if (!products || products.length === 0) {
+      console.log("[TPOS Product Sync] No products to sync");
+      return result;
+    }
+    
+    console.log(`[TPOS Product Sync] Found ${products.length} products to sync`);
+    
+    // 2. Fetch TPOS products với phân trang
+    const batches = Math.ceil(maxRecords / 1000);
+    const tposProductMap = new Map<string, number>(); // DefaultCode -> Id
+    
+    for (let i = 0; i < batches; i++) {
+      const skip = i * 1000;
+      const tposProducts = await fetchTPOSProducts(skip);
+      
+      if (tposProducts.length === 0) break;
+      
+      tposProducts.forEach(p => {
+        if (p.DefaultCode && p.Active) {
+          tposProductMap.set(p.DefaultCode.trim(), p.Id);
+        }
+      });
+      
+      console.log(`[TPOS Product Sync] Batch ${i + 1}/${batches}: Fetched ${tposProducts.length} products`);
+      
+      // Delay để tránh rate limit
+      if (i < batches - 1) {
+        await randomDelay(300, 600);
+      }
+    }
+    
+    console.log(`[TPOS Product Sync] Total TPOS products in map: ${tposProductMap.size}`);
+    
+    // 3. Match và update
+    for (const product of products) {
+      const tposId = tposProductMap.get(product.product_code.trim());
+      
+      if (tposId) {
+        try {
+          const { error } = await supabase
+            .from("products")
+            .update({ productid_bienthe: tposId })
+            .eq("id", product.id);
+          
+          if (error) throw error;
+          
+          result.matched++;
+          result.details.push({
+            product_code: product.product_code,
+            tpos_id: tposId
+          });
+          
+          console.log(`✓ [${product.product_code}] -> TPOS ID: ${tposId}`);
+        } catch (err) {
+          result.errors++;
+          result.details.push({
+            product_code: product.product_code,
+            error: err instanceof Error ? err.message : String(err)
+          });
+          
+          console.error(`✗ [${product.product_code}] Error:`, err);
+        }
+      } else {
+        result.notFound++;
+        result.details.push({
+          product_code: product.product_code
+        });
+        
+        console.log(`⚠ [${product.product_code}] Not found in TPOS`);
+      }
+    }
+    
+    console.log("[TPOS Product Sync] Summary:", {
+      matched: result.matched,
+      notFound: result.notFound,
+      errors: result.errors
+    });
+    
+    return result;
+    
+  } catch (error) {
+    console.error("[TPOS Product Sync] Error:", error);
+    throw error;
+  }
+}
+
+// =====================================================
 // TYPE DEFINITIONS
 // =====================================================
 
