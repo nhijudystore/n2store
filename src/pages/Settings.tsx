@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -12,7 +13,16 @@ const Settings = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [checkResult, setCheckResult] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
+  const [isJsonOpen, setIsJsonOpen] = useState(false);
   const { toast } = useToast();
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Đã sao chép",
+      description: "JSON đã được sao chép vào clipboard",
+    });
+  };
 
   const handleCheckImages = async () => {
     setIsChecking(true);
@@ -187,6 +197,67 @@ const Settings = () => {
                 </div>
               </AlertDescription>
             </Alert>
+          )}
+
+          {(checkResult || syncResult) && (
+            <Collapsible open={isJsonOpen} onOpenChange={setIsJsonOpen}>
+              <Card className="border-dashed">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader className="hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Chi tiết JSON Response</CardTitle>
+                      {isJsonOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {checkResult && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium">Check Result:</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyToClipboard(JSON.stringify(checkResult, null, 2))}
+                            >
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy
+                            </Button>
+                          </div>
+                          <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                            {JSON.stringify(checkResult, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {syncResult && (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium">Sync Result:</p>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyToClipboard(JSON.stringify(syncResult, null, 2))}
+                            >
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy
+                            </Button>
+                          </div>
+                          <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                            {JSON.stringify(syncResult, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
         </CardContent>
       </Card>
