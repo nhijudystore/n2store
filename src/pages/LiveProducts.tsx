@@ -955,6 +955,32 @@ export default function LiveProducts() {
     }
   };
 
+  const handleClearTPOSId = async (orderCode: string, orders: OrderWithProduct[]) => {
+    if (!window.confirm(`Xóa mã TPOS của đơn hàng ${orderCode}?\n\nBạn có thể đồng bộ lại sau khi xóa.`)) {
+      return;
+    }
+
+    try {
+      const orderIds = orders.map(o => o.id);
+      
+      const { error } = await supabase
+        .from('live_orders')
+        .update({ tpos_order_id: null })
+        .in('id', orderIds);
+      
+      if (error) throw error;
+      
+      // Refresh data
+      await queryClient.invalidateQueries({ queryKey: ['live-orders', selectedPhase] });
+      await queryClient.invalidateQueries({ queryKey: ['orders-with-products', selectedPhase] });
+      
+      toast.success(`Đã xóa mã TPOS của đơn hàng ${orderCode}`);
+    } catch (error) {
+      console.error("Error clearing TPOS ID:", error);
+      toast.error("Không thể xóa mã TPOS");
+    }
+  };
+
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
     const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -1635,6 +1661,8 @@ export default function LiveProducts() {
                   <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
                   <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
+                  <TableHead className="w-24 text-center font-bold text-base">Upload TPOS</TableHead>
+                  <TableHead className="w-24 text-center font-bold text-base">Xóa mã TPOS</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1775,6 +1803,20 @@ export default function LiveProducts() {
                                           Upload
                                         </>
                                       )}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell 
+                                    rowSpan={aggregatedProducts.length}
+                                    className="text-center py-2 align-middle border-r"
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => handleClearTPOSId(orderCode, orders)}
+                                      disabled={!orders[0]?.tpos_order_id}
+                                      className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </TableCell>
                                   <TableCell 
