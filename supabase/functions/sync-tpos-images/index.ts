@@ -92,11 +92,10 @@ Deno.serve(async (req) => {
 
     console.log('Starting TPOS image sync...');
 
-    // 1. Get all products from database that have tpos_product_id
+    // 1. Get ALL products from database (to match by product_code)
     const { data: dbProducts, error: dbError } = await supabase
       .from('products')
-      .select('id, product_code, product_name, tpos_product_id, tpos_image_url')
-      .not('tpos_product_id', 'is', null);
+      .select('id, product_code, product_name, tpos_product_id, tpos_image_url');
 
     if (dbError) {
       console.error('Database error:', dbError);
@@ -108,31 +107,45 @@ Deno.serve(async (req) => {
     // 2. Fetch all products from TPOS
     const tposProducts = await fetchAllTPOSProducts(bearerToken);
 
-    // 3. Create a map: tpos_product_id -> ImageUrl
-    const tposImageMap = new Map(
-      tposProducts.map((p: any) => [p.Id, p.ImageUrl || null])
+    // 3. Create a map: DefaultCode -> {Id, ImageUrl}
+    const tposProductMap = new Map(
+      tposProducts.map((p: any) => [
+        p.DefaultCode, 
+        { id: p.Id, imageUrl: p.ImageUrl || null }
+      ])
     );
 
-    console.log(`Created TPOS image map with ${tposImageMap.size} entries`);
+    console.log(`Created TPOS product map with ${tposProductMap.size} entries`);
 
-    // 4. Update products in batches
+    // 4. Update products by matching product_code with DefaultCode
     let updatedCount = 0;
     let notFoundCount = 0;
+    let skippedCount = 0;
     const updateErrors: any[] = [];
 
     for (const dbProduct of dbProducts || []) {
-      const tposImageUrl = tposImageMap.get(dbProduct.tpos_product_id);
+      const tposProduct = tposProductMap.get(dbProduct.product_code);
       
-      if (tposImageUrl === undefined) {
+      if (!tposProduct) {
         notFoundCount++;
-        console.log(`Product ${dbProduct.product_code} (TPOS ID: ${dbProduct.tpos_product_id}) not found in TPOS`);
+        console.log(`Product ${dbProduct.product_code} not found in TPOS`);
         continue;
       }
 
-      // Update the product
+      // Skip if already up-to-date
+      if (dbProduct.tpos_product_id === tposProduct.id && 
+          dbProduct.tpos_image_url === tposProduct.imageUrl) {
+        skippedCount++;
+        continue;
+      }
+
+      // Update the product with both tpos_product_id and tpos_image_url
       const { error: updateError } = await supabase
         .from('products')
-        .update({ tpos_image_url: tposImageUrl })
+        .update({ 
+          tpos_product_id: tposProduct.id,
+          tpos_image_url: tposProduct.imageUrl 
+        })
         .eq('id', dbProduct.id);
 
       if (updateError) {
@@ -143,12 +156,14 @@ Deno.serve(async (req) => {
         });
       } else {
         updatedCount++;
+        console.log(`Updated ${dbProduct.product_code}: TPOS ID=${tposProduct.id}, Image=${tposProduct.imageUrl ? 'Yes' : 'No'}`);
       }
     }
 
     const summary = {
       total_products: dbProducts?.length || 0,
       updated: updatedCount,
+      skipped: skippedCount,
       not_found_in_tpos: notFoundCount,
       errors: updateErrors.length,
     };

@@ -92,52 +92,60 @@ Deno.serve(async (req) => {
 
     console.log('Starting TPOS image check...');
 
-    // 1. Get all products from database that have tpos_product_id
+    // 1. Get ALL products from database (to match by product_code)
     const { data: dbProducts, error: dbError } = await supabase
       .from('products')
-      .select('id, product_code, product_name, tpos_product_id, tpos_image_url')
-      .not('tpos_product_id', 'is', null);
+      .select('id, product_code, product_name, tpos_product_id, tpos_image_url');
 
     if (dbError) {
       console.error('Database error:', dbError);
       throw dbError;
     }
 
-    console.log(`Found ${dbProducts?.length || 0} products with tpos_product_id in database`);
+    console.log(`Found ${dbProducts?.length || 0} products in database`);
 
     // 2. Fetch all products from TPOS
     const tposProducts = await fetchAllTPOSProducts(bearerToken);
 
-    // 3. Create a map for quick lookup
-    const tposMap = new Map(
-      tposProducts.map((p: any) => [p.Id, p])
+    // 3. Create a map: DefaultCode -> {Id, ImageUrl}
+    const tposProductMap = new Map(
+      tposProducts.map((p: any) => [
+        p.DefaultCode, 
+        { id: p.Id, imageUrl: p.ImageUrl || null }
+      ])
     );
 
-    console.log(`Created TPOS map with ${tposMap.size} products`);
+    console.log(`Created TPOS product map with ${tposProductMap.size} entries`);
 
-    // 4. Analyze products
+    // 4. Categorize products by matching product_code with DefaultCode
     const productsWithoutImage: any[] = [];
     const productsWithImage: any[] = [];
     const notFoundInTPOS: any[] = [];
 
     for (const dbProduct of dbProducts || []) {
-      const tposProduct = tposMap.get(dbProduct.tpos_product_id);
+      const tposProduct = tposProductMap.get(dbProduct.product_code);
       
       if (!tposProduct) {
         notFoundInTPOS.push({
-          ...dbProduct,
-          reason: 'Not found in TPOS API'
+          product_code: dbProduct.product_code,
+          product_name: dbProduct.product_name,
         });
-      } else if (!dbProduct.tpos_image_url) {
-        productsWithoutImage.push({
-          ...dbProduct,
-          tpos_image_url: tposProduct.ImageUrl || null
-        });
-      } else {
-        productsWithImage.push({
-          ...dbProduct,
-          tpos_image_url: tposProduct.ImageUrl || null
-        });
+        continue;
+      }
+
+      const productInfo = {
+        product_code: dbProduct.product_code,
+        product_name: dbProduct.product_name,
+        tpos_product_id: tposProduct.id,
+        current_tpos_image_url: dbProduct.tpos_image_url,
+        tpos_has_image: !!tposProduct.imageUrl,
+        tpos_image_url: tposProduct.imageUrl,
+      };
+
+      if (!dbProduct.tpos_image_url && tposProduct.imageUrl) {
+        productsWithoutImage.push(productInfo);
+      } else if (tposProduct.imageUrl) {
+        productsWithImage.push(productInfo);
       }
     }
 
@@ -147,6 +155,7 @@ Deno.serve(async (req) => {
       products_without_image: productsWithoutImage.length,
       products_with_image: productsWithImage.length,
       not_found_in_tpos: notFoundInTPOS.length,
+      missing_images: productsWithoutImage.length, // For backward compatibility
     };
 
     console.log('Check completed:', summary);

@@ -184,6 +184,12 @@ const Settings = () => {
                     <span>Đã cập nhật:</span>
                     <Badge>{syncResult.summary.updated}</Badge>
                   </div>
+                  {syncResult.summary.skipped > 0 && (
+                    <div className="flex justify-between">
+                      <span>Đã đồng bộ trước đó:</span>
+                      <Badge variant="outline">{syncResult.summary.skipped}</Badge>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span>Không tìm thấy trong TPOS:</span>
                     <Badge variant="outline">{syncResult.summary.not_found_in_tpos}</Badge>
