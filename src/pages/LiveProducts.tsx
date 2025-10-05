@@ -44,6 +44,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
 import { UploadTposDialog } from "@/components/live-products/UploadTposDialog";
+import { uploadProductToTPOS } from "@/lib/tpos-api";
 
 interface LiveSession {
   id: string;
@@ -188,6 +189,7 @@ export default function LiveProducts() {
     notFound: number;
     errors: number;
   } | null>(null);
+  const [uploadingOrderIds, setUploadingOrderIds] = useState<Set<string>>(new Set());
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
   
   const queryClient = useQueryClient();
@@ -754,14 +756,15 @@ export default function LiveProducts() {
       const data = await response.json();
       console.log('[TPOS Sync] Response data:', data);
       
-      // 2. Create mapping: SessionIndex -> Code
+      // 2. Create mapping: SessionIndex -> Id (TPOS Order ID)
       const tposMap = new Map<string, string>();
       data.value?.forEach((order: any) => {
-        if (order.SessionIndex && order.Code) {
+        if (order.SessionIndex && order.Id) {
           // Convert SessionIndex to string and trim whitespace
           const sessionIndexStr = String(order.SessionIndex).trim();
-          tposMap.set(sessionIndexStr, order.Code);
-          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" (original type: ${typeof order.SessionIndex}) -> Code "${order.Code}"`);
+          // Store the TPOS Order Id instead of Code
+          tposMap.set(sessionIndexStr, order.Id);
+          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" -> TPOS Id "${order.Id}"`);
         }
       });
       
@@ -789,24 +792,24 @@ export default function LiveProducts() {
       for (const [orderCode, orders] of Object.entries(orderGroups)) {
         // Normalize order_code to string and trim
         const normalizedOrderCode = String(orderCode).trim();
-        const tposCode = tposMap.get(normalizedOrderCode);
+        const tposId = tposMap.get(normalizedOrderCode);
         
-        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposCode ? `Found TPOS Code "${tposCode}"` : 'NOT FOUND');
+        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposId ? `Found TPOS Id "${tposId}"` : 'NOT FOUND');
         
-        if (tposCode) {
+        if (tposId) {
           // Update all orders with this order_code
           try {
             const orderIds = orders.map(o => o.id);
             
             const { error } = await supabase
               .from('live_orders')
-              .update({ tpos_order_id: tposCode })
+              .update({ tpos_order_id: tposId })
               .in('id', orderIds);
             
             if (error) throw error;
             
             matched += orders.length;
-            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS "${tposCode}"`);
+            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS Id "${tposId}"`);
           } catch (err) {
             console.error(`[TPOS Sync] ✗ Error updating order ${orderCode}:`, err);
             errors += orders.length;
@@ -887,6 +890,59 @@ export default function LiveProducts() {
       toast.error("Không thể đồng bộ mã biến thể từ TPOS");
     } finally {
       setIsSyncingProductIds(false);
+    }
+  };
+
+  const handleUploadToTPOS = async (orderCode: string, orders: OrderWithProduct[]) => {
+    // Get TPOS Order ID from first order in group
+    const tposOrderId = orders[0]?.tpos_order_id;
+    
+    if (!tposOrderId) {
+      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
+      return;
+    }
+    
+    setUploadingOrderIds(prev => new Set(prev).add(orderCode));
+    
+    try {
+      // Group products by product_code and sum quantities
+      const productMap = new Map<string, {
+        product_code: string;
+        product_name: string;
+        sold_quantity: number;
+      }>();
+      
+      orders.forEach(order => {
+        const key = order.product_code;
+        const existing = productMap.get(key);
+        if (existing) {
+          existing.sold_quantity += order.quantity;
+        } else {
+          productMap.set(key, {
+            product_code: order.product_code,
+            product_name: order.product_name,
+            sold_quantity: order.quantity
+          });
+        }
+      });
+      
+      const products = Array.from(productMap.values());
+      const result = await uploadProductToTPOS(tposOrderId, products);
+      
+      if (result.success) {
+        toast.success(`Upload thành công đơn hàng ${orderCode} lên TPOS`);
+      } else {
+        toast.error(`Lỗi upload: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error uploading to TPOS:", error);
+      toast.error("Không thể upload lên TPOS");
+    } finally {
+      setUploadingOrderIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(orderCode);
+        return newSet;
+      });
     }
   };
 
@@ -1687,42 +1743,68 @@ export default function LiveProducts() {
                                 </div>
                               </TableCell>
                               {index === 0 && (
-                                <TableCell 
-                                  rowSpan={aggregatedProducts.length}
-                                  className="text-center py-2 align-middle border-r"
-                                >
-                                  <div className="flex items-center justify-center">
-                                    <label className="flex items-center gap-1.5 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        className="sr-only"
-                                        defaultChecked={false}
-                                        onChange={(e) => {
-                                          const statusElement = e.target.nextElementSibling;
-                                          const dot = statusElement?.querySelector('.status-dot');
-                                          const text = statusElement?.querySelector('.status-text');
-                                          if (e.target.checked) {
-                                            dot?.classList.remove('bg-red-500');
-                                            dot?.classList.add('bg-green-500');
-                                            text?.classList.remove('text-red-600');
-                                            text?.classList.add('text-green-600');
-                                            if (text) text.textContent = 'Hoàn tất';
-                                          } else {
-                                            dot?.classList.remove('bg-green-500');
-                                            dot?.classList.add('bg-red-500');
-                                            text?.classList.remove('text-green-600');
-                                            text?.classList.add('text-red-600');
-                                            if (text) text.textContent = 'Đang chờ';
-                                          }
-                                        }}
-                                      />
-                                      <div className="flex items-center gap-1">
-                                        <div className="status-dot w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                                        <span className="status-text text-xs text-red-600 font-medium">Đang chờ</span>
-                                      </div>
-                                    </label>
-                                  </div>
-                                </TableCell>
+                                <>
+                                  <TableCell 
+                                    rowSpan={aggregatedProducts.length}
+                                    className="text-center py-2 align-middle border-r"
+                                  >
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => handleUploadToTPOS(orderCode, orders)}
+                                      disabled={uploadingOrderIds.has(orderCode) || !orders[0]?.tpos_order_id}
+                                      className="h-8 px-3"
+                                    >
+                                      {uploadingOrderIds.has(orderCode) ? (
+                                        <>
+                                          <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
+                                          Đang upload...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Download className="mr-1 h-3.5 w-3.5" />
+                                          Upload
+                                        </>
+                                      )}
+                                    </Button>
+                                  </TableCell>
+                                  <TableCell 
+                                    rowSpan={aggregatedProducts.length}
+                                    className="text-center py-2 align-middle border-r"
+                                  >
+                                    <div className="flex items-center justify-center">
+                                      <label className="flex items-center gap-1.5 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          className="sr-only"
+                                          defaultChecked={false}
+                                          onChange={(e) => {
+                                            const statusElement = e.target.nextElementSibling;
+                                            const dot = statusElement?.querySelector('.status-dot');
+                                            const text = statusElement?.querySelector('.status-text');
+                                            if (e.target.checked) {
+                                              dot?.classList.remove('bg-red-500');
+                                              dot?.classList.add('bg-green-500');
+                                              text?.classList.remove('text-red-600');
+                                              text?.classList.add('text-green-600');
+                                              if (text) text.textContent = 'Hoàn tất';
+                                            } else {
+                                              dot?.classList.remove('bg-green-500');
+                                              dot?.classList.add('bg-red-500');
+                                              text?.classList.remove('text-green-600');
+                                              text?.classList.add('text-red-600');
+                                              if (text) text.textContent = 'Đang chờ';
+                                            }
+                                          }}
+                                        />
+                                        <div className="flex items-center gap-1">
+                                          <div className="status-dot w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                                          <span className="status-text text-xs text-red-600 font-medium">Đang chờ</span>
+                                        </div>
+                                      </label>
+                                    </div>
+                                  </TableCell>
+                                </>
                               )}
                             </TableRow>
                           ));
