@@ -801,11 +801,14 @@ export async function uploadToTPOS(
           
           const base64Image = await imageUrlToBase64(imageUrl);
           if (base64Image) {
-            await updateProductWithImage(tposProduct, base64Image, detectedAttributes);
+            // Fetch full product detail để có đầy đủ thông tin cho update
+            const detail = await getProductDetail(tposProduct.Id);
+            await updateProductWithImage(detail, base64Image, detectedAttributes);
           }
         } else if (Object.keys(detectedAttributes).length > 0) {
           // Nếu không có ảnh nhưng có attributes, vẫn update
-          await updateProductWithImage(tposProduct, tposProduct.Image || '', detectedAttributes);
+          const detail = await getProductDetail(tposProduct.Id);
+          await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
         console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (Local: ${item.product_code} -> TPOS: ${tposProduct.DefaultCode}) -> TPOS ID: ${tposProduct.Id}`);
