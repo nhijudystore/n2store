@@ -57,9 +57,14 @@ Deno.serve(async (req) => {
         `https://tomato.tpos.vn/odata/ProductTemplate/ODataService.GetViewV2?${params.toString()}`,
         {
           headers: {
-            'Authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
+            'accept': 'application/json, text/plain, */*',
+            'accept-language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+            'authorization': `Bearer ${TPOS_BEARER_TOKEN}`,
+            'content-type': 'application/json;charset=UTF-8',
+            'origin': 'https://tomato.tpos.vn',
+            'referer': 'https://tomato.tpos.vn/',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+            'tposappversion': '5.9.10.1',
           },
         }
       )
