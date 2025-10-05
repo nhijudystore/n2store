@@ -728,12 +728,15 @@ export default function LiveProducts() {
       const tposMap = new Map<string, string>();
       data.value?.forEach((order: any) => {
         if (order.SessionIndex && order.Code) {
-          tposMap.set(order.SessionIndex, order.Code);
-          console.log(`[TPOS Sync] Mapping: SessionIndex "${order.SessionIndex}" -> Code "${order.Code}"`);
+          // Convert SessionIndex to string and trim whitespace
+          const sessionIndexStr = String(order.SessionIndex).trim();
+          tposMap.set(sessionIndexStr, order.Code);
+          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" (original type: ${typeof order.SessionIndex}) -> Code "${order.Code}"`);
         }
       });
       
       console.log('[TPOS Sync] Total TPOS mappings:', tposMap.size);
+      console.log('[TPOS Sync] Sample TPOS SessionIndex type:', typeof data.value?.[0]?.SessionIndex);
       
       // 3. Match and update
       let matched = 0;
@@ -750,12 +753,15 @@ export default function LiveProducts() {
       }, {} as Record<string, typeof ordersWithProducts>);
       
       console.log('[TPOS Sync] Local order codes:', Object.keys(orderGroups));
+      console.log('[TPOS Sync] Sample local order_code type:', typeof ordersWithProducts[0]?.order_code);
       
       // Process each order group
       for (const [orderCode, orders] of Object.entries(orderGroups)) {
-        const tposCode = tposMap.get(orderCode);
+        // Normalize order_code to string and trim
+        const normalizedOrderCode = String(orderCode).trim();
+        const tposCode = tposMap.get(normalizedOrderCode);
         
-        console.log(`[TPOS Sync] Checking order_code "${orderCode}":`, tposCode ? `Found TPOS Code "${tposCode}"` : 'NOT FOUND');
+        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposCode ? `Found TPOS Code "${tposCode}"` : 'NOT FOUND');
         
         if (tposCode) {
           // Update all orders with this order_code
