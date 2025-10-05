@@ -76,12 +76,21 @@ function detectColors(text: string, normalizedText: string): DetectedAttribute[]
     
     let match;
     while ((match = colorPattern.exec(normalizedText)) !== null) {
-      // Check if it's part of a compound phrase or has keyword nearby
-      const context = normalizedText.slice(Math.max(0, match.index - 10), match.index + normalizedColor.length + 10);
+      // Check context before the color
+      const contextBefore = normalizedText.slice(Math.max(0, match.index - 10), match.index);
       
-      // Higher confidence if "màu" or "phối" keyword nearby
-      const hasKeyword = /màu|phối|sắc/i.test(context);
-      const confidence = hasKeyword ? 0.9 : 0.7;
+      // LOWER confidence if accent color keywords detected (phối, viền, họa tiết, etc.)
+      const isAccentColor = /phoi|vien|hoa tiet|pha|trang tri|chi tiet|noi/i.test(contextBefore);
+      
+      // Higher confidence if primary color keywords detected (màu, sắc)
+      const isPrimaryColor = /mau|sac/i.test(contextBefore);
+      
+      let confidence = 0.7; // default
+      if (isAccentColor) {
+        confidence = 0.4; // Low confidence for accent colors like "phối đen"
+      } else if (isPrimaryColor) {
+        confidence = 0.9; // High confidence for primary colors
+      }
       
       detected.push({
         type: 'color',
