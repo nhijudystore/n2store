@@ -1,22 +1,23 @@
 import { useState, useEffect } from "react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, Copy, Trash2, Calendar, RotateCcw } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse, RotateCcw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantSelector } from "./VariantSelector";
+import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
-import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
 import { useDebounce } from "@/hooks/use-debounce";
 import { detectVariantsFromText } from "@/lib/variant-detector";
@@ -58,6 +59,7 @@ interface EditPurchaseOrderDialogProps {
 }
 
 export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurchaseOrderDialogProps) {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Helper function to parse number input from text
@@ -71,8 +73,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [notes, setNotes] = useState("");
   const [invoiceImages, setInvoiceImages] = useState<string[]>([]);
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [items, setItems] = useState<PurchaseOrderItem[]>([]);
+  const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
+  const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [items, setItems] = useState<PurchaseOrderItem[]>([
+    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [], notes: "" }
+  ]);
+  const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Debounce product names for auto-generating codes
@@ -122,11 +129,12 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   useEffect(() => {
     if (order && open) {
       setSupplierName(order.supplier_name || "");
-      setOrderDate(order.order_date || new Date().toISOString().split('T')[0]);
+      setOrderDate(order.order_date || new Date().toISOString());
       setInvoiceNumber(order.invoice_number || "");
       setNotes(order.notes || "");
       setInvoiceImages(order.invoice_images || []);
-      setDiscountAmount(order.discount_amount / 1000 || 0);
+      setInvoiceAmount(order.total_amount ? order.total_amount / 1000 : 0);
+      setDiscountAmount(order.discount_amount ? order.discount_amount / 1000 : 0);
     }
   }, [order, open]);
 
@@ -169,6 +177,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     setInvoiceNumber("");
     setNotes("");
     setInvoiceImages([]);
+    setInvoiceAmount(0);
     setDiscountAmount(0);
     setItems([{
       product_name: "",
@@ -215,6 +224,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const copyItem = (index: number) => {
     const itemToCopy = { ...items[index] };
     delete itemToCopy.id; // Remove id so it will be inserted as new
+    // Deep copy the product_images and price_images arrays
+    itemToCopy.product_images = [...itemToCopy.product_images];
+    itemToCopy.price_images = [...itemToCopy.price_images];
     
     // Auto-increment product code if it exists
     if (itemToCopy.product_code.trim()) {
@@ -229,15 +241,48 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       }
     }
     
-    setItems([...items, itemToCopy]);
+    const newItems = [...items];
+    newItems.splice(index + 1, 0, itemToCopy);
+    setItems(newItems);
   };
 
   const removeItem = (index: number) => {
     if (items.length > 1) {
       setItems(items.filter((_, i) => i !== index));
+    } else {
+      // Reset the last item to empty state instead of removing
+      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [], notes: "" }]);
     }
   };
 
+  const handleSelectProduct = (product: any) => {
+    if (currentItemIndex !== null) {
+      const newItems = [...items];
+      newItems[currentItemIndex] = {
+        ...newItems[currentItemIndex],
+        product_name: product.product_name,
+        product_code: product.product_code,
+        variant: product.variant || "",
+        unit_price: product.purchase_price / 1000,
+        selling_price: product.selling_price / 1000,
+        product_images: product.product_images || [],
+        price_images: product.price_images || [],
+        total_price: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
+      };
+      setItems(newItems);
+      
+      // Auto-fill supplier name if empty
+      if (!supplierName && product.supplier_name) {
+        setSupplierName(product.supplier_name);
+      }
+    }
+    setCurrentItemIndex(null);
+  };
+
+  const openSelectProduct = (index: number) => {
+    setCurrentItemIndex(index);
+    setIsSelectProductOpen(true);
+  };
 
   const updateOrderMutation = useMutation({
     mutationFn: async () => {
@@ -399,23 +444,23 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         });
       });
       
-      // Invalidate stats to ensure consistency
+      // Invalidate stats and products queries to ensure consistency
       queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["products-select"] });
       
       toast({
-        title: "Thành công",
-        description: "Đơn hàng đã được cập nhật",
+        title: "Cập nhật đơn hàng thành công!",
       });
       onOpenChange(false);
       resetForm();
     },
     onError: (error: Error) => {
       toast({
-        title: "Lỗi",
+        title: "Lỗi cập nhật đơn hàng",
         description: error.message,
-        variant: "destructive",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   const handleSubmit = () => {
@@ -427,7 +472,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-y-auto">
+      <DialogContent className="max-w-[95vw] w-full max-h-[95vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between pr-10">
           <DialogTitle>Chỉnh sửa đơn hàng #{order?.invoice_number || order?.id.slice(0, 8)}</DialogTitle>
           <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
@@ -458,25 +503,26 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         </DialogHeader>
 
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplier">Nhà cung cấp *</Label>
               <Input
                 id="supplier"
+                placeholder="Nhập tên nhà cung cấp"
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
-                placeholder="Nhập tên nhà cung cấp"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="orderDate">Ngày đặt hàng</Label>
+              <Label htmlFor="order_date">Ngày đặt hàng</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant={"outline"}
                     className={cn(
-                      "w-full justify-start text-left font-normal"
+                      "w-full justify-start text-left font-normal",
+                      !orderDate && "text-muted-foreground"
                     )}
                   >
                     <Calendar className="mr-2 h-4 w-4" />
@@ -496,81 +542,71 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="invoiceNumber">Số tiền hóa đơn</Label>
+              <Label htmlFor="invoice_amount">Số tiền hóa đơn (VND)</Label>
               <Input
-                id="invoiceNumber"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="Nhập số tiền hóa đơn"
+                id="invoice_amount"
+                type="text"
+                inputMode="numeric"
+                placeholder="Nhập số tiền VND"
+                value={invoiceAmount || ""}
+                onChange={(e) => setInvoiceAmount(parseNumberInput(e.target.value))}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="discountAmount">Số tiền giảm giá (VND)</Label>
-              <Input
-                id="discountAmount"
-                type="text"
-                inputMode="numeric"
-                value={discountAmount}
-                onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value))}
-                placeholder="0"
-              />
+              <Label htmlFor="invoice_images">Ảnh hóa đơn</Label>
+              <div className="border rounded-md p-2 min-h-[42px] bg-background">
+                <ImageUploadCell
+                  images={invoiceImages}
+                  onImagesChange={setInvoiceImages}
+                  itemIndex={-1}
+                />
+              </div>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="invoiceImages">Ảnh hóa đơn</Label>
-            <ImageUploadCell
-              images={invoiceImages}
-              onImagesChange={setInvoiceImages}
-              itemIndex={-1}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Ghi chú</Label>
-            <Textarea
-              id="notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Nhập ghi chú (không bắt buộc)"
-              rows={3}
-            />
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <Label>Danh sách sản phẩm</Label>
-              <Button onClick={addItem} size="sm" variant="outline">
-                <Plus className="w-4 h-4 mr-2" />
-                Thêm sản phẩm
+              <Label className="text-lg font-medium">Danh sách sản phẩm</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1].product_name ? items.length : items.length - 1)}
+              >
+                <Warehouse className="h-4 w-4 mr-2" />
+                Chọn từ Kho SP
               </Button>
             </div>
 
-            <div className="border rounded-lg overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="p-2 text-left w-[260px]">Tên sản phẩm</th>
-                    <th className="p-2 text-left w-[70px]">Mã SP</th>
-                    <th className="p-2 text-left w-[150px]">Biến thể</th>
-                    <th className="p-2 text-left w-[60px]">SL</th>
-                    <th className="p-2 text-left w-[90px]">Đơn giá (VND)</th>
-                    <th className="p-2 text-left w-[90px]">Giá bán (VND)</th>
-                    <th className="p-2 text-left w-[130px]">Thành tiền (VND)</th>
-                    <th className="p-2 text-left min-w-[150px]">Ảnh SP</th>
-                    <th className="p-2 text-left min-w-[150px]">Ảnh giá</th>
-                    <th className="p-2 text-left min-w-[150px]">Ghi chú</th>
-                    <th className="p-2 text-center min-w-[100px]">Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">STT</TableHead>
+                    <TableHead className="w-[260px]">Tên sản phẩm</TableHead>
+                    <TableHead className="w-[70px]">Mã sản phẩm</TableHead>
+                    <TableHead className="w-[150px]">Biến thể</TableHead>
+                    <TableHead className="w-[60px]">SL</TableHead>
+                    <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
+                    <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
+                    <TableHead className="w-[130px]">Thành tiền (VND)</TableHead>
+                    <TableHead className="w-[100px]">Hình ảnh sản phẩm</TableHead>
+                    <TableHead className="w-[100px]">Hình ảnh Giá mua</TableHead>
+                    <TableHead className="w-16">Thao tác</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {items.map((item, index) => (
-                    <tr key={index} className="border-t">
-                      <td className="p-2">
+                    <TableRow key={index}>
+                      <TableCell className="text-center font-medium">
+                        {index + 1}
+                      </TableCell>
+                      <TableCell>
                         <Textarea
+                          placeholder="Nhập tên sản phẩm"
                           value={item.product_name}
-                          onChange={(e) => updateItem(index, 'product_name', e.target.value)}
+                          onChange={(e) => updateItem(index, "product_name", e.target.value)}
                           onBlur={() => {
                             // Auto-detect variants on blur
                             const result = detectVariantsFromText(item.product_name);
@@ -580,141 +616,174 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                                 ...result.sizeText.map(s => s.value)
                               ].join(" ");
                               if (detectedVariant && !item.variant) {
-                                updateItem(index, 'variant', detectedVariant);
+                                updateItem(index, "variant", detectedVariant);
                               }
                             }
                           }}
-                          placeholder="Tên sản phẩm"
-                          className="min-h-[60px] resize-none"
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 min-h-[60px] resize-none"
                           rows={2}
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <Input
+                          placeholder="Mã SP"
                           value={item.product_code}
-                          onChange={(e) => updateItem(index, 'product_code', e.target.value)}
-                          placeholder="Mã"
-                          className="w-[70px] text-xs"
+                          onChange={(e) => updateItem(index, "product_code", e.target.value)}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
                           maxLength={10}
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <VariantSelector
                           value={item.variant}
-                          onChange={(value) => updateItem(index, 'variant', value)}
+                          onChange={(value) => updateItem(index, "variant", value)}
                           className="w-[150px]"
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <Input
                           type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
                           min="1"
+                          value={item.quantity}
+                          onChange={(e) => updateItem(index, "quantity", Number(e.target.value))}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-center"
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <Input
                           type="text"
                           inputMode="numeric"
                           placeholder=""
                           value={item.unit_price === 0 || item.unit_price === "" ? "" : item.unit_price}
-                          onChange={(e) => updateItem(index, 'unit_price', parseNumberInput(e.target.value))}
-                          className="w-[90px] text-right text-sm"
+                          onChange={(e) => updateItem(index, "unit_price", parseNumberInput(e.target.value))}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <Input
                           type="text"
                           inputMode="numeric"
                           placeholder=""
                           value={item.selling_price === 0 || item.selling_price === "" ? "" : item.selling_price}
-                          onChange={(e) => updateItem(index, 'selling_price', parseNumberInput(e.target.value))}
-                          className="w-[90px] text-right text-sm"
+                          onChange={(e) => updateItem(index, "selling_price", parseNumberInput(e.target.value))}
+                          className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
-                      </td>
-                      <td className="p-2">
-                        <Input
-                          type="number"
-                          value={item.total_price}
-                          readOnly
-                          className="bg-muted"
-                        />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatVND(item.total_price * 1000)}
+                      </TableCell>
+                      <TableCell>
                         <ImageUploadCell
                           images={item.product_images}
-                          onImagesChange={(images) => updateItem(index, 'product_images', images)}
+                          onImagesChange={(images) => updateItem(index, "product_images", images)}
                           itemIndex={index}
                         />
-                      </td>
-                      <td className="p-2">
+                      </TableCell>
+                      <TableCell>
                         <ImageUploadCell
                           images={item.price_images}
-                          onImagesChange={(images) => updateItem(index, 'price_images', images)}
+                          onImagesChange={(images) => updateItem(index, "price_images", images)}
                           itemIndex={index}
                         />
-                      </td>
-                      <td className="p-2">
-                        <Input
-                          value={item.notes}
-                          onChange={(e) => updateItem(index, 'notes', e.target.value)}
-                          placeholder="Ghi chú"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <div className="flex gap-1 justify-center">
-                          <Button
-                            size="sm"
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button 
+                            onClick={() => openSelectProduct(index)} 
+                            size="sm" 
                             variant="ghost"
-                            onClick={() => copyItem(index)}
+                            className="h-8 w-8 p-0 text-primary hover:bg-primary/10"
+                            title="Chọn từ kho"
+                          >
+                            <Warehouse className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            onClick={() => copyItem(index)} 
+                            size="sm" 
+                            variant="ghost"
+                            className="h-8 w-8 p-0 text-muted-foreground hover:bg-accent"
+                            title="Sao chép dòng"
                           >
                             <Copy className="w-4 h-4" />
                           </Button>
-                          <Button
-                            size="sm"
+                          <Button 
+                            onClick={() => removeItem(index)} 
+                            size="sm" 
                             variant="ghost"
-                            onClick={() => removeItem(index)}
-                            disabled={items.length === 1}
+                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                            title="Xóa dòng"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="flex justify-center">
+              <Button onClick={addItem} size="sm" variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Thêm sản phẩm
+              </Button>
             </div>
           </div>
 
-          <div className="flex justify-between items-center p-4 bg-muted rounded-lg">
-            <div className="space-y-1">
-              <div className="flex gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="notes">Ghi chú</Label>
+            <Textarea
+              id="notes"
+              placeholder="Ghi chú thêm cho đơn hàng..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
                 <span className="font-medium">Tổng tiền:</span>
                 <span>{formatVND(totalAmount * 1000)}</span>
               </div>
-              <div className="flex gap-4">
+              <div className="flex justify-between items-center gap-4">
                 <span className="font-medium">Giảm giá:</span>
-                <span>{formatVND(discountAmount * 1000)}</span>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  className="w-40 text-right"
+                  placeholder="0"
+                  value={discountAmount || ""}
+                  onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value))}
+                />
               </div>
-              <div className="flex gap-4 text-lg font-bold">
+              <div className="flex justify-between items-center text-lg font-bold">
                 <span>Thành tiền:</span>
                 <span>{formatVND(finalAmount * 1000)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Hủy
             </Button>
-            <Button onClick={handleSubmit} disabled={updateOrderMutation.isPending}>
+            <Button 
+              onClick={handleSubmit}
+              disabled={updateOrderMutation.isPending}
+            >
               {updateOrderMutation.isPending ? "Đang cập nhật..." : "Cập nhật đơn hàng"}
             </Button>
           </div>
         </div>
       </DialogContent>
+
+      <SelectProductDialog
+        open={isSelectProductOpen}
+        onOpenChange={setIsSelectProductOpen}
+        onSelect={handleSelectProduct}
+      />
     </Dialog>
   );
 }
