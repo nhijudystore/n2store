@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
 import { useDebounce } from "@/hooks/use-debounce";
+import { detectVariantsFromText } from "@/lib/variant-detector";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -570,6 +571,19 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                         <Textarea
                           value={item.product_name}
                           onChange={(e) => updateItem(index, 'product_name', e.target.value)}
+                          onBlur={() => {
+                            // Auto-detect variants on blur
+                            const result = detectVariantsFromText(item.product_name);
+                            if (result.colors.length > 0 || result.sizeText.length > 0) {
+                              const detectedVariant = [
+                                ...result.colors.map(c => c.value),
+                                ...result.sizeText.map(s => s.value)
+                              ].join(" ");
+                              if (detectedVariant && !item.variant) {
+                                updateItem(index, 'variant', detectedVariant);
+                              }
+                            }
+                          }}
                           placeholder="Tên sản phẩm"
                           className="min-h-[60px] resize-none"
                           rows={2}

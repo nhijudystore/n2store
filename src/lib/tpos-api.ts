@@ -357,47 +357,25 @@ export async function getTPOSAttributes(): Promise<TPOSAttributesResponse> {
 
 /**
  * Tự động detect thuộc tính từ text (tên sản phẩm, ghi chú)
+ * 
+ * REFACTORED: Now uses improved variant-detector.ts
  */
 export function detectAttributesFromText(text: string): DetectedAttributes {
   if (!text) return {};
 
-  const detected: DetectedAttributes = {};
-  const textLower = text.toLowerCase();
-
-  // Detect size chữ - tránh match chữ cái đơn trong từ tiếng Việt
-  const foundSizeText: string[] = [];
-  TEXT_SIZES.forEach(size => {
-    // Chỉ match nếu trước và sau là khoảng trắng, dấu, hoặc đầu/cuối chuỗi
-    // Không match nếu là phần của từ dài hơn
-    const pattern = new RegExp(`(?:^|[\\s,./+\\-()\\[\\]{}])${size.toLowerCase()}(?=[\\s,./+\\-()\\[\\]{}]|$)`, 'gi');
-    if (pattern.test(textLower) && !foundSizeText.includes(size)) {
-      foundSizeText.push(size);
-    }
-  });
-
-  // Detect màu sắc - sort by length để match longer phrases trước
-  const foundColors: string[] = [];
-  const sortedColors = [...COLORS].sort((a, b) => b.length - a.length);
+  // Import the new detection system
+  const { detectVariantsFromText, getSimpleDetection } = require('./variant-detector');
   
-  sortedColors.forEach(color => {
-    const pattern = new RegExp(`\\b${color.toLowerCase()}\\b`, 'gi');
-    if (pattern.test(textLower) && !foundColors.includes(color)) {
-      foundColors.push(color);
-    }
-  });
-
-  // Detect size số
-  const foundSizeNumber: string[] = [];
-  NUMBER_SIZES.forEach(size => {
-    const pattern = new RegExp(`\\b${size}\\b`, 'g');
-    if (pattern.test(textLower) && !foundSizeNumber.includes(size)) {
-      foundSizeNumber.push(size);
-    }
-  });
-
-  if (foundSizeText.length > 0) detected.sizeText = foundSizeText;
-  if (foundColors.length > 0) detected.color = foundColors;
-  if (foundSizeNumber.length > 0) detected.sizeNumber = foundSizeNumber;
+  // Use new detection logic
+  const result = detectVariantsFromText(text);
+  const simple = getSimpleDetection(result);
+  
+  // Map to old format for backward compatibility
+  const detected: DetectedAttributes = {};
+  
+  if (simple.color.length > 0) detected.color = simple.color;
+  if (simple.sizeText.length > 0) detected.sizeText = simple.sizeText;
+  if (simple.sizeNumber.length > 0) detected.sizeNumber = simple.sizeNumber;
 
   console.log("🎯 [TPOS] Detected attributes:", detected);
   return detected;

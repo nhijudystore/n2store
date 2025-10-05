@@ -22,6 +22,8 @@ import { toast } from "sonner";
 import { ImageIcon, X, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
 import { generateProductCode } from "@/lib/product-code-generator";
+import { useVariantDetector } from "@/hooks/use-variant-detector";
+import { VariantDetectionBadge } from "@/components/products/VariantDetectionBadge";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -50,6 +52,13 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       product_name: "",
       variants: [{ name: "", quantity: 0 }],
     },
+  });
+
+  // Auto-detect variants from product name
+  const productName = form.watch("product_name");
+  const { detectionResult, hasDetections } = useVariantDetector({
+    productName,
+    enabled: open,
   });
 
   const uploadImage = useCallback(async (file: File) => {
@@ -277,6 +286,9 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                       onBlur={handleProductNameBlur}
                     />
                   </FormControl>
+                  {hasDetections && (
+                    <VariantDetectionBadge detectionResult={detectionResult} className="mt-2" />
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useVariantDetector } from "@/hooks/use-variant-detector";
+import { VariantDetectionBadge } from "./VariantDetectionBadge";
 
 interface Product {
   id: string;
@@ -40,6 +42,13 @@ export function EditProductDialog({ product, open, onOpenChange, onSuccess }: Ed
     barcode: "",
     stock_quantity: "",
     supplier_name: "",
+  });
+
+  // Auto-detect variants from product name
+  const { detectionResult, hasDetections } = useVariantDetector({
+    productName: formData.product_name,
+    variant: formData.variant,
+    enabled: open,
   });
 
   useEffect(() => {
@@ -118,6 +127,9 @@ export function EditProductDialog({ product, open, onOpenChange, onSuccess }: Ed
               onChange={(e) => setFormData({ ...formData, product_name: e.target.value })}
               required
             />
+            {hasDetections && (
+              <VariantDetectionBadge detectionResult={detectionResult} className="mt-2" />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

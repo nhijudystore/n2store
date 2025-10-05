@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { generateProductCode } from "@/lib/product-code-generator";
+import { useVariantDetector } from "@/hooks/use-variant-detector";
+import { VariantDetectionBadge } from "./VariantDetectionBadge";
 
 interface CreateProductDialogProps {
   open: boolean;
@@ -27,6 +29,13 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
     barcode: "",
     stock_quantity: "0",
     supplier_name: "",
+  });
+
+  // Auto-detect variants from product name
+  const { detectionResult, hasDetections } = useVariantDetector({
+    productName: formData.product_name,
+    variant: formData.variant,
+    enabled: open,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,6 +139,9 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
               onBlur={handleProductNameBlur}
               required
             />
+            {hasDetections && (
+              <VariantDetectionBadge detectionResult={detectionResult} className="mt-2" />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
