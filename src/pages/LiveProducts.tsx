@@ -87,6 +87,7 @@ interface LiveOrder {
   live_phase_id?: string;
   order_code: string;
   tpos_order_id?: string | null;
+  code_tpos_oder_id?: string | null;
   quantity: number;
   order_date: string;
   is_oversell?: boolean;
@@ -756,16 +757,17 @@ export default function LiveProducts() {
       const data = await response.json();
       console.log('[TPOS Sync] Response data:', data);
       
-      // 2. Create mapping: SessionIndex -> "Id-Code"
-      const tposMap = new Map<string, string>();
+      // 2. Create mapping: SessionIndex -> {Id, Code}
+      const tposMap = new Map<string, { id: string; code: string }>();
       data.value?.forEach((order: any) => {
         if (order.SessionIndex && order.Id && order.Code) {
           // Convert SessionIndex to string and trim whitespace
           const sessionIndexStr = String(order.SessionIndex).trim();
-          // Store both Id and Code as "Id-Code"
-          const tposValue = `${order.Id}-${order.Code}`;
-          tposMap.set(sessionIndexStr, tposValue);
-          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" -> TPOS "${tposValue}" (Id: ${order.Id}, Code: ${order.Code})`);
+          tposMap.set(sessionIndexStr, {
+            id: order.Id,
+            code: order.Code
+          });
+          console.log(`[TPOS Sync] Mapping: SessionIndex "${sessionIndexStr}" -> Id: ${order.Id}, Code: ${order.Code}`);
         }
       });
       
@@ -793,24 +795,27 @@ export default function LiveProducts() {
       for (const [orderCode, orders] of Object.entries(orderGroups)) {
         // Normalize order_code to string and trim
         const normalizedOrderCode = String(orderCode).trim();
-        const tposValue = tposMap.get(normalizedOrderCode);
+        const tposData = tposMap.get(normalizedOrderCode);
         
-        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposValue ? `Found TPOS "${tposValue}"` : 'NOT FOUND');
+        console.log(`[TPOS Sync] Checking order_code "${orderCode}" (normalized: "${normalizedOrderCode}"):`, tposData ? `Found TPOS Id: ${tposData.id}, Code: ${tposData.code}` : 'NOT FOUND');
         
-        if (tposValue) {
-          // Update all orders with this order_code
+        if (tposData) {
+          // Update all orders with this order_code - save Id and Code separately
           try {
             const orderIds = orders.map(o => o.id);
             
             const { error } = await supabase
               .from('live_orders')
-              .update({ tpos_order_id: tposValue })
+              .update({ 
+                tpos_order_id: tposData.code,
+                code_tpos_oder_id: tposData.id
+              })
               .in('id', orderIds);
             
             if (error) throw error;
             
             matched += orders.length;
-            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS "${tposValue}"`);
+            console.log(`[TPOS Sync] ✓ Updated ${orders.length} orders with code "${orderCode}" -> TPOS Id: ${tposData.id}, Code: ${tposData.code}`);
           } catch (err) {
             console.error(`[TPOS Sync] ✗ Error updating order ${orderCode}:`, err);
             errors += orders.length;
@@ -895,19 +900,11 @@ export default function LiveProducts() {
   };
 
   const handleUploadToTPOS = async (orderCode: string, orders: OrderWithProduct[]) => {
-    // Get TPOS Order ID from first order in group (format: "Id-Code")
-    const tposOrderData = orders[0]?.tpos_order_id;
-    
-    if (!tposOrderData) {
-      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
-      return;
-    }
-    
-    // Extract Id from "Id-Code" format
-    const tposOrderId = tposOrderData.split('-')[0];
+    // Get TPOS Order ID directly from code_tpos_oder_id column
+    const tposOrderId = orders[0]?.code_tpos_oder_id;
     
     if (!tposOrderId) {
-      toast.error("Định dạng mã TPOS không hợp lệ.");
+      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
       return;
     }
     
@@ -965,7 +962,10 @@ export default function LiveProducts() {
       
       const { error } = await supabase
         .from('live_orders')
-        .update({ tpos_order_id: null })
+        .update({ 
+          tpos_order_id: null,
+          code_tpos_oder_id: null
+        })
         .in('id', orderIds);
       
       if (error) throw error;
@@ -1745,7 +1745,7 @@ export default function LiveProducts() {
                           className="align-middle border-r text-center"
                         >
                           <span className="text-sm text-muted-foreground font-mono">
-                            {orders[0]?.tpos_order_id ? orders[0].tpos_order_id.split('-')[1] || orders[0].tpos_order_id : '-'}
+                            {orders[0]?.tpos_order_id || '-'}
                           </span>
                         </TableCell>
                       </>
