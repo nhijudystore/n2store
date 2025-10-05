@@ -252,8 +252,8 @@ export async function getLatestProducts(count: number): Promise<any[]> {
       throw new Error(`Không tìm thấy sản phẩm của "${TPOS_CONFIG.CREATED_BY_NAME}"`);
     }
 
-    // Sort by ID descending and take the latest products
-    return items.sort((a: any, b: any) => b.Id - a.Id).slice(0, count);
+    // Sort by ID ascending to match upload order
+    return items.sort((a: any, b: any) => a.Id - b.Id).slice(0, count);
   } catch (error) {
     console.error("❌ getLatestProducts error:", error);
     throw error;
@@ -801,13 +801,11 @@ export async function uploadToTPOS(
           
           const base64Image = await imageUrlToBase64(imageUrl);
           if (base64Image) {
-            const detail = await getProductDetail(tposProduct.Id);
-            await updateProductWithImage(detail, base64Image, detectedAttributes);
+            await updateProductWithImage(tposProduct, base64Image, detectedAttributes);
           }
         } else if (Object.keys(detectedAttributes).length > 0) {
           // Nếu không có ảnh nhưng có attributes, vẫn update
-          const detail = await getProductDetail(tposProduct.Id);
-          await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
+          await updateProductWithImage(tposProduct, tposProduct.Image || '', detectedAttributes);
         }
 
         console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (Local: ${item.product_code} -> TPOS: ${tposProduct.DefaultCode}) -> TPOS ID: ${tposProduct.Id}`);
