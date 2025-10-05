@@ -289,9 +289,9 @@ export default function LiveProducts() {
           .from("live_products")
           .select("*")
           .eq("live_phase_id", selectedPhase)
+          .order("created_at", { ascending: false })
           .order("product_code", { ascending: true })
-          .order("variant", { ascending: true })
-          .order("created_at", { ascending: true });
+          .order("variant", { ascending: true });
         
         if (error) throw error;
         return data as LiveProduct[];
