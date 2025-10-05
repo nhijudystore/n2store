@@ -10,6 +10,7 @@ import {
   TPOS_SIZE_TEXT_MAP,
   TPOS_SIZE_NUMBER_MAP
 } from "./variant-attributes";
+import { detectVariantsFromText, getSimpleDetection } from "./variant-detector";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -398,9 +399,6 @@ export async function getTPOSAttributes(): Promise<TPOSAttributesResponse> {
 export function detectAttributesFromText(text: string): DetectedAttributes {
   if (!text) return {};
 
-  // Import the new detection system
-  const { detectVariantsFromText, getSimpleDetection } = require('./variant-detector');
-  
   // Use new detection logic
   const result = detectVariantsFromText(text);
   const simple = getSimpleDetection(result);
