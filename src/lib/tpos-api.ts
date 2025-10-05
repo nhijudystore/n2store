@@ -768,18 +768,23 @@ export async function uploadToTPOS(
     const latestProducts = await getLatestProducts(items.length);
     console.log(`📦 Fetched ${latestProducts.length} products`);
 
-    // Step 5: Update products with images (match by order/index)
-    // TPOS có thể thay đổi product_code khi import, nên match theo thứ tự
-    for (let i = 0; i < Math.min(items.length, latestProducts.length); i++) {
-      const tposProduct = latestProducts[i];
+    // Step 5: Update products with images (match by product_code for accuracy)
+    // Create Map: product_code -> tposProduct for accurate matching
+    const tposProductMap = new Map(
+      latestProducts.map(tp => [tp.DefaultCode, tp])
+    );
+
+    let processedCount = 0;
+    for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      const tposProduct = tposProductMap.get(item.product_code);
       
-      console.log(`🔄 Matching: Local "${item.product_code}" <-> TPOS "${tposProduct.DefaultCode}" (ID: ${tposProduct.Id})`);
-      
-      if (!item) {
-        console.warn(`⚠️ No local item at index ${i}`);
+      if (!tposProduct) {
+        console.warn(`⚠️ Không tìm thấy TPOS product cho code: ${item.product_code} - Sản phẩm: ${item.product_name}`);
         continue;
       }
+
+      console.log(`🔄 Matching: Local "${item.product_code}" <-> TPOS "${tposProduct.DefaultCode}" (ID: ${tposProduct.Id})`);
 
       // ✅ LUÔN LUÔN thêm vào productIds vì TPOS đã tạo product thành công
       result.productIds.push({
@@ -790,6 +795,7 @@ export async function uploadToTPOS(
 
       // Attempt to upload image and attributes (best effort)
       try {
+        processedCount++;
         const imageUrl = item.product_images?.[0];
         
         // Auto-detect attributes từ tên sản phẩm và variant
@@ -797,7 +803,7 @@ export async function uploadToTPOS(
         const detectedAttributes = detectAttributesFromText(textToAnalyze);
         
         if (imageUrl) {
-          onProgress?.(4, 4, `Upload ảnh ${i + 1}/${latestProducts.length}: ${item.product_name}...`);
+          onProgress?.(4, 4, `Upload ảnh ${processedCount}/${items.length}: ${item.product_name}...`);
           
           const base64Image = await imageUrlToBase64(imageUrl);
           if (base64Image) {
@@ -811,7 +817,7 @@ export async function uploadToTPOS(
           await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
-        console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (Local: ${item.product_code} -> TPOS: ${tposProduct.DefaultCode}) -> TPOS ID: ${tposProduct.Id}`);
+        console.log(`✅ [${processedCount}/${items.length}] ${item.product_name} (Local: ${item.product_code} -> TPOS: ${tposProduct.DefaultCode}) -> TPOS ID: ${tposProduct.Id}`);
       } catch (error) {
         // ⚠️ Log warning nhưng KHÔNG tăng failedCount vì TPOS đã tạo product
         let errorDetail = '';
