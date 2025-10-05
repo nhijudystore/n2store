@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -19,11 +19,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ImageIcon, X, Loader2 } from "lucide-react";
+import { ImageIcon, X, Loader2, Warehouse } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
 import { generateProductCode } from "@/lib/product-code-generator";
 import { useVariantDetector } from "@/hooks/use-variant-detector";
 import { VariantDetectionBadge } from "@/components/products/VariantDetectionBadge";
+import { useDebounce } from "@/hooks/use-debounce";
+import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -43,6 +45,10 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   const [imageUrl, setImageUrl] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [productSearchQuery, setProductSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(productSearchQuery, 300);
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
+  const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const uploadAreaRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -59,6 +65,24 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   const { detectionResult, hasDetections } = useVariantDetector({
     productName,
     enabled: open,
+  });
+
+  // Fetch product suggestions from inventory
+  const { data: suggestedProducts = [] } = useQuery({
+    queryKey: ["product-suggestions", debouncedSearch],
+    queryFn: async () => {
+      if (!debouncedSearch || debouncedSearch.length < 2) return [];
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .or(`product_code.ilike.%${debouncedSearch}%,product_name.ilike.%${debouncedSearch}%`)
+        .limit(10);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: debouncedSearch.length >= 2
   });
 
   const uploadImage = useCallback(async (file: File) => {
@@ -126,6 +150,23 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     document.addEventListener('paste', handlePasteEvent);
     return () => document.removeEventListener('paste', handlePasteEvent);
   }, [handlePaste]);
+
+  // Handle product selection from suggestions or dialog
+  const handleSelectProduct = (product: any) => {
+    form.setValue("product_code", product.product_code);
+    form.setValue("product_name", product.product_name);
+    
+    // Auto-fill image if available
+    if (product.product_images?.[0]) {
+      setImageUrl(product.product_images[0]);
+    } else if (product.tpos_image_url) {
+      setImageUrl(product.tpos_image_url);
+    }
+    
+    setShowProductSuggestions(false);
+    setProductSearchQuery("");
+    toast.success(`Đã chọn: ${product.product_name}`);
+  };
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
@@ -261,12 +302,63 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               name="product_code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Mã sản phẩm</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Mã sản phẩm</FormLabel>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsSelectProductOpen(true)}
+                      className="h-7 text-xs"
+                    >
+                      <Warehouse className="w-3 h-3 mr-1" />
+                      Chọn từ Kho SP
+                    </Button>
+                  </div>
                   <FormControl>
-                    <Input 
-                      placeholder="Nhập mã sản phẩm (không bắt buộc)"
-                      {...field}
-                    />
+                    <div className="relative">
+                      <Input 
+                        placeholder="Nhập mã/tên SP để tìm kiếm..."
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          setProductSearchQuery(e.target.value);
+                          setShowProductSuggestions(true);
+                        }}
+                        onFocus={() => {
+                          if (field.value) {
+                            setProductSearchQuery(field.value);
+                            setShowProductSuggestions(true);
+                          }
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => setShowProductSuggestions(false), 200);
+                        }}
+                      />
+                      
+                      {showProductSuggestions && suggestedProducts.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-background border rounded-md shadow-lg max-h-60 overflow-auto">
+                          {suggestedProducts.map((product) => (
+                            <div
+                              key={product.id}
+                              className="px-3 py-2 cursor-pointer hover:bg-muted transition-colors"
+                              onClick={() => handleSelectProduct(product)}
+                            >
+                              <div className="font-medium text-sm">{product.product_code}</div>
+                              <div className="text-xs text-muted-foreground line-clamp-1">
+                                {product.product_name}
+                                {product.variant && ` - ${product.variant}`}
+                              </div>
+                              {product.stock_quantity !== undefined && (
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                  Tồn: {product.stock_quantity}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -434,6 +526,12 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
           </form>
         </Form>
       </DialogContent>
+
+      <SelectProductDialog
+        open={isSelectProductOpen}
+        onOpenChange={setIsSelectProductOpen}
+        onSelect={handleSelectProduct}
+      />
     </Dialog>
   );
 }
