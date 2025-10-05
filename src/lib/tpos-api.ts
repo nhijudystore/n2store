@@ -119,7 +119,25 @@ export function generateTPOSExcel(items: TPOSProductItem[]): Blob {
 // TPOS API CALLS
 // =====================================================
 
-export async function uploadExcelToTPOS(excelBlob: Blob): Promise<string> {
+export interface TPOSUploadResponse {
+  status?: string;
+  message?: string;
+  success_count?: number;
+  failed_count?: number;
+  errors?: Array<{
+    row?: number;
+    line?: number;
+    product_code?: string;
+    product_name?: string;
+    field?: string;
+    error?: string;
+    message?: string;
+    details?: any;
+  }>;
+  data?: any;
+}
+
+export async function uploadExcelToTPOS(excelBlob: Blob): Promise<TPOSUploadResponse> {
   const reader = new FileReader();
   
   return new Promise((resolve, reject) => {
@@ -148,32 +166,48 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<string> {
           body: JSON.stringify(payload),
         });
 
-        console.log("Upload response status:", response.status);
+        console.log("📥 [TPOS] Upload response status:", response.status);
 
         const responseText = await response.text();
-        console.log("Upload response:", responseText);
+        console.log("📥 [TPOS] Upload response body:", responseText);
 
         if (!response.ok) {
-          throw new Error(`Upload failed: ${response.status}\n${responseText}`);
+          // Parse error response từ TPOS
+          let errorDetails = responseText;
+          try {
+            const errorJson = JSON.parse(responseText);
+            errorDetails = JSON.stringify(errorJson, null, 2);
+          } catch (e) {
+            // Keep as is if not JSON
+          }
+          throw new Error(`Upload failed (${response.status}): ${errorDetails}`);
         }
 
-        let responseData;
+        // Parse response để lấy thông tin chi tiết
+        let parsedResponse: TPOSUploadResponse;
         try {
-          responseData = responseText ? JSON.parse(responseText) : {};
+          parsedResponse = responseText ? JSON.parse(responseText) : {};
         } catch (e) {
-          responseData = { message: responseText };
+          parsedResponse = { message: responseText };
         }
 
-        console.log("✅ [TPOS] Excel uploaded successfully");
-        resolve(responseText);
+        // Log chi tiết response
+        console.log("✅ [TPOS] Excel uploaded, response:", JSON.stringify(parsedResponse, null, 2));
+        
+        // Kiểm tra nếu có lỗi trong response
+        if (parsedResponse.errors && parsedResponse.errors.length > 0) {
+          console.warn("⚠️ [TPOS] Upload có lỗi:", parsedResponse.errors);
+        }
+
+        resolve(parsedResponse);
       } catch (error) {
-        console.error("❌ uploadExcelToTPOS error:", error);
+        console.error("❌ [TPOS] uploadExcelToTPOS error:", error);
         reject(error);
       }
     };
 
     reader.onerror = (error) => {
-      console.error("FileReader error:", error);
+      console.error("❌ [TPOS] FileReader error:", error);
       reject(error);
     };
     
@@ -691,6 +725,34 @@ export async function uploadToTPOS(
     onProgress?.(2, 4, "Đang upload Excel lên TPOS...");
     const uploadResponse = await uploadExcelToTPOS(excelBlobForTPOS);
     console.log("✅ Excel uploaded successfully");
+    
+    // Kiểm tra nếu TPOS response có lỗi ngay trong bước upload Excel
+    if (uploadResponse.errors && uploadResponse.errors.length > 0) {
+      console.warn("⚠️ TPOS báo lỗi khi import Excel:", uploadResponse.errors);
+      
+      // Parse lỗi chi tiết từ TPOS
+      uploadResponse.errors.forEach((error, index) => {
+        const rowInfo = error.row || error.line || index + 1;
+        const errorMsg = error.error || error.message || 'Unknown error';
+        const fieldInfo = error.field ? ` (Trường: ${error.field})` : '';
+        const productInfo = error.product_name || error.product_code || '';
+        
+        result.errors.push({
+          productName: productInfo || `Hàng ${rowInfo}`,
+          productCode: error.product_code || 'N/A',
+          errorMessage: `Lỗi Excel hàng ${rowInfo}${fieldInfo}: ${errorMsg}`,
+          fullError: error,
+        });
+        result.failedCount++;
+      });
+      
+      // Nếu tất cả sản phẩm đều lỗi, return luôn
+      if (uploadResponse.failed_count && uploadResponse.failed_count >= items.length) {
+        result.success = false;
+        console.log("❌ Tất cả sản phẩm đều bị lỗi khi import Excel");
+        return result;
+      }
+    }
     
     // Wait for TPOS to process
     onProgress?.(2, 4, "Đợi TPOS xử lý file...");

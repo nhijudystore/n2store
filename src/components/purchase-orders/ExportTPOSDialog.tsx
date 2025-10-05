@@ -256,21 +256,44 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 </p>
               )}
               {result.errors.length > 0 && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
-                    Xem chi tiết {result.errors.length} lỗi
+                <details className="mt-2" open>
+                  <summary className="cursor-pointer text-destructive hover:text-destructive/80 font-semibold">
+                    ❌ Xem chi tiết {result.errors.length} lỗi
                   </summary>
                   <div className="mt-2 space-y-2 text-xs max-h-64 overflow-y-auto">
                     {result.errors.map((error, i) => (
-                      <div key={i} className="border-l-2 border-destructive pl-2 py-1">
-                        <p className="font-semibold text-destructive">
-                          {error.productName} ({error.productCode})
+                      <div key={i} className="border-l-4 border-destructive pl-3 py-2 bg-destructive/5 rounded">
+                        <p className="font-bold text-destructive text-sm mb-1">
+                          {i + 1}. {error.productName} 
+                          {error.productCode !== 'N/A' && <span className="text-muted-foreground"> ({error.productCode})</span>}
                         </p>
-                        <pre className="mt-1 bg-muted/50 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[10px] leading-tight">
-                          {error.errorMessage}
-                        </pre>
+                        <div className="space-y-1">
+                          <p className="font-medium text-foreground">Chi tiết lỗi:</p>
+                          <pre className="bg-muted/80 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed font-mono border border-destructive/20">
+                            {error.errorMessage}
+                          </pre>
+                        </div>
+                        {error.fullError?.details && (
+                          <div className="mt-2 pt-2 border-t border-destructive/20">
+                            <p className="text-[10px] text-muted-foreground font-medium mb-1">Debug info:</p>
+                            <pre className="text-[10px] text-muted-foreground overflow-x-auto">
+                              {JSON.stringify(error.fullError.details, null, 2)}
+                            </pre>
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
+                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded">
+                    <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                      💡 Các nguyên nhân thường gặp:
+                    </p>
+                    <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-0.5 ml-4 list-disc">
+                      <li>Thiếu trường bắt buộc (Tên sản phẩm, Mã sản phẩm, Giá bán...)</li>
+                      <li>Format dữ liệu không đúng (giá phải là số, không có ký tự đặc biệt...)</li>
+                      <li>Mã sản phẩm trùng lặp hoặc không hợp lệ</li>
+                      <li>Tên sản phẩm quá dài hoặc chứa ký tự không cho phép</li>
+                    </ul>
                   </div>
                 </details>
               )}
@@ -284,26 +307,83 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       onOpenChange(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error("Upload error:", errorMessage);
+      console.error("❌ Upload error:", errorMessage);
+      
+      // Parse error message to extract TPOS error details
+      let parsedError = null;
+      try {
+        // Try to extract JSON from error message
+        const jsonMatch = errorMessage.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedError = JSON.parse(jsonMatch[0]);
+        }
+      } catch (e) {
+        // Keep as is if parsing fails
+      }
       
       toast({
-        title: "❌ Lỗi upload",
+        title: "❌ Lỗi upload lên TPOS",
         description: (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            <p className="font-medium">Chi tiết lỗi từ TPOS:</p>
-            <pre className="text-xs bg-destructive/10 p-2 rounded overflow-x-auto whitespace-pre-wrap">
-              {errorMessage}
-            </pre>
-            <p className="text-sm text-muted-foreground">
-              💡 Kiểm tra:
-              <br />• Kết nối mạng
-              <br />• Token TPOS còn hiệu lực
-              <br />• Format dữ liệu Excel
-            </p>
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            <div className="bg-destructive/10 p-3 rounded-lg border border-destructive/20">
+              <p className="font-semibold text-destructive mb-2">Chi tiết lỗi từ TPOS:</p>
+              {parsedError ? (
+                <div className="space-y-2">
+                  {parsedError.errors && Array.isArray(parsedError.errors) && (
+                    <div>
+                      <p className="text-xs font-medium mb-1">
+                        Có {parsedError.errors.length} lỗi được phát hiện:
+                      </p>
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {parsedError.errors.slice(0, 5).map((err: any, i: number) => (
+                          <div key={i} className="text-xs bg-background/50 p-2 rounded border border-destructive/20">
+                            <p className="font-medium">
+                              {err.row ? `Hàng ${err.row}: ` : ''}
+                              {err.product_name || err.product_code || 'Unknown'}
+                            </p>
+                            <p className="text-destructive">
+                              {err.error || err.message || 'No error message'}
+                            </p>
+                            {err.field && (
+                              <p className="text-muted-foreground">Trường: {err.field}</p>
+                            )}
+                          </div>
+                        ))}
+                        {parsedError.errors.length > 5 && (
+                          <p className="text-xs text-muted-foreground italic">
+                            ... và {parsedError.errors.length - 5} lỗi khác
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  <pre className="text-[10px] bg-background/50 p-2 rounded overflow-x-auto whitespace-pre-wrap border border-destructive/20 font-mono">
+                    {JSON.stringify(parsedError, null, 2)}
+                  </pre>
+                </div>
+              ) : (
+                <pre className="text-xs bg-background/50 p-2 rounded overflow-x-auto whitespace-pre-wrap border border-destructive/20 font-mono">
+                  {errorMessage}
+                </pre>
+              )}
+            </div>
+            
+            <div className="bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                💡 Các bước kiểm tra:
+              </p>
+              <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
+                <li><strong>Kết nối mạng:</strong> Kiểm tra kết nối internet</li>
+                <li><strong>Token TPOS:</strong> Đảm bảo token còn hiệu lực và có quyền</li>
+                <li><strong>Dữ liệu Excel:</strong> Kiểm tra các trường bắt buộc (Tên SP, Mã SP, Giá...)</li>
+                <li><strong>Format:</strong> Đảm bảo giá là số, tên không có ký tự đặc biệt</li>
+                <li><strong>Duplicate:</strong> Kiểm tra mã sản phẩm có bị trùng không</li>
+              </ul>
+            </div>
           </div>
         ),
         variant: "destructive",
-        duration: 12000,
+        duration: 15000,
       });
     } finally {
       setIsUploading(false);
