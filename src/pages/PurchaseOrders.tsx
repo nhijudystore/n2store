@@ -15,7 +15,7 @@ import { ExportTPOSDialog } from "@/components/purchase-orders/ExportTPOSDialog"
 import type { TPOSProductItem } from "@/lib/tpos-api";
 import { checkTPOSProductsExist } from "@/lib/tpos-api";
 import { format } from "date-fns";
-import { convertVietnameseToUpperCase } from "@/lib/utils";
+import { convertVietnameseToUpperCase, cn } from "@/lib/utils";
 import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
 
 interface PurchaseOrderItem {
@@ -863,6 +863,15 @@ const PurchaseOrders = () => {
 
                 {/* Regular export actions */}
                 <div className="flex gap-2">
+                  <Button 
+                    onClick={handleCheckTPOSSync} 
+                    variant="outline" 
+                    className="gap-2"
+                    disabled={isCheckingTPOS}
+                  >
+                    <RefreshCw className={cn("w-4 h-4", isCheckingTPOS && "animate-spin")} />
+                    {isCheckingTPOS ? "Đang kiểm tra..." : "Kiểm tra TPOS Sync"}
+                  </Button>
                   <Button onClick={handleExportPurchaseExcel} variant="outline" className="gap-2">
                     <ShoppingCart className="w-4 h-4" />
                     Xuất Excel mua hàng

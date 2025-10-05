@@ -373,6 +373,7 @@ export function PurchaseOrderList({
               <TableHead>Hóa đơn (VND)</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Mã sản phẩm</TableHead>
+              <TableHead>TPOS ID</TableHead>
               <TableHead>Biến thể</TableHead>
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá mua (VND)</TableHead>
@@ -487,6 +488,23 @@ export function PurchaseOrderList({
                   </TableCell>
                   <TableCell className="border-r">
                     {flatItem.item?.product_code || "-"}
+                  </TableCell>
+                  <TableCell className="border-r">
+                    {flatItem.item?.tpos_product_id ? (
+                      <div className="flex items-center gap-1">
+                        <a 
+                          href={generateTPOSProductLink(flatItem.item.tpos_product_id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                        >
+                          {flatItem.item.tpos_product_id}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </TableCell>
                   <TableCell className="border-r">
                     {flatItem.item?.variant || "-"}
