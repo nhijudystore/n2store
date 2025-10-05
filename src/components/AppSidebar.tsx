@@ -5,7 +5,8 @@ import {
   BarChart3,
   Package,
   Warehouse,
-  Search
+  Search,
+  History
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -55,6 +56,11 @@ const menuItems = [
 ];
 
 const adminItems = [
+  {
+    title: "Lịch sử chỉnh sửa",
+    url: "/activity-log",
+    icon: History,
+  },
   {
     title: "Cài đặt",
     url: "/settings",

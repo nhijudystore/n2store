@@ -14,6 +14,7 @@ import LivestreamReports from "./pages/LivestreamReports";
 import GoodsReceiving from "./pages/GoodsReceiving";
 import SearchProducts from "./pages/SearchProducts";
 import Settings from "./pages/Settings";
+import ActivityLog from "./pages/ActivityLog";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -86,6 +87,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <Settings />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/activity-log" element={
+              <ProtectedRoute>
+                <Layout>
+                  <ActivityLog />
                 </Layout>
               </ProtectedRoute>
             } />
