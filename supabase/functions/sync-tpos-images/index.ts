@@ -60,16 +60,39 @@ async function fetchTPOSProductsBatch(
 }
 
 async function fetchAllTPOSProducts(bearerToken: string): Promise<any[]> {
-  console.log('Starting to fetch all 2160 TPOS products...');
+  console.log('Starting to fetch all TPOS products...');
   
-  // Fetch all 3 batches in parallel
-  const [batch1, batch2, batch3] = await Promise.all([
-    fetchTPOSProductsBatch(bearerToken, 1000, 0),    // Products 1-1000
-    fetchTPOSProductsBatch(bearerToken, 1000, 1000), // Products 1001-2000
-    fetchTPOSProductsBatch(bearerToken, 160, 2000),  // Products 2001-2160
-  ]);
-
-  const allProducts = [...batch1, ...batch2, ...batch3];
+  // Fetch first batch to get total count
+  const firstBatchUrl = `https://tomato.tpos.vn/odata/ProductTemplate/ODataService.GetViewV2?Active=true&priceId=0&$top=1000&$orderby=DateCreated+desc&$filter=Active+eq+true&$count=true&$skip=0`;
+  const firstResponse = await fetch(firstBatchUrl, {
+    method: 'GET',
+    headers: getTPOSHeaders(bearerToken),
+  });
+  
+  if (!firstResponse.ok) {
+    throw new Error(`TPOS API returned ${firstResponse.status}`);
+  }
+  
+  const firstData = await firstResponse.json();
+  const totalCount = firstData['@odata.count'] || 0;
+  console.log(`Total products in TPOS: ${totalCount}`);
+  
+  const batch1 = firstData.value || [];
+  
+  // Calculate how many more batches we need
+  const remainingCount = totalCount - 1000;
+  const batches = [Promise.resolve(batch1)];
+  
+  if (remainingCount > 0) {
+    // Fetch remaining batches in parallel
+    for (let skip = 1000; skip < totalCount; skip += 1000) {
+      batches.push(fetchTPOSProductsBatch(bearerToken, 1000, skip));
+    }
+  }
+  
+  const allBatches = await Promise.all(batches);
+  const allProducts = allBatches.flat();
+  
   console.log(`Successfully fetched ${allProducts.length} products from TPOS`);
   
   return allProducts;
