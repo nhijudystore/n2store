@@ -13,6 +13,7 @@ interface LiveOrder {
   live_product_id: string;
   quantity: number;
   order_code: string;
+  tpos_order_id?: string | null;
 }
 
 interface LiveSessionStatsProps {

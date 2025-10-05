@@ -77,6 +77,7 @@ interface LiveOrder {
   live_product_id: string;
   live_phase_id?: string;
   order_code: string;
+  tpos_order_id?: string | null;
   quantity: number;
   order_date: string;
   is_oversell?: boolean;
@@ -1199,16 +1200,17 @@ export default function LiveProducts() {
               ) : (
                 <Card>
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-32 font-bold text-base">Mã đơn hàng</TableHead>
-                        <TableHead className="w-48 font-bold text-base">Tên sản phẩm</TableHead>
-                        <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
-                        <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
-                        <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
-                        <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
-                      </TableRow>
-                    </TableHeader>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-32 font-bold text-base">Mã đơn hàng</TableHead>
+                  <TableHead className="w-32 font-bold text-base">Mã TPOS</TableHead>
+                  <TableHead className="w-48 font-bold text-base">Tên sản phẩm</TableHead>
+                  <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
+                  <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
+                  <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
+                  <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
+                </TableRow>
+              </TableHeader>
                     <TableBody>
                       {(() => {
                         // Group orders by order_code
@@ -1262,25 +1264,36 @@ export default function LiveProducts() {
                                 hasOversell ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : ''
                               }`}
                             >
-                              {index === 0 && (
-                                <TableCell 
-                                  rowSpan={aggregatedProducts.length} 
-                                  className="font-medium align-middle border-r border-l text-center"
-                                >
-                                  <div className="flex items-center justify-center gap-2">
-                                    {hasOversell && (
-                                      <AlertTriangle className="h-5 w-5 text-red-500" />
-                                    )}
-                                    <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
-                                      hasOversell 
-                                        ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
-                                        : 'bg-primary text-primary-foreground'
-                                    }`}>
-                                      {orderCode}
-                                    </Badge>
-                                  </div>
-                                </TableCell>
-                              )}
+                    {index === 0 && (
+                      <>
+                        <TableCell 
+                          rowSpan={aggregatedProducts.length} 
+                          className="font-medium align-middle border-r border-l text-center"
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            {hasOversell && (
+                              <AlertTriangle className="h-5 w-5 text-red-500" />
+                            )}
+                            <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
+                              hasOversell 
+                                ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
+                                : 'bg-primary text-primary-foreground'
+                            }`}>
+                              {orderCode}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        
+                        <TableCell 
+                          rowSpan={aggregatedProducts.length} 
+                          className="align-middle border-r text-center"
+                        >
+                          <span className="text-sm text-muted-foreground font-mono">
+                            {orders[0]?.tpos_order_id || '-'}
+                          </span>
+                        </TableCell>
+                      </>
+                    )}
                               <TableCell className="py-2 border-r">
                                 <div className="font-medium text-sm">{product.product_name}</div>
                               </TableCell>

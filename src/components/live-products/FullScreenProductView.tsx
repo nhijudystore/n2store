@@ -17,6 +17,7 @@ interface LiveProduct {
 interface LiveOrder {
   id: string;
   order_code: string;
+  tpos_order_id?: string | null;
   live_product_id: string;
   quantity: number;
   is_oversell?: boolean;

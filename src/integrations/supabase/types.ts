@@ -145,6 +145,7 @@ export type Database = {
           order_code: string
           order_date: string
           quantity: number
+          tpos_order_id: string | null
         }
         Insert: {
           created_at?: string
@@ -156,6 +157,7 @@ export type Database = {
           order_code: string
           order_date?: string
           quantity?: number
+          tpos_order_id?: string | null
         }
         Update: {
           created_at?: string
@@ -167,6 +169,7 @@ export type Database = {
           order_code?: string
           order_date?: string
           quantity?: number
+          tpos_order_id?: string | null
         }
         Relationships: [
           {
