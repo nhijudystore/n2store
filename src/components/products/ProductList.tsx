@@ -9,6 +9,7 @@ import { EditProductDialog } from "./EditProductDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImage } from "./ProductImage";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,6 +50,26 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
   const { toast } = useToast();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === products.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map(p => p.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
   const handleDelete = async () => {
     if (!deletingProduct) return;
@@ -74,6 +95,31 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
     setDeletingProduct(null);
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .in("id", Array.from(selectedIds));
+
+    if (error) {
+      toast({
+        title: "Lỗi",
+        description: "Không thể xóa sản phẩm đã chọn",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Thành công",
+        description: `Đã xóa ${selectedIds.size} sản phẩm`,
+      });
+      setSelectedIds(new Set());
+      onRefetch();
+    }
+    setShowBulkDeleteDialog(false);
+  };
+
   if (isLoading) {
     return (
       <Card className="p-8">
@@ -95,11 +141,43 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
   if (isMobile) {
     return (
       <>
+        {selectedIds.size > 0 && (
+          <Card className="p-4 mb-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                Đã chọn {selectedIds.size} sản phẩm
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedIds(new Set())}
+                >
+                  Bỏ chọn
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setShowBulkDeleteDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Xóa đã chọn
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="space-y-4">
           {products.map((product) => (
             <Card key={product.id} className="p-4">
               <div className="space-y-3">
-                <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={selectedIds.has(product.id)}
+                    onCheckedChange={() => toggleSelect(product.id)}
+                    className="mt-1"
+                  />
                   <div className="flex-1">
                     <div className="font-semibold text-foreground">
                       {product.product_name}
@@ -195,16 +273,66 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xác nhận xóa nhiều sản phẩm</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bạn có chắc muốn xóa {selectedIds.size} sản phẩm đã chọn? Hành động này không thể hoàn tác.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Xóa {selectedIds.size} sản phẩm
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
     );
   }
 
   return (
     <>
+      {selectedIds.size > 0 && (
+        <Card className="p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Đã chọn {selectedIds.size} sản phẩm
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Bỏ chọn
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setShowBulkDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Xóa đã chọn
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={selectedIds.size === products.length && products.length > 0}
+                  onCheckedChange={toggleSelectAll}
+                />
+              </TableHead>
               <TableHead>Hình ảnh</TableHead>
               <TableHead>Mã SP</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
@@ -220,6 +348,12 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
           <TableBody>
             {products.map((product) => (
               <TableRow key={product.id}>
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.has(product.id)}
+                    onCheckedChange={() => toggleSelect(product.id)}
+                  />
+                </TableCell>
                 <TableCell>
                   <ProductImage 
                     productId={product.id}
@@ -283,6 +417,23 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Xóa</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận xóa nhiều sản phẩm</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bạn có chắc muốn xóa {selectedIds.size} sản phẩm đã chọn? Hành động này không thể hoàn tác.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Xóa {selectedIds.size} sản phẩm
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
