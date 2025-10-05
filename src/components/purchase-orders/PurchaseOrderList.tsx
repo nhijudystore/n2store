@@ -9,7 +9,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { HoverImage, HoverImageGroup } from "@/components/ui/hover-image";
 import { Pencil, Search, Filter, Calendar, Trash2, Check, ExternalLink } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
@@ -449,11 +448,10 @@ export function PurchaseOrderList({
                       >
                         <div className="space-y-2 relative">
                           {flatItem.invoice_images && flatItem.invoice_images.length > 0 && (
-                            <HoverImage 
+                            <img 
                               src={flatItem.invoice_images[0]}
                               alt="Hóa đơn"
-                              className="w-20 h-20"
-                              hoverScale={6}
+                              className="w-20 h-20 object-cover rounded cursor-pointer transition-transform duration-200 hover:scale-[6] hover:z-20 relative"
                             />
                           )}
                           <div className="space-y-1">
@@ -499,21 +497,39 @@ export function PurchaseOrderList({
                   </TableCell>
                   <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
-                      <HoverImageGroup 
-                        images={flatItem.item?.price_images || []}
-                        altPrefix="Giá mua"
-                        containerClassName="justify-end"
-                      />
+                      {flatItem.item?.price_images && flatItem.item.price_images.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {flatItem.item.price_images.map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Giá mua ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[12] hover:z-20 relative"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Chưa có hình</span>
+                      )}
                       <span>{flatItem.item ? formatVND(flatItem.item.unit_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
-                      <HoverImageGroup 
-                        images={flatItem.item?.product_images || []}
-                        altPrefix="Sản phẩm"
-                        containerClassName="justify-end"
-                      />
+                      {flatItem.item?.product_images && flatItem.item.product_images.length > 0 ? (
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {flatItem.item.product_images.map((imageUrl, index) => (
+                            <img
+                              key={index}
+                              src={imageUrl}
+                              alt={`Sản phẩm ${index + 1}`}
+                              className="w-8 h-8 object-cover rounded border cursor-pointer transition-transform duration-200 hover:scale-[12] hover:z-20 relative"
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Chưa có hình</span>
+                      )}
                       <span>{flatItem.item ? formatVND(flatItem.item.selling_price || 0) : "-"}</span>
                     </div>
                   </TableCell>

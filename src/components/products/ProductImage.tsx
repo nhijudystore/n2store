@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { ImageIcon, Loader2 } from "lucide-react";
 import { fetchAndSaveTPOSImage, getProductImageUrl } from "@/lib/tpos-image-loader";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 
 interface ProductImageProps {
   productId: string;
@@ -65,17 +64,13 @@ export function ProductImage({
       <img
         src={imageUrl}
         alt={productCode}
-        className={cn(
-          "w-10 h-10 object-cover rounded cursor-pointer",
-          "transition-transform duration-200 hover:scale-[8] hover:z-20 relative"
-        )}
+        className="w-10 h-10 object-cover rounded cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => setIsDialogOpen(true)}
         onError={(e) => {
           // If image fails to load, show placeholder
           e.currentTarget.style.display = 'none';
           e.currentTarget.parentElement?.querySelector('.fallback-icon')?.classList.remove('hidden');
         }}
-        loading="lazy"
       />
       <div className="w-10 h-10 hidden fallback-icon flex items-center justify-center bg-muted rounded">
         <ImageIcon className="h-4 w-4 text-muted-foreground" />
