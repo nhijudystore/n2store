@@ -129,7 +129,7 @@ export async function syncTPOSProductIds(
       .from("products")
       .select("id, product_code, productid_bienthe")
       .neq("product_code", "N/A")
-      .is("productid_bienthe", null);
+      .is("productid_bienthe", null) as any; // Use 'as any' temporarily until types regenerate
     
     if (productsError) throw productsError;
     
@@ -172,10 +172,10 @@ export async function syncTPOSProductIds(
       
       if (tposId) {
         try {
-          const { error } = await supabase
+          const { error } = await (supabase
             .from("products")
-            .update({ productid_bienthe: tposId })
-            .eq("id", product.id);
+            .update({ productid_bienthe: tposId } as any) // Use 'as any' temporarily
+            .eq("id", product.id) as any);
           
           if (error) throw error;
           

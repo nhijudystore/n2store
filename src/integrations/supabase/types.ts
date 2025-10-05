@@ -359,6 +359,7 @@ export type Database = {
           product_code: string
           product_images: string[] | null
           product_name: string
+          productid_bienthe: number | null
           purchase_price: number | null
           selling_price: number | null
           stock_quantity: number | null
@@ -378,6 +379,7 @@ export type Database = {
           product_code: string
           product_images?: string[] | null
           product_name: string
+          productid_bienthe?: number | null
           purchase_price?: number | null
           selling_price?: number | null
           stock_quantity?: number | null
@@ -397,6 +399,7 @@ export type Database = {
           product_code?: string
           product_images?: string[] | null
           product_name?: string
+          productid_bienthe?: number | null
           purchase_price?: number | null
           selling_price?: number | null
           stock_quantity?: number | null
