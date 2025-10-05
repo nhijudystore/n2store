@@ -77,6 +77,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
         .from("products")
         .select("*")
         .or(`product_code.ilike.%${debouncedSearch}%,product_name.ilike.%${debouncedSearch}%`)
+        .order('created_at', { ascending: false })
         .limit(10);
       
       if (error) throw error;
