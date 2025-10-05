@@ -768,22 +768,16 @@ export async function uploadToTPOS(
     const latestProducts = await getLatestProducts(items.length);
     console.log(`📦 Fetched ${latestProducts.length} products`);
 
-    // Create map: product_code -> item (with image info)
-    const itemsMap = new Map<string, TPOSProductItem>();
-    items.forEach(item => {
-      if (item.product_code) {
-        itemsMap.set(item.product_code, item);
-      }
-    });
-
-    // Step 5: Update products with images (match by product_code)
-    for (let i = 0; i < latestProducts.length; i++) {
+    // Step 5: Update products with images (match by order/index)
+    // TPOS có thể thay đổi product_code khi import, nên match theo thứ tự
+    for (let i = 0; i < Math.min(items.length, latestProducts.length); i++) {
       const tposProduct = latestProducts[i];
-      const productCode = tposProduct.DefaultCode;
-      const item = itemsMap.get(productCode);
-
+      const item = items[i];
+      
+      console.log(`🔄 Matching: Local "${item.product_code}" <-> TPOS "${tposProduct.DefaultCode}" (ID: ${tposProduct.Id})`);
+      
       if (!item) {
-        console.warn(`⚠️ No matching item found for TPOS product code: ${productCode}`);
+        console.warn(`⚠️ No local item at index ${i}`);
         continue;
       }
 
@@ -816,7 +810,7 @@ export async function uploadToTPOS(
           await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
-        console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (${productCode}) -> TPOS ID: ${tposProduct.Id}`);
+        console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (Local: ${item.product_code} -> TPOS: ${tposProduct.DefaultCode}) -> TPOS ID: ${tposProduct.Id}`);
       } catch (error) {
         // ⚠️ Log warning nhưng KHÔNG tăng failedCount vì TPOS đã tạo product
         let errorDetail = '';
