@@ -1236,10 +1236,12 @@ export default function LiveProducts() {
                           earliest_created_at?: string;
                         }>);
 
-                        // Sort groups by product_code alphabetically
-                        const sortedGroups = Object.values(productGroups).sort((a, b) => 
-                          a.product_code.localeCompare(b.product_code)
-                        );
+                        // Sort groups by earliest created_at (newest first)
+                        const sortedGroups = Object.values(productGroups).sort((a, b) => {
+                          const timeA = new Date(a.earliest_created_at || 0).getTime();
+                          const timeB = new Date(b.earliest_created_at || 0).getTime();
+                          return timeB - timeA; // Descending: newest first
+                        });
 
                         return sortedGroups.flatMap((group) => {
                           // Sort products within group by variant name first, then by created_at
