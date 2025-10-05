@@ -13,6 +13,7 @@ import LiveProducts from "./pages/LiveProducts";
 import LivestreamReports from "./pages/LivestreamReports";
 import GoodsReceiving from "./pages/GoodsReceiving";
 import SearchProducts from "./pages/SearchProducts";
+import TPOSImageCheck from "./pages/TPOSImageCheck";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -78,6 +79,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <SearchProducts />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/tpos-image-check" element={
+              <ProtectedRoute>
+                <Layout>
+                  <TPOSImageCheck />
                 </Layout>
               </ProtectedRoute>
             } />
