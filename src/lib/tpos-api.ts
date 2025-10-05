@@ -104,6 +104,7 @@ export function generateTPOSExcel(items: TPOSProductItem[]): Blob {
     "Ghi chú": item.variant || undefined,
     "Cho phép bán ở công ty khác": "FALSE",
     "Thuộc tính": undefined,
+    "Link Hình Ảnh": item.product_images?.[0] || undefined,
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -654,31 +655,70 @@ export async function uploadToTPOS(
   };
 
   try {
-    // Step 1: Generate Excel
-    onProgress?.(1, 3, "Đang tạo file Excel...");
-    const excelBlob = generateTPOSExcel(items);
-    console.log("📊 Excel generated, size:", excelBlob.size);
+    // Step 1: Generate Excel with image links
+    onProgress?.(1, 4, "Đang tạo file Excel...");
+    const excelBlobWithImages = generateTPOSExcel(items);
+    console.log("📊 Excel with images generated, size:", excelBlobWithImages.size);
 
-    // Step 2: Upload Excel to TPOS
-    onProgress?.(2, 3, "Đang upload Excel lên TPOS...");
-    const uploadResponse = await uploadExcelToTPOS(excelBlob);
+    // Step 2: Create Excel without image column for TPOS upload
+    const excelDataForTPOS = items.map((item) => ({
+      "Loại sản phẩm": TPOS_CONFIG.DEFAULT_PRODUCT_TYPE,
+      "Mã sản phẩm": item.product_code?.toString() || undefined,
+      "Mã chốt đơn": undefined,
+      "Tên sản phẩm": item.product_name?.toString() || undefined,
+      "Giá bán": item.selling_price || 0,
+      "Giá mua": item.unit_price || 0,
+      "Đơn vị": TPOS_CONFIG.DEFAULT_UOM,
+      "Nhóm sản phẩm": TPOS_CONFIG.DEFAULT_CATEGORY,
+      "Mã vạch": item.product_code?.toString() || undefined,
+      "Khối lượng": undefined,
+      "Chiết khấu bán": undefined,
+      "Chiết khấu mua": undefined,
+      "Tồn kho": undefined,
+      "Giá vốn": undefined,
+      "Ghi chú": item.variant || undefined,
+      "Cho phép bán ở công ty khác": "FALSE",
+      "Thuộc tính": undefined,
+    }));
+
+    const worksheetForTPOS = XLSX.utils.json_to_sheet(excelDataForTPOS);
+    const workbookForTPOS = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbookForTPOS, worksheetForTPOS, "Đặt Hàng");
+    const excelBufferForTPOS = XLSX.write(workbookForTPOS, { bookType: "xlsx", type: "array" });
+    const excelBlobForTPOS = new Blob([excelBufferForTPOS], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+    // Step 3: Upload Excel to TPOS (without image column)
+    onProgress?.(2, 4, "Đang upload Excel lên TPOS...");
+    const uploadResponse = await uploadExcelToTPOS(excelBlobForTPOS);
     console.log("✅ Excel uploaded successfully");
     
     // Wait for TPOS to process
-    onProgress?.(2, 3, "Đợi TPOS xử lý file...");
+    onProgress?.(2, 4, "Đợi TPOS xử lý file...");
     await new Promise(r => setTimeout(r, 1000));
 
-    // Step 3: Get created products
-    onProgress?.(3, 3, "Đang lấy danh sách sản phẩm...");
+    // Step 4: Get created products
+    onProgress?.(3, 4, "Đang lấy danh sách sản phẩm...");
     const latestProducts = await getLatestProducts(items.length);
     console.log(`📦 Fetched ${latestProducts.length} products`);
 
-    // Step 4: Update products with images (index-based matching)
-    for (let i = 0; i < latestProducts.length; i++) {
-      const product = latestProducts[i];
-      const item = items[i];
+    // Create map: product_code -> item (with image info)
+    const itemsMap = new Map<string, TPOSProductItem>();
+    items.forEach(item => {
+      if (item.product_code) {
+        itemsMap.set(item.product_code, item);
+      }
+    });
 
-      if (!item) continue;
+    // Step 5: Update products with images (match by product_code)
+    for (let i = 0; i < latestProducts.length; i++) {
+      const tposProduct = latestProducts[i];
+      const productCode = tposProduct.DefaultCode;
+      const item = itemsMap.get(productCode);
+
+      if (!item) {
+        console.warn(`⚠️ No matching item found for TPOS product code: ${productCode}`);
+        continue;
+      }
 
       try {
         const imageUrl = item.product_images?.[0];
@@ -688,26 +728,26 @@ export async function uploadToTPOS(
         const detectedAttributes = detectAttributesFromText(textToAnalyze);
         
         if (imageUrl) {
-          onProgress?.(3, 3, `Upload ảnh ${i + 1}/${items.length}: ${item.product_name}...`);
+          onProgress?.(4, 4, `Upload ảnh ${i + 1}/${latestProducts.length}: ${item.product_name}...`);
           
           const base64Image = await imageUrlToBase64(imageUrl);
           if (base64Image) {
-            const detail = await getProductDetail(product.Id);
+            const detail = await getProductDetail(tposProduct.Id);
             await updateProductWithImage(detail, base64Image, detectedAttributes);
           }
         } else if (Object.keys(detectedAttributes).length > 0) {
           // Nếu không có ảnh nhưng có attributes, vẫn update
-          const detail = await getProductDetail(product.Id);
+          const detail = await getProductDetail(tposProduct.Id);
           await updateProductWithImage(detail, detail.Image || '', detectedAttributes);
         }
 
         // ✅ CHỈ thêm vào productIds khi upload THÀNH CÔNG
         result.productIds.push({
           itemId: item.id,
-          tposId: product.Id,
+          tposId: tposProduct.Id,
         });
         result.successCount++;
-        console.log(`✅ [${i + 1}/${items.length}] ${item.product_name} -> TPOS ID: ${product.Id}`);
+        console.log(`✅ [${i + 1}/${latestProducts.length}] ${item.product_name} (${productCode}) -> TPOS ID: ${tposProduct.Id}`);
       } catch (error) {
         // ❌ Capture TOÀN BỘ error info
         let errorDetail = '';
@@ -733,7 +773,7 @@ export async function uploadToTPOS(
         });
         
         result.failedCount++;
-        console.error(`❌ [${i + 1}/${items.length}] FAILED: ${item.product_name}`, error);
+        console.error(`❌ [${i + 1}/${latestProducts.length}] FAILED: ${item.product_name}`, error);
         
         // ⚠️ KHÔNG thêm vào productIds → KHÔNG lưu database
       }
