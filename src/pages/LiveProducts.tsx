@@ -1717,7 +1717,7 @@ export default function LiveProducts() {
                           className="align-middle border-r text-center"
                         >
                           <span className="text-sm text-muted-foreground font-mono">
-                            {orders[0]?.tpos_order_id || '-'}
+                            {orders[0]?.tpos_order_id ? orders[0].tpos_order_id.split('-')[1] || orders[0].tpos_order_id : '-'}
                           </span>
                         </TableCell>
                       </>
