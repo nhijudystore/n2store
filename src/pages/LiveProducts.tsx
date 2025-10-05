@@ -40,6 +40,9 @@ import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { getTPOSHeaders } from "@/lib/tpos-config";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
 
 interface LiveSession {
   id: string;
@@ -167,6 +170,15 @@ export default function LiveProducts() {
     notFound: number;
     errors: number;
   } | null>(null);
+  const [tposSyncDateRange, setTposSyncDateRange] = useState<DateRange | undefined>(() => {
+    const today = new Date();
+    const twoDaysAgo = new Date(today);
+    twoDaysAgo.setDate(today.getDate() - 2);
+    return {
+      from: twoDaysAgo,
+      to: today
+    };
+  });
   
   const queryClient = useQueryClient();
 
@@ -703,10 +715,18 @@ export default function LiveProducts() {
     setTposSyncResult(null);
     
     try {
-      // 1. Fetch TPOS orders
-      const today = new Date();
-      const startDate = new Date(today.setHours(0, 0, 0, 0));
-      const endDate = new Date(today.setHours(23, 59, 59, 999));
+      // 1. Fetch TPOS orders using selected date range
+      if (!tposSyncDateRange?.from || !tposSyncDateRange?.to) {
+        toast.error("Vui lòng chọn khoảng thời gian");
+        setIsSyncingTpos(false);
+        return;
+      }
+      
+      const startDate = new Date(tposSyncDateRange.from);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(tposSyncDateRange.to);
+      endDate.setHours(23, 59, 59, 999);
       
       const startDateStr = startDate.toISOString();
       const endDateStr = endDate.toISOString();
@@ -1311,7 +1331,43 @@ export default function LiveProducts() {
                     <CardTitle className="text-base">Đồng bộ mã TPOS</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex gap-3 items-end">
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Khoảng thời gian</label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-[280px] justify-start text-left font-normal"
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {tposSyncDateRange?.from ? (
+                                tposSyncDateRange.to ? (
+                                  <>
+                                    {format(tposSyncDateRange.from, "dd/MM/yyyy", { locale: vi })} -{" "}
+                                    {format(tposSyncDateRange.to, "dd/MM/yyyy", { locale: vi })}
+                                  </>
+                                ) : (
+                                  format(tposSyncDateRange.from, "dd/MM/yyyy", { locale: vi })
+                                )
+                              ) : (
+                                <span>Chọn ngày</span>
+                              )}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="range"
+                              selected={tposSyncDateRange}
+                              onSelect={setTposSyncDateRange}
+                              numberOfMonths={2}
+                              initialFocus
+                              className="pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
                       <div className="space-y-2">
                         <label className="text-sm font-medium">Số lượng đơn hàng</label>
                         <Select value={tposTopValue} onValueChange={setTposTopValue}>
