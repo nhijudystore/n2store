@@ -377,7 +377,6 @@ export function PurchaseOrderList({
               <TableHead>Số lượng</TableHead>
               <TableHead>Giá mua (VND)</TableHead>
               <TableHead>Giá bán (VND)</TableHead>
-              <TableHead>TPOS ID</TableHead>
               <TableHead>Ghi chú</TableHead>
               <TableHead>Trạng thái</TableHead>
               <TableHead>
@@ -395,7 +394,7 @@ export function PurchaseOrderList({
           <TableBody>
             {flattenedItems?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={12} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={11} className="text-center py-8 text-muted-foreground">
                   Không có đơn hàng nào
                 </TableCell>
               </TableRow>
@@ -532,40 +531,6 @@ export function PurchaseOrderList({
                       )}
                       <span>{flatItem.item ? formatVND(flatItem.item.selling_price || 0) : "-"}</span>
                     </div>
-                  </TableCell>
-                  
-                  <TableCell className="border-r">
-                    {flatItem.item?.tpos_product_id ? (
-                      deletedTPOSIds.has(flatItem.item.tpos_product_id) ? (
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="destructive" className="w-fit">
-                            ⚠️ Đã xóa trên TPOS
-                          </Badge>
-                          <span className="text-xs text-muted-foreground">
-                            ID: {flatItem.item.tpos_product_id}
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col gap-1">
-                          <Badge variant="default" className="bg-green-600 w-fit">
-                            ✓ Đã đồng bộ
-                          </Badge>
-                          <a
-                            href={generateTPOSProductLink(flatItem.item.tpos_product_id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            ID: {flatItem.item.tpos_product_id}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                      )
-                    ) : (
-                      <Badge variant="secondary" className="text-muted-foreground">
-                        Chưa upload
-                      </Badge>
-                    )}
                   </TableCell>
                   
                   {flatItem.isFirstItem && (
