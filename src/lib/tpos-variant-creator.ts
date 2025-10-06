@@ -491,36 +491,6 @@ export async function postTPOSVariantPayload(payload: any): Promise<any> {
 }
 
 // =====================================================
-// HELPER: GET EXISTING COLORS FROM PRODUCT
-// =====================================================
-
-/**
- * Lấy danh sách màu đã tồn tại từ TPOS product
- * @returns Set<number> chứa các color attribute Id
- */
-export function getExistingColors(product: any): Set<number> {
-  const existingColorIds = new Set<number>();
-  
-  if (!product.ProductVariants || product.ProductVariants.length === 0) {
-    return existingColorIds;
-  }
-  
-  // Duyệt qua tất cả variants hiện có
-  for (const variant of product.ProductVariants) {
-    if (!variant.AttributeValues) continue;
-    
-    // Tìm attribute màu (AttributeId = 3)
-    for (const attr of variant.AttributeValues) {
-      if (attr.AttributeId === 3) { // 3 = Màu
-        existingColorIds.add(attr.Id);
-      }
-    }
-  }
-  
-  return existingColorIds;
-}
-
-// =====================================================
 // MAIN FLOW
 // =====================================================
 
@@ -533,43 +503,11 @@ export async function createTPOSVariants(
     onProgress?.(`Đang lấy thông tin sản phẩm ${tposProductId}...`);
     const originalProduct = await getTPOSProduct(tposProductId);
     
-    // ⭐ MỚI: Lấy màu đã tồn tại
-    const existingColors = getExistingColors(originalProduct);
-    console.log(`📋 Màu đã có trên TPOS (${existingColors.size}):`, Array.from(existingColors));
-    
     onProgress?.(`Đang phân tích variant "${variant}"...`);
     const selectedAttributes = parseVariantToAttributes(variant);
     
-    // ⭐ MỚI: Lọc bỏ màu trùng
-    if (selectedAttributes.color && selectedAttributes.color.length > 0) {
-      const originalColors = [...selectedAttributes.color];
-      selectedAttributes.color = selectedAttributes.color.filter(
-        color => !existingColors.has(color.Id)
-      );
-      
-      const filteredCount = originalColors.length - selectedAttributes.color.length;
-      if (filteredCount > 0) {
-        console.log(`⚠️ Đã lọc ${filteredCount} màu trùng:`, 
-          originalColors.filter(c => existingColors.has(c.Id)).map(c => c.Name)
-        );
-        onProgress?.(`Đã bỏ qua ${filteredCount} màu tồn tại`);
-      }
-      
-      // Nếu tất cả màu đều trùng
-      if (selectedAttributes.color.length === 0 && !selectedAttributes.sizeText && !selectedAttributes.sizeNumber) {
-        console.log(`✅ Tất cả màu đã tồn tại, bỏ qua tạo variant`);
-        onProgress?.(`✅ Màu đã tồn tại, bỏ qua`);
-        return { 
-          skipped: true, 
-          reason: 'All colors already exist',
-          existingColors: Array.from(existingColors)
-        };
-      }
-    }
-    
-    // Kiểm tra còn attribute nào không
     if (!selectedAttributes.sizeText && !selectedAttributes.sizeNumber && !selectedAttributes.color) {
-      throw new Error(`Không có attribute mới để tạo variant`);
+      throw new Error(`Không thể phân tích variant: ${variant}`);
     }
     
     onProgress?.(`Đang tạo attribute lines...`);

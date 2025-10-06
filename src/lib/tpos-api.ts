@@ -336,7 +336,6 @@ export interface TPOSUploadResult {
   savedIds: number;
   productsAddedToInventory?: number;
   variantsCreated?: number;
-  variantsSkipped?: number;
   variantsFailed?: number;
   variantErrors?: Array<{
     productName: string;
