@@ -87,35 +87,121 @@ export async function getTPOSProduct(tposProductId: number, retries = 3, delayMs
 export function parseVariantToAttributes(variant: string): SelectedAttributes {
   const result: SelectedAttributes = {};
   
-  // Parse variant string (e.g., "M Đen" → size M + color Đen)
-  const parts = variant.trim().split(/\s+/);
+  if (!variant || !variant.trim()) {
+    return result;
+  }
+  
+  // Step 1: Normalize input - trim, replace separators with space
+  const normalized = variant
+    .trim()
+    .replace(/[-,/]/g, ' ')     // Replace -, comma, / with space
+    .replace(/\s+/g, ' ');       // Multiple spaces → single space
+  
+  // Step 2: Try to match multi-word variants first (e.g., "Xám Đậm", "Jean Xanh")
+  // Sort colors by length (longest first) to match multi-word variants first
+  const sortedColors = [...TPOS_ATTRIBUTES.color].sort((a, b) => b.Name.length - a.Name.length);
+  
+  let remaining = normalized;
+  const matched = new Set<string>();
+  
+  // Try exact match for multi-word colors (case-sensitive first)
+  for (const color of sortedColors) {
+    if (remaining.includes(color.Name)) {
+      if (!result.color) result.color = [];
+      if (!result.color.find(c => c.Id === color.Id)) {
+        result.color.push(color);
+        matched.add(color.Name);
+      }
+      remaining = remaining.replace(color.Name, '').replace(/\s+/g, ' ').trim();
+    }
+  }
+  
+  // Try case-insensitive match for remaining multi-word colors
+  const remainingLower = remaining.toLowerCase();
+  for (const color of sortedColors) {
+    if (remainingLower.includes(color.Name.toLowerCase())) {
+      if (!result.color) result.color = [];
+      if (!result.color.find(c => c.Id === color.Id)) {
+        result.color.push(color);
+        matched.add(color.Name);
+      }
+      const regex = new RegExp(color.Name, 'gi');
+      remaining = remaining.replace(regex, '').replace(/\s+/g, ' ').trim();
+    }
+  }
+  
+  // Step 3: Split remaining parts and match single-word variants
+  const parts = remaining.split(/\s+/).filter(p => p.length > 0);
+  const unmatched: string[] = [];
   
   for (const part of parts) {
-    // Search in sizeText
+    let found = false;
+    
+    // 1. Try exact match in sizeText
     const sizeText = TPOS_ATTRIBUTES.sizeText.find(s => s.Name === part);
     if (sizeText) {
       if (!result.sizeText) result.sizeText = [];
-      result.sizeText.push(sizeText);
-      continue;
+      if (!result.sizeText.find(s => s.Id === sizeText.Id)) {
+        result.sizeText.push(sizeText);
+        found = true;
+      }
     }
-
-    // Search in sizeNumber
+    
+    // 2. Try exact match in sizeNumber
     const sizeNumber = TPOS_ATTRIBUTES.sizeNumber.find(s => s.Name === part);
     if (sizeNumber) {
       if (!result.sizeNumber) result.sizeNumber = [];
-      result.sizeNumber.push(sizeNumber);
-      continue;
+      if (!result.sizeNumber.find(s => s.Id === sizeNumber.Id)) {
+        result.sizeNumber.push(sizeNumber);
+        found = true;
+      }
     }
-
-    // Search in color
+    
+    // 3. Try exact match in color
     const color = TPOS_ATTRIBUTES.color.find(c => c.Name === part);
     if (color) {
       if (!result.color) result.color = [];
-      result.color.push(color);
-      continue;
+      if (!result.color.find(c => c.Id === color.Id)) {
+        result.color.push(color);
+        found = true;
+      }
     }
-
-    console.warn(`⚠️ Unknown variant part: "${part}"`);
+    
+    // 4. Try case-insensitive match for colors
+    if (!found) {
+      const colorCI = TPOS_ATTRIBUTES.color.find(c => 
+        c.Name.toLowerCase() === part.toLowerCase()
+      );
+      if (colorCI) {
+        if (!result.color) result.color = [];
+        if (!result.color.find(c => c.Id === colorCI.Id)) {
+          result.color.push(colorCI);
+          found = true;
+        }
+      }
+    }
+    
+    // 5. Try splitting compound sizes like "SM" → "S" + "M"
+    if (!found && part.length === 2 && /^[SMLX]{2}$/i.test(part)) {
+      const s1 = TPOS_ATTRIBUTES.sizeText.find(s => s.Name.toUpperCase() === part[0].toUpperCase());
+      const s2 = TPOS_ATTRIBUTES.sizeText.find(s => s.Name.toUpperCase() === part[1].toUpperCase());
+      if (s1 && s2) {
+        if (!result.sizeText) result.sizeText = [];
+        if (!result.sizeText.find(s => s.Id === s1.Id)) result.sizeText.push(s1);
+        if (!result.sizeText.find(s => s.Id === s2.Id)) result.sizeText.push(s2);
+        found = true;
+      }
+    }
+    
+    if (!found && part.length > 0) {
+      unmatched.push(part);
+    }
+  }
+  
+  // Step 4: Warning for unmatched parts
+  if (unmatched.length > 0) {
+    console.warn(`⚠️ Không tìm thấy trong kho attribute: "${unmatched.join('", "')}"`);
+    console.warn(`   Từ variant gốc: "${variant}"`);
   }
   
   return result;
