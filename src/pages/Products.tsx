@@ -9,6 +9,7 @@ import { ProductStats } from "@/components/products/ProductStats";
 import { ProductList } from "@/components/products/ProductList";
 import { CreateProductDialog } from "@/components/products/CreateProductDialog";
 import { ImportProductsDialog } from "@/components/products/ImportProductsDialog";
+import { ImportTPOSIdsDialog } from "@/components/products/ImportTPOSIdsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -18,6 +19,7 @@ export default function Products() {
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isImportTPOSIdsDialogOpen, setIsImportTPOSIdsDialogOpen] = useState(false);
 
   // Query for displayed products (search results or 50 latest)
   const { data: products = [], isLoading, refetch } = useQuery({
@@ -108,9 +110,18 @@ export default function Products() {
 
             <div className={`flex gap-2 ${isMobile ? "w-full" : ""}`}>
               <Button
+                onClick={() => setIsImportTPOSIdsDialogOpen(true)}
+                variant="outline"
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? "flex-1 text-xs" : ""}
+              >
+                Import TPOS IDs
+              </Button>
+              <Button
                 onClick={() => setIsImportDialogOpen(true)}
                 variant="outline"
-                className={isMobile ? "flex-1" : ""}
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? "flex-1 text-xs" : ""}
               >
                 Import Excel
               </Button>
@@ -148,6 +159,12 @@ export default function Products() {
         <ImportProductsDialog
           open={isImportDialogOpen}
           onOpenChange={setIsImportDialogOpen}
+          onSuccess={refetch}
+        />
+
+        <ImportTPOSIdsDialog
+          open={isImportTPOSIdsDialogOpen}
+          onOpenChange={setIsImportTPOSIdsDialogOpen}
           onSuccess={refetch}
         />
       </div>
