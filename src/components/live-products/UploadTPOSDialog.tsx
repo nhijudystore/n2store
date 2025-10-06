@@ -155,7 +155,8 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
                 product_name
               )
             `)
-            .eq('order_code', orderCode);
+            .eq('order_code', orderCode)
+            .eq('live_session_id', sessionId);
 
           if (liveOrdersError) throw liveOrdersError;
 
