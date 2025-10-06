@@ -538,54 +538,9 @@ const PurchaseOrders = () => {
       return;
     }
 
-    // Query database to find which product codes already exist
-    // Use .in() with normalized codes - only check relevant codes
-    const { data: existingProducts, error } = await supabase
-      .from("products")
-      .select("product_code")
-      .in("product_code", productCodesToCheck);
-
-    if (error) {
-      console.error("Error fetching existing products:", error);
-      toast({
-        title: "Lỗi",
-        description: "Không thể kiểm tra sản phẩm trong kho",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Create Set of existing codes (normalized: trim for accurate comparison)
-    const existingProductCodes = new Set(
-      existingProducts?.map(p => p.product_code?.trim()).filter(Boolean) || []
-    );
-
-    // Filter to only include products NOT in warehouse
-    const itemsNotInWarehouse = allItems.filter(item => {
-      if (!item.product_code) return false;
-      const normalizedCode = item.product_code.trim();
-      return !existingProductCodes.has(normalizedCode);
-    });
-
-    const alreadyInWarehouseCount = allItems.length - itemsNotInWarehouse.length;
-
-    if (itemsNotInWarehouse.length === 0) {
-      toast({
-        title: "Không có sản phẩm mới",
-        description: "Tất cả sản phẩm đã có trong kho",
-      });
-      return;
-    }
-
-    // Show info if some products were filtered out
-    if (alreadyInWarehouseCount > 0) {
-      toast({
-        title: "Đã lọc sản phẩm",
-        description: `${alreadyInWarehouseCount} sản phẩm đã có trong kho. Hiển thị ${itemsNotInWarehouse.length} sản phẩm mới.`,
-      });
-    }
-
-    setTposItems(itemsNotInWarehouse);
+    // Không filter kho - hiển thị tất cả items
+    // User sẽ tự filter trong dialog TPOS
+    setTposItems(allItems);
     setIsTPOSDialogOpen(true);
   };
 
