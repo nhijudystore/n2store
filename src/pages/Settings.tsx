@@ -173,24 +173,16 @@ const Settings = () => {
       
       if (error) throw error;
       
-      // Automatically update Supabase Secret via Edge Function
-      console.log('🔄 Calling update-tpos-token Edge Function...');
-      const { data: updateResult, error: updateError } = await supabase.functions.invoke('update-tpos-token', {
+      // Log via edge function
+      await supabase.functions.invoke('update-tpos-token', {
         body: { bearerToken: bearerToken.trim() }
       });
-      
-      if (updateError) {
-        console.error('Edge function error:', updateError);
-        throw new Error(`Edge Function error: ${updateError.message}`);
-      }
-      
-      console.log('✅ Update result:', updateResult);
       
       setCurrentToken(data);
       
       toast({
         title: "✅ Cập nhật thành công",
-        description: updateResult?.message || "Bearer Token đã được cập nhật vào database và Supabase Secrets",
+        description: "Bearer Token đã được lưu vào database và sẵn sàng sử dụng",
       });
     } catch (error: any) {
       console.error("Update token error:", error);
