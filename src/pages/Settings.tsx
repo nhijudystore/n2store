@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
-import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload } from "@/lib/tpos-variant-creator";
+import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload, getExistingColors } from "@/lib/tpos-variant-creator";
 import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
 
 const Settings = () => {
@@ -322,6 +322,10 @@ const Settings = () => {
     setVariantPostResult(null);
 
     try {
+      // ⭐ MỚI: Lấy màu đã tồn tại
+      const existingColors = getExistingColors(testProduct);
+      console.log(`📋 Màu đã có trên TPOS (${existingColors.size}):`, Array.from(existingColors));
+      
       // Build selected attributes
       const selectedAttributes: any = {};
       
@@ -338,9 +342,36 @@ const Settings = () => {
       }
       
       if (selectedColor.length > 0) {
-        selectedAttributes.color = TPOS_ATTRIBUTES.color.filter(attr => 
+        // ⭐ MỚI: Lọc màu trùng
+        const originalColors = TPOS_ATTRIBUTES.color.filter(attr => 
           selectedColor.includes(attr.Id)
         );
+        
+        selectedAttributes.color = originalColors.filter(
+          color => !existingColors.has(color.Id)
+        );
+        
+        const filteredCount = originalColors.length - selectedAttributes.color.length;
+        if (filteredCount > 0) {
+          const skippedColorNames = originalColors
+            .filter(c => existingColors.has(c.Id))
+            .map(c => c.Name)
+            .join(', ');
+          
+          toast({
+            title: "⚠️ Cảnh báo",
+            description: `${filteredCount} màu đã tồn tại: ${skippedColorNames}`,
+          });
+        }
+        
+        if (selectedAttributes.color.length === 0 && selectedSizeText.length === 0 && selectedSizeNumber.length === 0) {
+          toast({
+            title: "ℹ️ Thông báo",
+            description: "Tất cả màu đã tồn tại, không có gì để tạo",
+          });
+          setIsPostingVariant(false);
+          return;
+        }
       }
 
       // Create attribute lines
@@ -356,9 +387,11 @@ const Settings = () => {
       const result = await postTPOSVariantPayload(payload);
       
       setVariantPostResult(result);
+      
+      const newVariantCount = variants.filter((v: any) => v.Id === 0).length;
       toast({
         title: "✅ Tạo variant thành công",
-        description: `Đã tạo ${variants.filter((v: any) => v.Id === 0).length} variants mới`,
+        description: `Đã tạo ${newVariantCount} variants mới`,
       });
     } catch (error: any) {
       console.error("Post variant error:", error);

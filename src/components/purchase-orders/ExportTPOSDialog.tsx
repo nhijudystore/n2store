@@ -222,6 +222,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         setCurrentStep("Đang tạo biến thể cho sản phẩm...");
         result.variantsCreated = 0;
         result.variantsFailed = 0;
+        result.variantsSkipped = 0;
         result.variantErrors = [];
 
         for (const item of successfulItems) {
@@ -240,7 +241,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             console.log(`⏳ Waiting 1s to ensure product is ready on TPOS...`);
             await new Promise(resolve => setTimeout(resolve, 1000));
             
-            await createTPOSVariants(
+            const variantResult = await createTPOSVariants(
               productIdData.tposId,
               item.variant,
               (msg) => {
@@ -249,8 +250,14 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               }
             );
             
-            console.log(`✅ Variants created for ${item.product_name}`);
-            result.variantsCreated++;
+            // ⭐ MỚI: Xử lý trường hợp skip
+            if (variantResult?.skipped) {
+              console.log(`⏭️ Skipped ${item.product_name}: ${variantResult.reason}`);
+              result.variantsSkipped++;
+            } else {
+              console.log(`✅ Variants created for ${item.product_name}`);
+              result.variantsCreated++;
+            }
           } catch (error) {
             console.error(`❌ Failed to create variants for ${item.product_name}:`, error);
             result.variantsFailed++;
@@ -285,6 +292,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               <p>📦 Đã thêm vào kho: {result.productsAddedToInventory || 0} sản phẩm</p>
               {result.variantsCreated !== undefined && result.variantsCreated > 0 && (
                 <p className="text-green-600 dark:text-green-400">🎨 Đã tạo biến thể: {result.variantsCreated} sản phẩm</p>
+              )}
+              {result.variantsSkipped !== undefined && result.variantsSkipped > 0 && (
+                <p className="text-blue-600 dark:text-blue-400">⏭️ Bỏ qua biến thể (đã tồn tại): {result.variantsSkipped} sản phẩm</p>
               )}
               {result.variantsFailed !== undefined && result.variantsFailed > 0 && (
                 <p className="text-yellow-600 dark:text-yellow-400">⚠️ Tạo biến thể thất bại: {result.variantsFailed} sản phẩm</p>
