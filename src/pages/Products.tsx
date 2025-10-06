@@ -92,7 +92,7 @@ export default function Products() {
   // Mutation to update missing suppliers
   const updateSuppliersMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("update_missing_suppliers" as any);
+      const { data, error } = await supabase.rpc("update_missing_suppliers");
       if (error) throw error;
       return data as number;
     },
