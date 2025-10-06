@@ -16,6 +16,7 @@ import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDia
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
+import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { 
   Plus, 
   Calendar,
@@ -34,7 +35,8 @@ import {
   Download,
   CheckCircle,
   Code,
-  Upload
+  Upload,
+  Store
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -1115,6 +1117,10 @@ export default function LiveProducts() {
                   <ShoppingCart className="h-4 w-4" />
                   Đơn hàng (theo mã đơn)
                 </TabsTrigger>
+                <TabsTrigger value="supplier-stats" className="flex items-center gap-2">
+                  <Store className="h-4 w-4" />
+                  Thống kê NCC
+                </TabsTrigger>
                 <TabsTrigger value="tpos-debug" className="flex items-center gap-2">
                   <Code className="h-4 w-4" />
                   TPOS Debug
@@ -1829,6 +1835,15 @@ export default function LiveProducts() {
                   </Table>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* Supplier Stats Tab */}
+            <TabsContent value="supplier-stats" className="space-y-4">
+              <LiveSupplierStats 
+                liveProducts={liveProducts}
+                sessionId={selectedSession}
+                phaseId={selectedPhase}
+              />
             </TabsContent>
 
             {/* TPOS Debug Tab */}
