@@ -26,6 +26,9 @@ import { useVariantDetector } from "@/hooks/use-variant-detector";
 import { VariantDetectionBadge } from "@/components/products/VariantDetectionBadge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { SelectProductDialog } from "@/components/products/SelectProductDialog";
+import { detectSupplierFromProductName } from "@/lib/supplier-detector";
+import { Badge } from "@/components/ui/badge";
+import { Store } from "lucide-react";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -66,6 +69,9 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     productName,
     enabled: open,
   });
+
+  // Auto-detect supplier from product name
+  const detectedSupplier = productName ? detectSupplierFromProductName(productName) : null;
 
   // Fetch product suggestions from inventory
   const { data: suggestedProducts = [] } = useQuery({
@@ -379,9 +385,17 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                       onBlur={handleProductNameBlur}
                     />
                   </FormControl>
-                  {hasDetections && (
-                    <VariantDetectionBadge detectionResult={detectionResult} className="mt-2" />
-                  )}
+                  <div className="flex gap-2 flex-wrap mt-2">
+                    {hasDetections && (
+                      <VariantDetectionBadge detectionResult={detectionResult} />
+                    )}
+                    {detectedSupplier && (
+                      <Badge variant="outline" className="gap-1">
+                        <Store className="h-3 w-3" />
+                        NCC: {detectedSupplier}
+                      </Badge>
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}

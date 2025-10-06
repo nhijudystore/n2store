@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Package, Trash2 } from "lucide-react";
+import { Package, Trash2, Store } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,17 @@ import { ProductList } from "@/components/products/ProductList";
 import { CreateProductDialog } from "@/components/products/CreateProductDialog";
 import { ImportProductsDialog } from "@/components/products/ImportProductsDialog";
 import { ImportTPOSIdsDialog } from "@/components/products/ImportTPOSIdsDialog";
+import { SupplierStats } from "@/components/products/SupplierStats";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
 export default function Products() {
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -24,6 +28,8 @@ export default function Products() {
   const [isImportTPOSIdsDialogOpen, setIsImportTPOSIdsDialogOpen] = useState(false);
   const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [isClearing, setIsClearing] = useState(false);
+  const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("products");
 
   // Query for displayed products (search results or 50 latest)
   const { data: products = [], isLoading, refetch } = useQuery({
@@ -83,6 +89,25 @@ export default function Products() {
     staleTime: 60000,
   });
 
+  // Mutation to update missing suppliers
+  const updateSuppliersMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.rpc("update_missing_suppliers" as any);
+      if (error) throw error;
+      return data as number;
+    },
+    onSuccess: (count) => {
+      toast.success(`Đã cập nhật ${count} sản phẩm`);
+      queryClient.invalidateQueries({ queryKey: ["products-search"] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-stats"] });
+      refetch();
+    },
+    onError: (error) => {
+      console.error("Error updating suppliers:", error);
+      toast.error("Có lỗi khi cập nhật NCC");
+    },
+  });
+
   const handleClearTPOSIds = async () => {
     setIsClearing(true);
     try {
@@ -109,6 +134,12 @@ export default function Products() {
     }
   };
 
+  const handleSupplierClick = (supplierName: string) => {
+    setSupplierFilter(supplierName);
+    setActiveTab("products");
+    setSearchQuery(supplierName);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className={`${isMobile ? "p-4 space-y-4" : "p-8 space-y-6"}`}>
@@ -128,66 +159,116 @@ export default function Products() {
         {/* Stats - Always show for entire database */}
         {!isMobile && <ProductStats stats={productStats} />}
 
-        {/* Search & Actions */}
-        <Card className="p-4 space-y-3">
-          <div className={`flex ${isMobile ? "flex-col" : "flex-row items-center"} gap-4`}>
-            <Input
-              placeholder="Tìm kiếm theo mã SP, tên, mã vạch (tối thiểu 2 ký tự)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1"
+        {/* Tabs for Products and Supplier Stats */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="products">
+              <Package className="h-4 w-4 mr-2" />
+              Danh sách sản phẩm
+            </TabsTrigger>
+            <TabsTrigger value="suppliers">
+              <Store className="h-4 w-4 mr-2" />
+              Thống kê theo NCC
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="products" className="space-y-4 mt-0">
+            {/* Search & Actions */}
+            <Card className="p-4 space-y-3">
+              <div className={`flex ${isMobile ? "flex-col" : "flex-row items-center"} gap-4`}>
+                <div className="flex-1 space-y-2 w-full">
+                  <Input
+                    placeholder="Tìm kiếm theo mã SP, tên, mã vạch (tối thiểu 2 ký tự)..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setSupplierFilter(null);
+                    }}
+                    className="w-full"
+                  />
+                  {supplierFilter && (
+                    <Badge variant="secondary" className="gap-2">
+                      Đang lọc theo: {supplierFilter}
+                      <button
+                        onClick={() => {
+                          setSupplierFilter(null);
+                          setSearchQuery("");
+                        }}
+                        className="ml-1 hover:bg-muted rounded-full p-0.5"
+                      >
+                        ×
+                      </button>
+                    </Badge>
+                  )}
+                </div>
+
+                <div className={`flex gap-2 ${isMobile ? "w-full flex-wrap" : ""}`}>
+                  <Button
+                    onClick={() => updateSuppliersMutation.mutate()}
+                    variant="secondary"
+                    size={isMobile ? "sm" : "default"}
+                    className={isMobile ? "flex-1 text-xs" : ""}
+                    disabled={updateSuppliersMutation.isPending}
+                  >
+                    <Store className="h-4 w-4 mr-2" />
+                    {updateSuppliersMutation.isPending ? "Đang cập nhật..." : "Cập nhật NCC"}
+                  </Button>
+                  <Button
+                    onClick={() => setIsAlertDialogOpen(true)}
+                    variant="destructive"
+                    size={isMobile ? "sm" : "default"}
+                    className={isMobile ? "flex-1 text-xs" : ""}
+                    disabled={isClearing}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    {isClearing ? "Đang xóa..." : "Xóa TPOS IDs"}
+                  </Button>
+                  <Button
+                    onClick={() => setIsImportTPOSIdsDialogOpen(true)}
+                    variant="outline"
+                    size={isMobile ? "sm" : "default"}
+                    className={isMobile ? "flex-1 text-xs" : ""}
+                  >
+                    Import TPOS IDs
+                  </Button>
+                  <Button
+                    onClick={() => setIsImportDialogOpen(true)}
+                    variant="outline"
+                    size={isMobile ? "sm" : "default"}
+                    className={isMobile ? "flex-1 text-xs" : ""}
+                  >
+                    Import Excel
+                  </Button>
+                  <Button
+                    onClick={() => setIsCreateDialogOpen(true)}
+                    className={isMobile ? "flex-1" : ""}
+                  >
+                    Thêm SP
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="text-sm text-muted-foreground">
+                {debouncedSearch.length >= 2 
+                  ? `Tìm thấy ${products.length} sản phẩm`
+                  : `Hiển thị ${products.length} sản phẩm mới nhất (Tổng ${totalCount})`
+                }
+              </div>
+            </Card>
+
+            {/* Product List */}
+            <ProductList
+              products={products}
+              isLoading={isLoading}
+              onRefetch={refetch}
+              supplierFilter={supplierFilter}
             />
+          </TabsContent>
 
-            <div className={`flex gap-2 ${isMobile ? "w-full" : ""}`}>
-              <Button
-                onClick={() => setIsAlertDialogOpen(true)}
-                variant="destructive"
-                size={isMobile ? "sm" : "default"}
-                className={isMobile ? "flex-1 text-xs" : ""}
-                disabled={isClearing}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {isClearing ? "Đang xóa..." : "Xóa TPOS IDs"}
-              </Button>
-              <Button
-                onClick={() => setIsImportTPOSIdsDialogOpen(true)}
-                variant="outline"
-                size={isMobile ? "sm" : "default"}
-                className={isMobile ? "flex-1 text-xs" : ""}
-              >
-                Import TPOS IDs
-              </Button>
-              <Button
-                onClick={() => setIsImportDialogOpen(true)}
-                variant="outline"
-                size={isMobile ? "sm" : "default"}
-                className={isMobile ? "flex-1 text-xs" : ""}
-              >
-                Import Excel
-              </Button>
-              <Button
-                onClick={() => setIsCreateDialogOpen(true)}
-                className={isMobile ? "flex-1" : ""}
-              >
-                Thêm SP
-              </Button>
-            </div>
-          </div>
-          
-          <div className="text-sm text-muted-foreground">
-            {debouncedSearch.length >= 2 
-              ? `Tìm thấy ${products.length} sản phẩm`
-              : `Hiển thị ${products.length} sản phẩm mới nhất (Tổng ${totalCount})`
-            }
-          </div>
-        </Card>
-
-        {/* Product List */}
-        <ProductList
-          products={products}
-          isLoading={isLoading}
-          onRefetch={refetch}
-        />
+          <TabsContent value="suppliers" className="mt-0">
+            <SupplierStats onSupplierClick={handleSupplierClick} />
+          </TabsContent>
+        </Tabs>
 
         {/* Dialogs */}
         <CreateProductDialog

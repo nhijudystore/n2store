@@ -43,9 +43,10 @@ interface ProductListProps {
   products: Product[];
   isLoading: boolean;
   onRefetch: () => void;
+  supplierFilter?: string | null;
 }
 
-export function ProductList({ products, isLoading, onRefetch }: ProductListProps) {
+export function ProductList({ products, isLoading, onRefetch, supplierFilter }: ProductListProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -169,8 +170,10 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
         )}
 
         <div className="space-y-4">
-          {products.map((product) => (
-            <Card key={product.id} className="p-4">
+          {products.map((product) => {
+            const isHighlighted = supplierFilter && product.supplier_name === supplierFilter;
+            return (
+            <Card key={product.id} className={`p-4 ${isHighlighted ? "ring-2 ring-primary" : ""}`}>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
                   <Checkbox
@@ -249,7 +252,7 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
                 </div>
               </div>
             </Card>
-          ))}
+          )})}
         </div>
 
         <EditProductDialog
@@ -346,8 +349,10 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
             </TableRow>
           </TableHeader>
           <TableBody>
-            {products.map((product) => (
-              <TableRow key={product.id}>
+            {products.map((product) => {
+              const isHighlighted = supplierFilter && product.supplier_name === supplierFilter;
+              return (
+              <TableRow key={product.id} className={isHighlighted ? "bg-primary/5" : ""}>
                 <TableCell>
                   <Checkbox
                     checked={selectedIds.has(product.id)}
@@ -394,7 +399,7 @@ export function ProductList({ products, isLoading, onRefetch }: ProductListProps
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
       </Card>
