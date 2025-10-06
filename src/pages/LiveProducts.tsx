@@ -89,7 +89,7 @@ interface LiveOrder {
   live_phase_id?: string;
   order_code: string;
   tpos_order_id?: string | null;
-  code_tpos_oder_id?: string | null;
+  code_tpos_order_id?: string | null;
   quantity: number;
   order_date: string;
   is_oversell?: boolean;
@@ -823,7 +823,7 @@ export default function LiveProducts() {
               .from('live_orders')
               .update({ 
                 tpos_order_id: tposData.code,
-                code_tpos_oder_id: tposData.id
+                code_tpos_order_id: tposData.id
               })
               .in('id', orderIds);
             
