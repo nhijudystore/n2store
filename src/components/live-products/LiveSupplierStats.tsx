@@ -2,25 +2,36 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Store, Package, TrendingUp } from "lucide-react";
+import { Store } from "lucide-react";
+import { formatVND } from "@/lib/currency-utils";
 
 interface LiveProduct {
   id: string;
   product_code: string;
   product_name: string;
   variant?: string | null;
+  image_url?: string | null;
   prepared_quantity: number;
   sold_quantity: number;
 }
 
-interface SupplierStat {
+interface ProductDetail {
+  product_code: string;
+  product_name: string;
+  variant: string | null;
+  image_url: string | null;
+  prepared_quantity: number;
+  sold_quantity: number;
+  purchase_price: number;
+  selling_price: number;
+}
+
+interface SupplierGroup {
   supplier_name: string;
   product_count: number;
-  total_prepared: number;
-  total_sold: number;
-  total_remaining: number;
-  sell_through_rate: number;
+  total_quantity: number;
+  total_invoice: number;
+  products: ProductDetail[];
 }
 
 interface LiveSupplierStatsProps {
@@ -30,9 +41,9 @@ interface LiveSupplierStatsProps {
 }
 
 export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
-  // Query products table to get supplier_name for each product_code
+  // Query products table to get full product details
   const { data: productsData } = useQuery({
-    queryKey: ["products-supplier", liveProducts.map(p => p.product_code)],
+    queryKey: ["products-supplier-details", liveProducts.map(p => p.product_code)],
     queryFn: async () => {
       if (liveProducts.length === 0) return [];
       
@@ -40,7 +51,7 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
       
       const { data, error } = await supabase
         .from("products")
-        .select("product_code, supplier_name")
+        .select("product_code, supplier_name, purchase_price, selling_price, product_images")
         .in("product_code", productCodes);
       
       if (error) throw error;
@@ -49,68 +60,56 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
     enabled: liveProducts.length > 0,
   });
 
-  // Calculate supplier statistics
-  const supplierStats: SupplierStat[] = (() => {
+  // Group products by supplier with detailed information
+  const supplierGroups: SupplierGroup[] = (() => {
     if (!productsData) return [];
 
-    const statsMap = new Map<string, SupplierStat>();
+    const groupsMap = new Map<string, SupplierGroup>();
 
     liveProducts.forEach(liveProduct => {
       const productInfo = productsData.find(p => p.product_code === liveProduct.product_code);
       const supplierName = productInfo?.supplier_name || "Chưa xác định";
 
-      if (!statsMap.has(supplierName)) {
-        statsMap.set(supplierName, {
+      if (!groupsMap.has(supplierName)) {
+        groupsMap.set(supplierName, {
           supplier_name: supplierName,
           product_count: 0,
-          total_prepared: 0,
-          total_sold: 0,
-          total_remaining: 0,
-          sell_through_rate: 0,
+          total_quantity: 0,
+          total_invoice: 0,
+          products: [],
         });
       }
 
-      const stat = statsMap.get(supplierName)!;
+      const group = groupsMap.get(supplierName)!;
       
-      // Count unique products by product_code
-      const existingProductCodes = new Set<string>();
-      liveProducts.forEach(p => {
-        const pInfo = productsData.find(pd => pd.product_code === p.product_code);
-        if (pInfo?.supplier_name === supplierName || (!pInfo?.supplier_name && supplierName === "Chưa xác định")) {
-          existingProductCodes.add(p.product_code);
-        }
-      });
-      stat.product_count = existingProductCodes.size;
+      const productDetail: ProductDetail = {
+        product_code: liveProduct.product_code,
+        product_name: liveProduct.product_name,
+        variant: liveProduct.variant || null,
+        image_url: liveProduct.image_url || productInfo?.product_images?.[0] || null,
+        prepared_quantity: liveProduct.prepared_quantity,
+        sold_quantity: liveProduct.sold_quantity,
+        purchase_price: productInfo?.purchase_price || 0,
+        selling_price: productInfo?.selling_price || 0,
+      };
 
-      stat.total_prepared += liveProduct.prepared_quantity;
-      stat.total_sold += liveProduct.sold_quantity;
+      group.products.push(productDetail);
     });
 
-    // Calculate remaining and sell-through rate
-    statsMap.forEach(stat => {
-      stat.total_remaining = stat.total_prepared - stat.total_sold;
-      stat.sell_through_rate = stat.total_prepared > 0 
-        ? (stat.total_sold / stat.total_prepared) * 100 
-        : 0;
+    // Calculate totals for each supplier
+    groupsMap.forEach(group => {
+      const uniqueCodes = new Set(group.products.map(p => p.product_code));
+      group.product_count = uniqueCodes.size;
+      group.total_quantity = group.products.reduce((sum, p) => sum + p.prepared_quantity, 0);
+      group.total_invoice = group.products.reduce((sum, p) => sum + (p.selling_price * p.prepared_quantity), 0);
+      
+      // Sort products by product_code
+      group.products.sort((a, b) => a.product_code.localeCompare(b.product_code));
     });
 
-    // Convert to array and sort by total_sold (descending)
-    return Array.from(statsMap.values()).sort((a, b) => b.total_sold - a.total_sold);
+    // Convert to array and sort by total_invoice (descending)
+    return Array.from(groupsMap.values()).sort((a, b) => b.total_invoice - a.total_invoice);
   })();
-
-  // Get color based on sell-through rate
-  const getSellThroughColor = (rate: number) => {
-    if (rate >= 80) return "text-green-600 dark:text-green-400";
-    if (rate >= 50) return "text-yellow-600 dark:text-yellow-400";
-    return "text-red-600 dark:text-red-400";
-  };
-
-  // Get badge variant based on sell-through rate
-  const getSellThroughBadgeVariant = (rate: number): "default" | "secondary" | "destructive" => {
-    if (rate >= 80) return "default";
-    if (rate >= 50) return "secondary";
-    return "destructive";
-  };
 
   if (liveProducts.length === 0) {
     return (
@@ -131,7 +130,7 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Store className="h-5 w-5" />
-          Thống kê theo Nhà cung cấp
+          Thống kê chi tiết sản phẩm theo NCC
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -139,84 +138,83 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nhà cung cấp</TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Package className="h-4 w-4" />
-                    Số SP
-                  </div>
-                </TableHead>
+                <TableHead className="w-[180px]">Nhà cung cấp</TableHead>
+                <TableHead>Mã sản phẩm</TableHead>
+                <TableHead>Tên sản phẩm</TableHead>
+                <TableHead>Biến thể</TableHead>
+                <TableHead className="w-[80px]">Hình ảnh</TableHead>
                 <TableHead className="text-center">SL chuẩn bị</TableHead>
-                <TableHead className="text-center">SL đã bán</TableHead>
-                <TableHead className="text-center">SL còn lại</TableHead>
-                <TableHead className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <TrendingUp className="h-4 w-4" />
-                    Tỷ lệ bán
-                  </div>
-                </TableHead>
+                <TableHead className="text-center">SL bán</TableHead>
+                <TableHead className="text-right">Giá mua</TableHead>
+                <TableHead className="text-right">Giá bán</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {supplierStats.length === 0 ? (
+              {supplierGroups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Không có dữ liệu
                   </TableCell>
                 </TableRow>
               ) : (
-                supplierStats.map((stat) => (
-                  <TableRow key={stat.supplier_name}>
-                    <TableCell className="font-medium">
-                      {stat.supplier_name}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="outline">
-                        {stat.product_count}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center font-medium">
-                      {stat.total_prepared.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center font-medium text-primary">
-                      {stat.total_sold.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center font-medium">
-                      {stat.total_remaining.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <Badge variant={getSellThroughBadgeVariant(stat.sell_through_rate)}>
-                          {stat.sell_through_rate.toFixed(1)}%
-                        </Badge>
-                        <span className={`text-sm font-medium ${getSellThroughColor(stat.sell_through_rate)}`}>
-                          {stat.sell_through_rate >= 80 ? "Tốt" : stat.sell_through_rate >= 50 ? "TB" : "Thấp"}
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                supplierGroups.map((group) => (
+                  <>
+                    {group.products.map((product, productIndex) => (
+                      <TableRow key={`${group.supplier_name}-${product.product_code}-${product.variant || 'default'}`}>
+                        {productIndex === 0 && (
+                          <TableCell rowSpan={group.products.length} className="align-top border-r">
+                            <div className="flex flex-col gap-1">
+                              <div className="font-semibold text-base">{group.supplier_name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Số mã: {group.product_count}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                Số lượng món: {group.total_quantity}
+                              </div>
+                              <div className="text-sm font-semibold text-primary mt-1">
+                                {formatVND(group.total_invoice)}
+                              </div>
+                            </div>
+                          </TableCell>
+                        )}
+                        <TableCell className="font-medium">{product.product_code}</TableCell>
+                        <TableCell>{product.product_name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {product.variant || "-"}
+                        </TableCell>
+                        <TableCell>
+                          {product.image_url ? (
+                            <img 
+                              src={product.image_url} 
+                              alt={product.product_name}
+                              className="w-12 h-12 object-cover rounded border"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
+                              N/A
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center font-medium">
+                          {product.prepared_quantity}
+                        </TableCell>
+                        <TableCell className="text-center font-medium text-primary">
+                          {product.sold_quantity}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatVND(product.purchase_price)}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          {formatVND(product.selling_price)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </>
                 ))
               )}
             </TableBody>
           </Table>
         </div>
-
-        {supplierStats.length > 0 && (
-          <div className="mt-4 text-sm text-muted-foreground">
-            <p className="flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full bg-green-500"></span>
-              Tỷ lệ bán ≥ 80%: Hiệu suất tốt
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full bg-yellow-500"></span>
-              Tỷ lệ bán 50-79%: Trung bình
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
-              Tỷ lệ bán &lt; 50%: Cần cải thiện
-            </p>
-          </div>
-        )}
       </CardContent>
     </Card>
   );
