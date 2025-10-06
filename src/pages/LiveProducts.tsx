@@ -43,7 +43,6 @@ import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
-import { UploadTposDialog } from "@/components/live-products/UploadTposDialog";
 import { uploadProductToTPOS } from "@/lib/tpos-api";
 
 interface LiveSession {
@@ -1467,9 +1466,8 @@ export default function LiveProducts() {
             <TabsContent value="orders" className="space-y-4">
               {ordersWithProducts.length > 0 && (
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
+                  <CardHeader>
                     <CardTitle className="text-base">Đồng bộ mã TPOS Order</CardTitle>
-                    <UploadTposDialog orders={ordersWithProducts} />
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-3 items-end">
