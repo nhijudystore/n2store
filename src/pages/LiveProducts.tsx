@@ -43,7 +43,6 @@ import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
-import { uploadProductToTPOS } from "@/lib/tpos-api";
 
 interface LiveSession {
   id: string;
@@ -189,7 +188,6 @@ export default function LiveProducts() {
     notFound: number;
     errors: number;
   } | null>(null);
-  const [uploadingOrderIds, setUploadingOrderIds] = useState<Set<string>>(new Set());
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
   
   const queryClient = useQueryClient();
@@ -905,88 +903,6 @@ export default function LiveProducts() {
     }
   };
 
-  const handleUploadToTPOS = async (orderCode: string, orders: OrderWithProduct[]) => {
-    // Get TPOS Order ID directly from code_tpos_oder_id column
-    const tposOrderId = orders[0]?.code_tpos_oder_id;
-    
-    if (!tposOrderId) {
-      toast.error("Chưa có mã TPOS. Vui lòng đồng bộ mã TPOS trước.");
-      return;
-    }
-    
-    setUploadingOrderIds(prev => new Set(prev).add(orderCode));
-    
-    try {
-      // Group products by product_code and sum quantities
-      const productMap = new Map<string, {
-        product_code: string;
-        product_name: string;
-        sold_quantity: number;
-      }>();
-      
-      orders.forEach(order => {
-        const key = order.product_code;
-        const existing = productMap.get(key);
-        if (existing) {
-          existing.sold_quantity += order.quantity;
-        } else {
-          productMap.set(key, {
-            product_code: order.product_code,
-            product_name: order.product_name,
-            sold_quantity: order.quantity
-          });
-        }
-      });
-      
-      const products = Array.from(productMap.values());
-      const result = await uploadProductToTPOS(tposOrderId, products);
-      
-      if (result.success) {
-        toast.success(`Upload thành công đơn hàng ${orderCode} lên TPOS`);
-      } else {
-        toast.error(`Lỗi upload: ${result.error}`);
-      }
-    } catch (error) {
-      console.error("Error uploading to TPOS:", error);
-      toast.error("Không thể upload lên TPOS");
-    } finally {
-      setUploadingOrderIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(orderCode);
-        return newSet;
-      });
-    }
-  };
-
-  const handleClearTPOSId = async (orderCode: string, orders: OrderWithProduct[]) => {
-    if (!window.confirm(`Xóa mã TPOS của đơn hàng ${orderCode}?\n\nBạn có thể đồng bộ lại sau khi xóa.`)) {
-      return;
-    }
-
-    try {
-      const orderIds = orders.map(o => o.id);
-      
-      const { error } = await supabase
-        .from('live_orders')
-        .update({ 
-          tpos_order_id: null,
-          code_tpos_oder_id: null
-        })
-        .in('id', orderIds);
-      
-      if (error) throw error;
-      
-      // Refresh data
-      await queryClient.invalidateQueries({ queryKey: ['live-orders', selectedPhase] });
-      await queryClient.invalidateQueries({ queryKey: ['orders-with-products', selectedPhase] });
-      
-      toast.success(`Đã xóa mã TPOS của đơn hàng ${orderCode}`);
-    } catch (error) {
-      console.error("Error clearing TPOS ID:", error);
-      toast.error("Không thể xóa mã TPOS");
-    }
-  };
-
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
     const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -1668,8 +1584,6 @@ export default function LiveProducts() {
                   <TableHead className="w-32 font-bold text-base">Mã sản phẩm</TableHead>
                   <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
-                  <TableHead className="w-24 text-center font-bold text-base">Upload TPOS</TableHead>
-                  <TableHead className="w-24 text-center font-bold text-base">Xóa mã TPOS</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1787,45 +1701,6 @@ export default function LiveProducts() {
                                 </div>
                               </TableCell>
                               {index === 0 && (
-                                <>
-                                  <TableCell 
-                                    rowSpan={aggregatedProducts.length}
-                                    className="text-center py-2 align-middle border-r"
-                                  >
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => handleUploadToTPOS(orderCode, orders)}
-                                      disabled={uploadingOrderIds.has(orderCode) || !orders[0]?.tpos_order_id}
-                                      className="h-8 px-3"
-                                    >
-                                      {uploadingOrderIds.has(orderCode) ? (
-                                        <>
-                                          <RefreshCw className="mr-1 h-3.5 w-3.5 animate-spin" />
-                                          Đang upload...
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Download className="mr-1 h-3.5 w-3.5" />
-                                          Upload
-                                        </>
-                                      )}
-                                    </Button>
-                                  </TableCell>
-                                  <TableCell 
-                                    rowSpan={aggregatedProducts.length}
-                                    className="text-center py-2 align-middle border-r"
-                                  >
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleClearTPOSId(orderCode, orders)}
-                                      disabled={!orders[0]?.tpos_order_id}
-                                      className="h-8 px-3 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </TableCell>
                                   <TableCell 
                                     rowSpan={aggregatedProducts.length}
                                     className="text-center py-2 align-middle border-r"
@@ -1862,7 +1737,6 @@ export default function LiveProducts() {
                                       </label>
                                     </div>
                                   </TableCell>
-                                </>
                               )}
                             </TableRow>
                           ));
