@@ -11,6 +11,7 @@ import { formatVND } from "@/lib/currency-utils";
 import { Check } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
+import { ProductImage } from "@/components/products/ProductImage";
 
 interface Product {
   id: string;
@@ -22,6 +23,9 @@ interface Product {
   unit: string;
   stock_quantity: number;
   supplier_name?: string;
+  product_images?: string[];
+  tpos_image_url?: string;
+  tpos_product_id?: number;
 }
 
 interface SelectProductDialogProps {
@@ -130,12 +134,6 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                             <span className="font-medium">{formatVND(product.selling_price)}</span>
                           </div>
                         </div>
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Tồn: </span>
-                          <span className={product.stock_quantity < 0 ? 'text-red-500' : ''}>
-                            {product.stock_quantity}
-                          </span>
-                        </div>
                       </div>
                     </Card>
                   ))
@@ -175,13 +173,12 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Hình ảnh</TableHead>
                   <TableHead>Mã SP</TableHead>
                   <TableHead>Tên sản phẩm</TableHead>
                   <TableHead>Variant</TableHead>
                   <TableHead>Giá mua</TableHead>
                   <TableHead>Giá bán</TableHead>
-                  <TableHead>Tồn</TableHead>
-                  <TableHead>NCC</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
@@ -189,25 +186,33 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
+                      <TableCell><Skeleton className="h-12 w-12" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                       <TableCell><Skeleton className="h-8 w-16" /></TableCell>
                     </TableRow>
                   ))
                 ) : products.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {debouncedSearch.length >= 2 ? "Không tìm thấy sản phẩm phù hợp" : "Chưa có sản phẩm nào"}
                     </TableCell>
                   </TableRow>
                 ) : (
                   products.map((product) => (
                     <TableRow key={product.id} className="cursor-pointer hover:bg-muted/50">
+                      <TableCell>
+                        <ProductImage
+                          productId={product.id}
+                          productCode={product.product_code}
+                          productImages={product.product_images}
+                          tposImageUrl={product.tpos_image_url}
+                          tposProductId={product.tpos_product_id}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{product.product_code}</TableCell>
                       <TableCell>{product.product_name}</TableCell>
                       <TableCell className="text-muted-foreground">
@@ -215,14 +220,6 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
                       </TableCell>
                       <TableCell>{formatVND(product.purchase_price)}</TableCell>
                       <TableCell>{formatVND(product.selling_price)}</TableCell>
-                      <TableCell>
-                        <span className={product.stock_quantity < 0 ? 'text-red-500' : ''}>
-                          {product.stock_quantity}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {product.supplier_name || "-"}
-                      </TableCell>
                       <TableCell>
                         <Button
                           size="sm"
