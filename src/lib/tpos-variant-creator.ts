@@ -1,6 +1,6 @@
 // TPOS Variant Creator - Auto create variants on TPOS after product upload
 import { getActiveTPOSToken, getTPOSHeaders, generateRandomId } from "./tpos-config";
-import { TPOS_ATTRIBUTE_IDS, TPOS_SIZE_TEXT_MAP, TPOS_SIZE_NUMBER_MAP, TPOS_COLOR_MAP, getVariantType } from "./variant-attributes";
+import { TPOS_ATTRIBUTE_IDS, TPOS_ATTRIBUTES, type TPOSAttributeValue as ImportedTPOSAttributeValue } from "./variant-attributes";
 
 // =====================================================
 // TYPE DEFINITIONS
@@ -30,19 +30,10 @@ interface TPOSAttributeLine {
   AttributeId: number;
 }
 
-interface SelectedAttribute {
-  Id: number;
-  Name: string;
-  Code: string;
-  Sequence: number | null;
-  AttributeId: number;
-  AttributeName: string;
-}
-
 interface SelectedAttributes {
-  sizeText?: SelectedAttribute[];
-  sizeNumber?: SelectedAttribute[];
-  color?: SelectedAttribute[];
+  sizeText?: ImportedTPOSAttributeValue[];
+  sizeNumber?: ImportedTPOSAttributeValue[];
+  color?: ImportedTPOSAttributeValue[];
 }
 
 // =====================================================
@@ -80,42 +71,31 @@ export function parseVariantToAttributes(variant: string): SelectedAttributes {
   const parts = variant.trim().split(/\s+/);
   
   for (const part of parts) {
-    const type = getVariantType(part);
-    
-    if (type === 'text-size' && TPOS_SIZE_TEXT_MAP[part]) {
+    // Search in sizeText
+    const sizeText = TPOS_ATTRIBUTES.sizeText.find(s => s.Name === part);
+    if (sizeText) {
       if (!result.sizeText) result.sizeText = [];
-      const sizeData = TPOS_SIZE_TEXT_MAP[part];
-      result.sizeText.push({
-        Id: sizeData.Id,
-        Name: part,
-        Code: sizeData.Code,
-        Sequence: sizeData.Sequence,
-        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_TEXT,
-        AttributeName: "Size Chữ"
-      });
-    } else if (type === 'number-size' && TPOS_SIZE_NUMBER_MAP[part]) {
-      if (!result.sizeNumber) result.sizeNumber = [];
-      const sizeData = TPOS_SIZE_NUMBER_MAP[part];
-      result.sizeNumber.push({
-        Id: sizeData.Id,
-        Name: part,
-        Code: sizeData.Code,
-        Sequence: null,
-        AttributeId: TPOS_ATTRIBUTE_IDS.SIZE_NUMBER,
-        AttributeName: "Size Số"
-      });
-    } else if (type === 'color' && TPOS_COLOR_MAP[part]) {
-      if (!result.color) result.color = [];
-      const colorData = TPOS_COLOR_MAP[part];
-      result.color.push({
-        Id: colorData.Id,
-        Name: part,
-        Code: colorData.Code,
-        Sequence: null,
-        AttributeId: TPOS_ATTRIBUTE_IDS.COLOR,
-        AttributeName: "Màu"
-      });
+      result.sizeText.push(sizeText);
+      continue;
     }
+
+    // Search in sizeNumber
+    const sizeNumber = TPOS_ATTRIBUTES.sizeNumber.find(s => s.Name === part);
+    if (sizeNumber) {
+      if (!result.sizeNumber) result.sizeNumber = [];
+      result.sizeNumber.push(sizeNumber);
+      continue;
+    }
+
+    // Search in color
+    const color = TPOS_ATTRIBUTES.color.find(c => c.Name === part);
+    if (color) {
+      if (!result.color) result.color = [];
+      result.color.push(color);
+      continue;
+    }
+
+    console.warn(`⚠️ Unknown variant part: "${part}"`);
   }
   
   return result;

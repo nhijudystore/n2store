@@ -1,59 +1,92 @@
 // Variant attributes for product selection
-// Mapping với TPOS Attribute IDs
+// Complete TPOS attribute data structure
+
+// TPOS Attribute IDs
 export const TPOS_ATTRIBUTE_IDS = {
   SIZE_TEXT: 1,
-  COLOR: 3,
-  SIZE_NUMBER: 4
+  SIZE_NUMBER: 4,
+  COLOR: 3
 } as const;
 
-// Map variant name to TPOS attribute value ID
-export const TPOS_SIZE_TEXT_MAP: Record<string, { Id: number; Code: string; Sequence: number | null }> = {
-  "Free Size": { Id: 5, Code: "FS", Sequence: 0 },
-  "S": { Id: 1, Code: "S", Sequence: 1 },
-  "M": { Id: 2, Code: "M", Sequence: 2 },
-  "L": { Id: 3, Code: "L", Sequence: 3 },
-  "XL": { Id: 4, Code: "XL", Sequence: 4 },
-  "XXL": { Id: 31, Code: "xxl", Sequence: null },
-  "XXXL": { Id: 32, Code: "xxxl", Sequence: null }
-};
+// Full attribute data from TPOS
+export interface TPOSAttributeValue {
+  Id: number;
+  Name: string;
+  Code: string;
+  Sequence: number | null;
+  AttributeId: number;
+  AttributeName: string;
+}
 
-export const TPOS_SIZE_NUMBER_MAP: Record<string, { Id: number; Code: string }> = {
-  "27": { Id: 80, Code: "27" },
-  "28": { Id: 81, Code: "28" },
-  "29": { Id: 18, Code: "29" },
-  "30": { Id: 19, Code: "30" },
-  "31": { Id: 20, Code: "31" },
-  "32": { Id: 21, Code: "32" },
-  "33": { Id: 22, Code: "33" },
-  "34": { Id: 23, Code: "34" },
-  "35": { Id: 24, Code: "35" },
-  "36": { Id: 25, Code: "36" },
-  "37": { Id: 26, Code: "37" },
-  "38": { Id: 27, Code: "38" },
-  "39": { Id: 28, Code: "39" },
-  "40": { Id: 29, Code: "40" },
-  "41": { Id: 9, Code: "41" },
-  "42": { Id: 10, Code: "42" },
-  "43": { Id: 11, Code: "43" },
-  "44": { Id: 12, Code: "44" }
-};
+export const TPOS_ATTRIBUTES = {
+  sizeText: [
+    { Id: 5, Name: "Free Size", Code: "FS", Sequence: 0, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 1, Name: "S", Code: "S", Sequence: 1, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 2, Name: "M", Code: "M", Sequence: 2, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 3, Name: "L", Code: "L", Sequence: 3, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 4, Name: "XL", Code: "XL", Sequence: 4, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 31, Name: "XXL", Code: "xxl", Sequence: null, AttributeId: 1, AttributeName: "Size Chữ" },
+    { Id: 32, Name: "XXXL", Code: "xxxl", Sequence: null, AttributeId: 1, AttributeName: "Size Chữ" }
+  ],
+  sizeNumber: [
+    { Id: 80, Name: "27", Code: "27", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 81, Name: "28", Code: "28", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 18, Name: "29", Code: "29", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 19, Name: "30", Code: "30", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 20, Name: "31", Code: "31", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 21, Name: "32", Code: "32", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 46, Name: "34", Code: "34", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 33, Name: "35", Code: "35", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 34, Name: "36", Code: "36", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 35, Name: "37", Code: "37", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 36, Name: "38", Code: "38", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 37, Name: "39", Code: "39", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 44, Name: "40", Code: "40", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 91, Name: "41", Code: "41", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 92, Name: "42", Code: "42", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 93, Name: "43", Code: "43", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 94, Name: "44", Code: "44", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 22, Name: "1", Code: "1", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 23, Name: "2", Code: "2", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 24, Name: "3", Code: "3", Sequence: null, AttributeId: 4, AttributeName: "Size Số" },
+    { Id: 48, Name: "4", Code: "4", Sequence: null, AttributeId: 4, AttributeName: "Size Số" }
+  ],
+  color: [
+    { Id: 6, Name: "Trắng", Code: "trang", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 7, Name: "Đen", Code: "den", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 8, Name: "Đỏ", Code: "do", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 9, Name: "Vàng", Code: "vang", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 10, Name: "Cam", Code: "cam", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 11, Name: "Xám", Code: "xam", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 12, Name: "Hồng", Code: "hong", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 14, Name: "Nude", Code: "nude", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 15, Name: "Nâu", Code: "nau", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 16, Name: "Rêu", Code: "reu", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 17, Name: "Xanh", Code: "xanh", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 25, Name: "Bạc", Code: "bac", Sequence: null, AttributeId: 3, AttributeName: "Màu" },
+    { Id: 26, Name: "Tím", Code: "tim", Sequence: null, AttributeId: 3, AttributeName: "Màu" }
+  ]
+} as const;
 
-export const TPOS_COLOR_MAP: Record<string, { Id: number; Code: string }> = {
-  "Trắng": { Id: 6, Code: "trang" },
-  "Đen": { Id: 7, Code: "den" },
-  "Đỏ": { Id: 8, Code: "do" },
-  "Xanh": { Id: 9, Code: "xanh" },
-  "Vàng": { Id: 10, Code: "vang" },
-  "Hồng": { Id: 11, Code: "hong" },
-  "Xám": { Id: 12, Code: "xam" },
-  "Nâu": { Id: 13, Code: "nau" },
-  "Cam": { Id: 14, Code: "cam" },
-  "Tím": { Id: 15, Code: "tim" }
-};
+// Backward compatibility: Create maps for existing code
+export const TPOS_SIZE_TEXT_MAP: Record<string, { Id: number; Code: string; Sequence: number | null }> = 
+  Object.fromEntries(
+    TPOS_ATTRIBUTES.sizeText.map(attr => [attr.Name, { Id: attr.Id, Code: attr.Code, Sequence: attr.Sequence }])
+  );
 
-export const COLORS: readonly string[] = Object.keys(TPOS_COLOR_MAP);
-export const TEXT_SIZES: readonly string[] = Object.keys(TPOS_SIZE_TEXT_MAP);
-export const NUMBER_SIZES: readonly string[] = Object.keys(TPOS_SIZE_NUMBER_MAP);
+export const TPOS_SIZE_NUMBER_MAP: Record<string, { Id: number; Code: string }> = 
+  Object.fromEntries(
+    TPOS_ATTRIBUTES.sizeNumber.map(attr => [attr.Name, { Id: attr.Id, Code: attr.Code }])
+  );
+
+export const TPOS_COLOR_MAP: Record<string, { Id: number; Code: string }> = 
+  Object.fromEntries(
+    TPOS_ATTRIBUTES.color.map(attr => [attr.Name, { Id: attr.Id, Code: attr.Code }])
+  );
+
+export const COLORS: readonly string[] = TPOS_ATTRIBUTES.color.map(attr => attr.Name);
+export const TEXT_SIZES: readonly string[] = TPOS_ATTRIBUTES.sizeText.map(attr => attr.Name);
+export const NUMBER_SIZES: readonly string[] = TPOS_ATTRIBUTES.sizeNumber.map(attr => attr.Name);
 
 export type VariantType = 'color' | 'text-size' | 'number-size' | 'unknown';
 
