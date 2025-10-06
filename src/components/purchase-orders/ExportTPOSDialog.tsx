@@ -234,11 +234,19 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
           try {
             console.log(`🎨 Creating variants for: ${item.product_name} (TPOS ID: ${productIdData.tposId})`);
+            setCurrentStep(`Đang tạo biến thể cho: ${item.product_name}...`);
+            
+            // Wait a bit to ensure product is fully created on TPOS
+            console.log(`⏳ Waiting 1s to ensure product is ready on TPOS...`);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             
             await createTPOSVariants(
               productIdData.tposId,
               item.variant,
-              (msg) => console.log(`  → ${msg}`)
+              (msg) => {
+                console.log(`  → ${msg}`);
+                setCurrentStep(`${item.product_name}: ${msg}`);
+              }
             );
             
             console.log(`✅ Variants created for ${item.product_name}`);

@@ -40,7 +40,7 @@ interface SelectedAttributes {
 // STEP 1: GET PRODUCT FROM TPOS
 // =====================================================
 
-export async function getTPOSProduct(tposProductId: number): Promise<any> {
+export async function getTPOSProduct(tposProductId: number, retries = 3, delayMs = 2000): Promise<any> {
   const bearerToken = await getActiveTPOSToken();
   if (!bearerToken) {
     throw new Error("No active TPOS token found");
@@ -48,16 +48,36 @@ export async function getTPOSProduct(tposProductId: number): Promise<any> {
 
   const url = `https://tomato.tpos.vn/odata/ProductTemplate(${tposProductId})?$expand=UOM,UOMCateg,Categ,UOMPO,POSCateg,Taxes,SupplierTaxes,Product_Teams,Images,UOMView,Distributor,Importer,Producer,OriginCountry,ProductVariants($expand=UOM,Categ,UOMPO,POSCateg,AttributeValues)`;
 
-  const response = await fetch(url, {
-    method: "GET",
-    headers: getTPOSHeaders(bearerToken),
-  });
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      console.log(`🔍 Attempt ${attempt}/${retries}: Getting product ${tposProductId} from TPOS...`);
+      
+      const response = await fetch(url, {
+        method: "GET",
+        headers: getTPOSHeaders(bearerToken),
+      });
 
-  if (!response.ok) {
-    throw new Error(`Failed to get TPOS product: ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Failed to get TPOS product: ${response.statusText}`);
+      }
+
+      const product = await response.json();
+      console.log(`✅ Successfully retrieved product ${tposProductId}`);
+      return product;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`⚠️ Attempt ${attempt}/${retries} failed:`, lastError.message);
+      
+      if (attempt < retries) {
+        console.log(`⏳ Waiting ${delayMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
   }
 
-  return await response.json();
+  throw new Error(`Failed to get TPOS product after ${retries} attempts: ${lastError?.message}`);
 }
 
 // =====================================================
