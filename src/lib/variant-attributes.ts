@@ -6,13 +6,54 @@ export const TPOS_ATTRIBUTE_IDS = {
   SIZE_NUMBER: 4
 } as const;
 
-export const TPOS_COLOR_MAP: Record<string, number> = {};
+// Map variant name to TPOS attribute value ID
+export const TPOS_SIZE_TEXT_MAP: Record<string, { Id: number; Code: string; Sequence: number | null }> = {
+  "Free Size": { Id: 5, Code: "FS", Sequence: 0 },
+  "S": { Id: 1, Code: "S", Sequence: 1 },
+  "M": { Id: 2, Code: "M", Sequence: 2 },
+  "L": { Id: 3, Code: "L", Sequence: 3 },
+  "XL": { Id: 4, Code: "XL", Sequence: 4 },
+  "XXL": { Id: 31, Code: "xxl", Sequence: null },
+  "XXXL": { Id: 32, Code: "xxxl", Sequence: null }
+};
 
-export const TPOS_SIZE_TEXT_MAP: Record<string, number> = {};
+export const TPOS_SIZE_NUMBER_MAP: Record<string, { Id: number; Code: string }> = {
+  "27": { Id: 80, Code: "27" },
+  "28": { Id: 81, Code: "28" },
+  "29": { Id: 18, Code: "29" },
+  "30": { Id: 19, Code: "30" },
+  "31": { Id: 20, Code: "31" },
+  "32": { Id: 21, Code: "32" },
+  "33": { Id: 22, Code: "33" },
+  "34": { Id: 23, Code: "34" },
+  "35": { Id: 24, Code: "35" },
+  "36": { Id: 25, Code: "36" },
+  "37": { Id: 26, Code: "37" },
+  "38": { Id: 27, Code: "38" },
+  "39": { Id: 28, Code: "39" },
+  "40": { Id: 29, Code: "40" },
+  "41": { Id: 9, Code: "41" },
+  "42": { Id: 10, Code: "42" },
+  "43": { Id: 11, Code: "43" },
+  "44": { Id: 12, Code: "44" }
+};
 
-export const TPOS_SIZE_NUMBER_MAP: Record<string, number> = {};
+export const TPOS_COLOR_MAP: Record<string, { Id: number; Code: string }> = {
+  "Trắng": { Id: 6, Code: "trang" },
+  "Đen": { Id: 7, Code: "den" },
+  "Đỏ": { Id: 8, Code: "do" },
+  "Xanh": { Id: 9, Code: "xanh" },
+  "Vàng": { Id: 10, Code: "vang" },
+  "Hồng": { Id: 11, Code: "hong" },
+  "Xám": { Id: 12, Code: "xam" },
+  "Nâu": { Id: 13, Code: "nau" },
+  "Cam": { Id: 14, Code: "cam" },
+  "Tím": { Id: 15, Code: "tim" }
+};
 
-export const COLORS: readonly string[] = [];
+export const COLORS: readonly string[] = Object.keys(TPOS_COLOR_MAP);
+export const TEXT_SIZES: readonly string[] = Object.keys(TPOS_SIZE_TEXT_MAP);
+export const NUMBER_SIZES: readonly string[] = Object.keys(TPOS_SIZE_NUMBER_MAP);
 
 export type VariantType = 'color' | 'text-size' | 'number-size' | 'unknown';
 
@@ -111,7 +152,3 @@ export function generateProductNameWithVariant(productName: string, variant: str
     return `${productName} size ${variant}`;
   }
 }
-
-export const TEXT_SIZES: readonly string[] = [];
-
-export const NUMBER_SIZES: readonly string[] = [];

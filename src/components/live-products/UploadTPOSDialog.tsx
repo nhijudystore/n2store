@@ -164,7 +164,7 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
           const productCodes = liveOrdersData.map(p => p.live_products.product_code);
           const { data: dbProducts, error: dbProductsError } = await supabase
             .from('products')
-            .select('product_code, productid_bienthe, product_name, selling_price')
+            .select('product_code, productid_bienthe, product_name, selling_price, variant, tpos_product_id')
             .in('product_code', productCodes);
 
           if (dbProductsError) throw dbProductsError;
@@ -262,6 +262,29 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
             .eq('order_code', orderCode);
 
           if (updateError) throw updateError;
+
+          // Auto-create variants on TPOS for products with variants
+          console.log('🔄 Checking for products with variants...');
+          const productsWithVariants = dbProducts.filter(p => p.variant && p.tpos_product_id && !p.productid_bienthe);
+          
+          if (productsWithVariants.length > 0) {
+            console.log(`Found ${productsWithVariants.length} products needing variant creation`);
+            for (const product of productsWithVariants) {
+              try {
+                console.log(`Creating variant for ${product.product_code} (${product.variant})...`);
+                const { createTPOSVariants } = await import("@/lib/tpos-variant-creator");
+                await createTPOSVariants(
+                  product.tpos_product_id,
+                  product.variant,
+                  (msg) => console.log(`  ${msg}`)
+                );
+                console.log(`✅ Created variant for ${product.product_code}`);
+              } catch (variantError) {
+                console.error(`⚠️ Failed to create variant for ${product.product_code}:`, variantError);
+                // Don't fail the whole upload if variant creation fails
+              }
+            }
+          }
 
           // Log activity (activity_logs trigger will handle this automatically)
 
