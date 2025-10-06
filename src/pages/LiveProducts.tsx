@@ -34,7 +34,6 @@ import {
   Maximize2,
   Download,
   CheckCircle,
-  Code,
   Upload,
   Store
 } from "lucide-react";
@@ -45,7 +44,6 @@ import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
-import { getTPOSProduct, createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
@@ -202,28 +200,6 @@ export default function LiveProducts() {
     errors: number;
   } | null>(null);
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
-  
-  // States for TPOS GET Order Test
-  const [testOrderId, setTestOrderId] = useState("");
-  const [testOrderResponse, setTestOrderResponse] = useState<any>(null);
-  const [isTestingOrder, setIsTestingOrder] = useState(false);
-  const [testOrderError, setTestOrderError] = useState<string | null>(null);
-  const [isTestResponseOpen, setIsTestResponseOpen] = useState(false);
-  
-  // States for TPOS GET Product Test
-  const [testProductId, setTestProductId] = useState("");
-  const [testProductResponse, setTestProductResponse] = useState<any>(null);
-  const [isTestingProduct, setIsTestingProduct] = useState(false);
-  const [testProductError, setTestProductError] = useState<string | null>(null);
-  const [isProductResponseOpen, setIsProductResponseOpen] = useState(false);
-  
-  // States for TPOS PUT Variant Test
-  const [testVariantProductId, setTestVariantProductId] = useState("");
-  const [testVariantString, setTestVariantString] = useState("");
-  const [testVariantResponse, setTestVariantResponse] = useState<any>(null);
-  const [isTestingVariant, setIsTestingVariant] = useState(false);
-  const [testVariantError, setTestVariantError] = useState<string | null>(null);
-  const [isVariantResponseOpen, setIsVariantResponseOpen] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -938,102 +914,6 @@ export default function LiveProducts() {
     }
   };
 
-  // Test GET TPOS Order
-  const handleTestGetOrder = async () => {
-    if (!testOrderId.trim()) {
-      toast.error("Vui lòng nhập Order ID");
-      return;
-    }
-
-    setIsTestingOrder(true);
-    setTestOrderError(null);
-    setTestOrderResponse(null);
-    
-    try {
-      const token = await getActiveTPOSToken();
-      if (!token) {
-        throw new Error("Không tìm thấy TPOS token");
-      }
-
-      const response = await fetch(
-        `https://tomato.tpos.vn/odata/SaleOnline_Order(${testOrderId})?$expand=Details,Partner,User,CRMTeam`,
-        { headers: getTPOSHeaders(token) }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Lỗi ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      setTestOrderResponse(data);
-      setIsTestResponseOpen(true);
-      toast.success("Lấy thông tin order thành công!");
-    } catch (error: any) {
-      setTestOrderError(error.message);
-      toast.error("Lỗi khi lấy thông tin order");
-    } finally {
-      setIsTestingOrder(false);
-    }
-  };
-
-  // Test GET TPOS Product
-  const handleTestGetProduct = async () => {
-    if (!testProductId.trim()) {
-      toast.error("Vui lòng nhập Product ID");
-      return;
-    }
-
-    setIsTestingProduct(true);
-    setTestProductError(null);
-    setTestProductResponse(null);
-    
-    try {
-      const data = await getTPOSProduct(parseInt(testProductId));
-      setTestProductResponse(data);
-      setIsProductResponseOpen(true);
-      toast.success("Lấy thông tin product thành công!");
-    } catch (error: any) {
-      setTestProductError(error.message);
-      toast.error("Lỗi khi lấy thông tin product");
-    } finally {
-      setIsTestingProduct(false);
-    }
-  };
-
-  // Test PUT TPOS Variant Creation
-  const handleTestCreateVariant = async () => {
-    if (!testVariantProductId.trim()) {
-      toast.error("Vui lòng nhập Product ID");
-      return;
-    }
-    if (!testVariantString.trim()) {
-      toast.error("Vui lòng nhập chuỗi biến thể (ví dụ: Đen, L)");
-      return;
-    }
-
-    setIsTestingVariant(true);
-    setTestVariantError(null);
-    setTestVariantResponse(null);
-    
-    try {
-      const data = await createTPOSVariants(
-        parseInt(testVariantProductId),
-        testVariantString,
-        (message) => {
-          console.log("Progress:", message);
-        }
-      );
-      setTestVariantResponse(data);
-      setIsVariantResponseOpen(true);
-      toast.success("Tạo variants thành công!");
-    } catch (error: any) {
-      setTestVariantError(error.message);
-      toast.error("Lỗi khi tạo variants");
-    } finally {
-      setIsTestingVariant(false);
-    }
-  };
-
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
     const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -1191,13 +1071,9 @@ export default function LiveProducts() {
                   <ShoppingCart className="h-4 w-4" />
                   Đơn hàng (theo mã đơn)
                 </TabsTrigger>
-                <TabsTrigger value="supplier-stats" className="flex items-center gap-2">
+                 <TabsTrigger value="supplier-stats" className="flex items-center gap-2">
                   <Store className="h-4 w-4" />
                   Thống kê NCC
-                </TabsTrigger>
-                <TabsTrigger value="tpos-debug" className="flex items-center gap-2">
-                  <Code className="h-4 w-4" />
-                  TPOS Debug
                 </TabsTrigger>
               </TabsList>
 
@@ -1918,283 +1794,6 @@ export default function LiveProducts() {
                 sessionId={selectedSession}
                 phaseId={selectedPhase}
               />
-            </TabsContent>
-
-            {/* TPOS Debug Tab */}
-            <TabsContent value="tpos-debug" className="space-y-4">
-              {/* Test GET TPOS Order */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
-                    Test GET TPOS Order
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Nhập Order ID (ví dụ: 12345)"
-                        value={testOrderId}
-                        onChange={(e) => setTestOrderId(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleTestGetOrder();
-                          }
-                        }}
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleTestGetOrder}
-                      disabled={isTestingOrder || !testOrderId.trim()}
-                    >
-                      {isTestingOrder ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Đang tải...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4 mr-2" />
-                          Test GET Order
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {testOrderError && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Lỗi</AlertTitle>
-                      <AlertDescription>{testOrderError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {testOrderResponse && (
-                    <Collapsible open={isTestResponseOpen} onOpenChange={setIsTestResponseOpen}>
-                      <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="font-medium">Kết quả (Order ID: {testOrderResponse.Id})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(JSON.stringify(testOrderResponse, null, 2));
-                              toast.success("Đã copy JSON!");
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Copy JSON
-                          </Button>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              {isTestResponseOpen ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </CollapsibleTrigger>
-                        </div>
-                      </div>
-                      <CollapsibleContent className="mt-2">
-                        <ScrollArea className="h-[500px] w-full rounded-md border">
-                          <pre className="p-4 text-xs bg-muted">
-                            {JSON.stringify(testOrderResponse, null, 2)}
-                          </pre>
-                        </ScrollArea>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Test GET TPOS Product */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Download className="h-5 w-5" />
-                    Test GET TPOS Product
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <div className="flex-1">
-                      <Input
-                        placeholder="Nhập Product ID (ví dụ: 107812)"
-                        value={testProductId}
-                        onChange={(e) => setTestProductId(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleTestGetProduct();
-                          }
-                        }}
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleTestGetProduct}
-                      disabled={isTestingProduct || !testProductId.trim()}
-                    >
-                      {isTestingProduct ? (
-                        <>
-                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                          Đang tải...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4 mr-2" />
-                          Test GET Product
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  {testProductError && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Lỗi</AlertTitle>
-                      <AlertDescription>{testProductError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {testProductResponse && (
-                    <Collapsible open={isProductResponseOpen} onOpenChange={setIsProductResponseOpen}>
-                      <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="font-medium">Kết quả (Product ID: {testProductResponse.Id})</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(JSON.stringify(testProductResponse, null, 2));
-                              toast.success("Đã copy JSON!");
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Copy JSON
-                          </Button>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              {isProductResponseOpen ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </CollapsibleTrigger>
-                        </div>
-                      </div>
-                      <CollapsibleContent className="mt-2">
-                        <ScrollArea className="h-[500px] w-full rounded-md border">
-                          <pre className="p-4 text-xs bg-muted">
-                            {JSON.stringify(testProductResponse, null, 2)}
-                          </pre>
-                        </ScrollArea>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Test PUT TPOS Variant Creation */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Upload className="h-5 w-5" />
-                    Test PUT TPOS Variant Creation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Input
-                      placeholder="Nhập Product ID (ví dụ: 107812)"
-                      value={testVariantProductId}
-                      onChange={(e) => setTestVariantProductId(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Nhập chuỗi biến thể (ví dụ: Đen, L)"
-                      value={testVariantString}
-                      onChange={(e) => setTestVariantString(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleTestCreateVariant();
-                        }
-                      }}
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleTestCreateVariant}
-                    disabled={isTestingVariant || !testVariantProductId.trim() || !testVariantString.trim()}
-                    className="w-full"
-                  >
-                    {isTestingVariant ? (
-                      <>
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                        Đang xử lý...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4 mr-2" />
-                        Test Create Variants
-                      </>
-                    )}
-                  </Button>
-
-                  {testVariantError && (
-                    <Alert variant="destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Lỗi</AlertTitle>
-                      <AlertDescription>{testVariantError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {testVariantResponse && (
-                    <Collapsible open={isVariantResponseOpen} onOpenChange={setIsVariantResponseOpen}>
-                      <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="font-medium">Kết quả tạo variants</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(JSON.stringify(testVariantResponse, null, 2));
-                              toast.success("Đã copy JSON!");
-                            }}
-                          >
-                            <Copy className="h-4 w-4 mr-1" />
-                            Copy JSON
-                          </Button>
-                          <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              {isVariantResponseOpen ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </CollapsibleTrigger>
-                        </div>
-                      </div>
-                      <CollapsibleContent className="mt-2">
-                        <ScrollArea className="h-[500px] w-full rounded-md border">
-                          <pre className="p-4 text-xs bg-muted">
-                            {JSON.stringify(testVariantResponse, null, 2)}
-                          </pre>
-                        </ScrollArea>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save, TestTube2 } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save, TestTube2, Code, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,8 +12,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
-import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload } from "@/lib/tpos-variant-creator";
+import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload, createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -42,6 +43,26 @@ const Settings = () => {
   const [isPostingVariant, setIsPostingVariant] = useState(false);
   const [variantPostResult, setVariantPostResult] = useState<any>(null);
   const [isTestJsonOpen, setIsTestJsonOpen] = useState(false);
+  
+  // TPOS Debug states (moved from LiveProducts)
+  const [testOrderId, setTestOrderId] = useState("");
+  const [testOrderResponse, setTestOrderResponse] = useState<any>(null);
+  const [isTestingOrder, setIsTestingOrder] = useState(false);
+  const [testOrderError, setTestOrderError] = useState<string | null>(null);
+  const [isTestResponseOpen, setIsTestResponseOpen] = useState(false);
+  
+  const [testTPOSProductId, setTestTPOSProductId] = useState("");
+  const [testTPOSProductResponse, setTestTPOSProductResponse] = useState<any>(null);
+  const [isTestingTPOSProduct, setIsTestingTPOSProduct] = useState(false);
+  const [testTPOSProductError, setTestTPOSProductError] = useState<string | null>(null);
+  const [isTPOSProductResponseOpen, setIsTPOSProductResponseOpen] = useState(false);
+  
+  const [testVariantProductId, setTestVariantProductId] = useState("");
+  const [testVariantString, setTestVariantString] = useState("");
+  const [testVariantResponse, setTestVariantResponse] = useState<any>(null);
+  const [isTestingVariant, setIsTestingVariant] = useState(false);
+  const [testVariantError, setTestVariantError] = useState<string | null>(null);
+  const [isVariantResponseOpen, setIsVariantResponseOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -369,6 +390,137 @@ const Settings = () => {
       });
     } finally {
       setIsPostingVariant(false);
+    }
+  };
+
+  // TPOS Debug handlers (moved from LiveProducts)
+  const handleTestGetOrder = async () => {
+    if (!testOrderId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập Order ID",
+      });
+      return;
+    }
+
+    setIsTestingOrder(true);
+    setTestOrderError(null);
+    setTestOrderResponse(null);
+    
+    try {
+      const token = await getActiveTPOSToken();
+      if (!token) {
+        throw new Error("Không tìm thấy TPOS token");
+      }
+
+      const response = await fetch(
+        `https://tomato.tpos.vn/odata/SaleOnline_Order(${testOrderId})?$expand=Details,Partner,User,CRMTeam`,
+        { headers: getTPOSHeaders(token) }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Lỗi ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setTestOrderResponse(data);
+      setIsTestResponseOpen(true);
+      toast({
+        title: "Thành công",
+        description: "Lấy thông tin order thành công!",
+      });
+    } catch (error: any) {
+      setTestOrderError(error.message);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Lỗi khi lấy thông tin order",
+      });
+    } finally {
+      setIsTestingOrder(false);
+    }
+  };
+
+  const handleTestGetTPOSProduct = async () => {
+    if (!testTPOSProductId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập Product ID",
+      });
+      return;
+    }
+
+    setIsTestingTPOSProduct(true);
+    setTestTPOSProductError(null);
+    setTestTPOSProductResponse(null);
+    
+    try {
+      const data = await getTPOSProduct(parseInt(testTPOSProductId));
+      setTestTPOSProductResponse(data);
+      setIsTPOSProductResponseOpen(true);
+      toast({
+        title: "Thành công",
+        description: "Lấy thông tin product thành công!",
+      });
+    } catch (error: any) {
+      setTestTPOSProductError(error.message);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Lỗi khi lấy thông tin product",
+      });
+    } finally {
+      setIsTestingTPOSProduct(false);
+    }
+  };
+
+  const handleTestCreateVariant = async () => {
+    if (!testVariantProductId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập Product ID",
+      });
+      return;
+    }
+    if (!testVariantString.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập chuỗi biến thể (ví dụ: Đen, L)",
+      });
+      return;
+    }
+
+    setIsTestingVariant(true);
+    setTestVariantError(null);
+    setTestVariantResponse(null);
+    
+    try {
+      const data = await createTPOSVariants(
+        parseInt(testVariantProductId),
+        testVariantString,
+        (message) => {
+          console.log("Progress:", message);
+        }
+      );
+      setTestVariantResponse(data);
+      setIsVariantResponseOpen(true);
+      toast({
+        title: "Thành công",
+        description: "Tạo variants thành công!",
+      });
+    } catch (error: any) {
+      setTestVariantError(error.message);
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Lỗi khi tạo variants",
+      });
+    } finally {
+      setIsTestingVariant(false);
     }
   };
 
@@ -978,6 +1130,273 @@ const Settings = () => {
               </Collapsible>
             </>
           )}
+        </CardContent>
+      </Card>
+
+      {/* TPOS Debug Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Code className="h-5 w-5" />
+            TPOS Debug
+          </CardTitle>
+          <CardDescription>
+            Test các API của TPOS: GET Order, GET Product, PUT Variant Creation
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Test GET TPOS Order */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Code className="h-4 w-4" />
+              Test GET TPOS Order
+            </h3>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Nhập Order ID (ví dụ: 12345)"
+                  value={testOrderId}
+                  onChange={(e) => setTestOrderId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleTestGetOrder();
+                    }
+                  }}
+                />
+              </div>
+              <Button 
+                onClick={handleTestGetOrder}
+                disabled={isTestingOrder || !testOrderId.trim()}
+              >
+                {isTestingOrder ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Đang tải...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Test GET Order
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {testOrderError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Lỗi</AlertTitle>
+                <AlertDescription>{testOrderError}</AlertDescription>
+              </Alert>
+            )}
+
+            {testOrderResponse && (
+              <Collapsible open={isTestResponseOpen} onOpenChange={setIsTestResponseOpen}>
+                <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">Kết quả (Order ID: {testOrderResponse.Id})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(JSON.stringify(testOrderResponse, null, 2))}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy JSON
+                    </Button>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        {isTestResponseOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                </div>
+                <CollapsibleContent className="mt-2">
+                  <ScrollArea className="h-[500px] w-full rounded-md border">
+                    <pre className="p-4 text-xs bg-muted">
+                      {JSON.stringify(testOrderResponse, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </div>
+
+          {/* Test GET TPOS Product */}
+          <div className="space-y-4 border-t pt-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Test GET TPOS Product
+            </h3>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Nhập Product ID (ví dụ: 107812)"
+                  value={testTPOSProductId}
+                  onChange={(e) => setTestTPOSProductId(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleTestGetTPOSProduct();
+                    }
+                  }}
+                />
+              </div>
+              <Button 
+                onClick={handleTestGetTPOSProduct}
+                disabled={isTestingTPOSProduct || !testTPOSProductId.trim()}
+              >
+                {isTestingTPOSProduct ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Đang tải...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Test GET Product
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {testTPOSProductError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Lỗi</AlertTitle>
+                <AlertDescription>{testTPOSProductError}</AlertDescription>
+              </Alert>
+            )}
+
+            {testTPOSProductResponse && (
+              <Collapsible open={isTPOSProductResponseOpen} onOpenChange={setIsTPOSProductResponseOpen}>
+                <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">Kết quả (Product ID: {testTPOSProductResponse.Id})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(JSON.stringify(testTPOSProductResponse, null, 2))}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy JSON
+                    </Button>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        {isTPOSProductResponseOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                </div>
+                <CollapsibleContent className="mt-2">
+                  <ScrollArea className="h-[500px] w-full rounded-md border">
+                    <pre className="p-4 text-xs bg-muted">
+                      {JSON.stringify(testTPOSProductResponse, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </div>
+
+          {/* Test PUT TPOS Variant Creation */}
+          <div className="space-y-4 border-t pt-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Test PUT TPOS Variant Creation
+            </h3>
+            <div className="space-y-2">
+              <Input
+                placeholder="Nhập Product ID (ví dụ: 107812)"
+                value={testVariantProductId}
+                onChange={(e) => setTestVariantProductId(e.target.value)}
+              />
+              <Input
+                placeholder="Nhập chuỗi biến thể (ví dụ: Đen, L)"
+                value={testVariantString}
+                onChange={(e) => setTestVariantString(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleTestCreateVariant();
+                  }
+                }}
+              />
+            </div>
+            <Button 
+              onClick={handleTestCreateVariant}
+              disabled={isTestingVariant || !testVariantProductId.trim() || !testVariantString.trim()}
+              className="w-full"
+            >
+              {isTestingVariant ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Đang xử lý...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Test Create Variants
+                </>
+              )}
+            </Button>
+
+            {testVariantError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Lỗi</AlertTitle>
+                <AlertDescription>{testVariantError}</AlertDescription>
+              </Alert>
+            )}
+
+            {testVariantResponse && (
+              <Collapsible open={isVariantResponseOpen} onOpenChange={setIsVariantResponseOpen}>
+                <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">Kết quả tạo variants</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(JSON.stringify(testVariantResponse, null, 2))}
+                    >
+                      <Copy className="h-4 w-4 mr-1" />
+                      Copy JSON
+                    </Button>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        {isVariantResponseOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </CollapsibleTrigger>
+                  </div>
+                </div>
+                <CollapsibleContent className="mt-2">
+                  <ScrollArea className="h-[500px] w-full rounded-md border">
+                    <pre className="p-4 text-xs bg-muted">
+                      {JSON.stringify(testVariantResponse, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
