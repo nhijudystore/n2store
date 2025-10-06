@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,7 @@ export default function LiveProducts() {
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
   const [editingProduct, setEditingProduct] = useState<{
     id: string;
     product_code: string;
@@ -1104,7 +1105,7 @@ export default function LiveProducts() {
           />
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="flex items-center justify-between">
+            <div ref={tabsRef} className="flex items-center justify-between">
               <TabsList>
                 <TabsTrigger value="products" className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
@@ -2015,7 +2016,7 @@ export default function LiveProducts() {
                 size="lg"
                 onClick={(e) => {
                   e.preventDefault();
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   setIsAddProductOpen(true);
                 }}
                 className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
