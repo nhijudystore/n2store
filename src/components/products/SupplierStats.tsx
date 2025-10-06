@@ -55,18 +55,18 @@ export function SupplierStats({ onSupplierClick }: SupplierStatsProps) {
   const { data: supplierStats, isLoading, refetch } = useQuery({
     queryKey: ["supplier-stats"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_supplier_stats" as any);
+      const { data, error } = await supabase.rpc("get_supplier_stats");
       if (error) throw error;
-      return (data || []) as unknown as SupplierStat[];
+      return (data || []) as SupplierStat[];
     },
   });
 
   // Update missing suppliers mutation
   const updateMissingSuppliersMutation = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("update_missing_suppliers" as any);
+      const { data, error } = await supabase.rpc("update_missing_suppliers");
       if (error) throw error;
-      return data;
+      return data as number;
     },
     onSuccess: (updatedCount) => {
       toast({

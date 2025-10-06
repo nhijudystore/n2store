@@ -694,11 +694,12 @@ export type Database = {
       get_supplier_stats: {
         Args: Record<PropertyKey, never>
         Returns: {
+          avg_stock: number
+          low_stock_count: number
           out_of_stock_count: number
           supplier_name: string
+          total_inventory_value: number
           total_products: number
-          total_quantity: number
-          total_stock_value: number
         }[]
       }
       update_missing_suppliers: {
