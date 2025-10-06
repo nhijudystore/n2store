@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save, TestTube2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,9 +7,13 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
+import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload } from "@/lib/tpos-variant-creator";
+import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -27,6 +31,17 @@ const Settings = () => {
   const [isUpdatingToken, setIsUpdatingToken] = useState(false);
   const [isLoadingToken, setIsLoadingToken] = useState(false);
   const [currentToken, setCurrentToken] = useState<any>(null);
+  
+  // Test Variant Creator states
+  const [testProductId, setTestProductId] = useState("107831");
+  const [isGettingProduct, setIsGettingProduct] = useState(false);
+  const [testProduct, setTestProduct] = useState<any>(null);
+  const [selectedSizeText, setSelectedSizeText] = useState<number[]>([]);
+  const [selectedSizeNumber, setSelectedSizeNumber] = useState<number[]>([]);
+  const [selectedColor, setSelectedColor] = useState<number[]>([]);
+  const [isPostingVariant, setIsPostingVariant] = useState(false);
+  const [variantPostResult, setVariantPostResult] = useState<any>(null);
+  const [isTestJsonOpen, setIsTestJsonOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -245,6 +260,115 @@ const Settings = () => {
       });
     } finally {
       setIsFetchingOrders(false);
+    }
+  };
+
+  const handleGetTestProduct = async () => {
+    if (!testProductId.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập TPOS Product ID",
+      });
+      return;
+    }
+
+    setIsGettingProduct(true);
+    setTestProduct(null);
+    setSelectedSizeText([]);
+    setSelectedSizeNumber([]);
+    setSelectedColor([]);
+    setVariantPostResult(null);
+
+    try {
+      const product = await getTPOSProduct(parseInt(testProductId));
+      setTestProduct(product);
+      toast({
+        title: "Lấy sản phẩm thành công",
+        description: `${product.Name}`,
+      });
+    } catch (error: any) {
+      console.error("Get product error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi lấy sản phẩm",
+        description: error.message,
+      });
+    } finally {
+      setIsGettingProduct(false);
+    }
+  };
+
+  const handlePostVariant = async () => {
+    if (!testProduct) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng GET sản phẩm trước",
+      });
+      return;
+    }
+
+    if (selectedSizeText.length === 0 && selectedSizeNumber.length === 0 && selectedColor.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng chọn ít nhất một attribute",
+      });
+      return;
+    }
+
+    setIsPostingVariant(true);
+    setVariantPostResult(null);
+
+    try {
+      // Build selected attributes
+      const selectedAttributes: any = {};
+      
+      if (selectedSizeText.length > 0) {
+        selectedAttributes.sizeText = TPOS_ATTRIBUTES.sizeText.filter(attr => 
+          selectedSizeText.includes(attr.Id)
+        );
+      }
+      
+      if (selectedSizeNumber.length > 0) {
+        selectedAttributes.sizeNumber = TPOS_ATTRIBUTES.sizeNumber.filter(attr => 
+          selectedSizeNumber.includes(attr.Id)
+        );
+      }
+      
+      if (selectedColor.length > 0) {
+        selectedAttributes.color = TPOS_ATTRIBUTES.color.filter(attr => 
+          selectedColor.includes(attr.Id)
+        );
+      }
+
+      // Create attribute lines
+      const attributeLines = createAttributeLines(selectedAttributes);
+      
+      // Generate variants
+      const variants = generateVariants(testProduct, attributeLines);
+      
+      // Create payload
+      const payload = createPayload(testProduct, attributeLines, variants);
+      
+      // Post to TPOS
+      const result = await postTPOSVariantPayload(payload);
+      
+      setVariantPostResult(result);
+      toast({
+        title: "✅ Tạo variant thành công",
+        description: `Đã tạo ${variants.filter((v: any) => v.Id === 0).length} variants mới`,
+      });
+    } catch (error: any) {
+      console.error("Post variant error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi tạo variant",
+        description: error.message,
+      });
+    } finally {
+      setIsPostingVariant(false);
     }
   };
 
@@ -615,6 +739,244 @@ const Settings = () => {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <TestTube2 className="h-5 w-5" />
+            Test Variant Creator
+          </CardTitle>
+          <CardDescription>
+            Test việc tạo variant trên TPOS với product ID và attributes
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">TPOS Product ID</label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                value={testProductId}
+                onChange={(e) => setTestProductId(e.target.value)}
+                placeholder="Nhập TPOS Product ID..."
+                className="flex-1"
+              />
+              <Button
+                onClick={handleGetTestProduct}
+                disabled={isGettingProduct}
+                variant="outline"
+              >
+                {isGettingProduct ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Getting...
+                  </>
+                ) : (
+                  "GET Product"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {testProduct && (
+            <>
+              <Alert>
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Product Retrieved</AlertTitle>
+                <AlertDescription>
+                  <div className="mt-2 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span>Name:</span>
+                      <Badge variant="secondary">{testProduct.Name}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Code:</span>
+                      <Badge variant="outline">{testProduct.DefaultCode}</Badge>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Price:</span>
+                      <Badge>{testProduct.ListPrice?.toLocaleString()} VNĐ</Badge>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+
+              <div className="space-y-4 border rounded-lg p-4">
+                <h3 className="font-medium">Chọn Attributes</h3>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Size Chữ</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {TPOS_ATTRIBUTES.sizeText.map((attr) => (
+                        <div key={attr.Id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`size-text-${attr.Id}`}
+                            checked={selectedSizeText.includes(attr.Id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedSizeText([...selectedSizeText, attr.Id]);
+                              } else {
+                                setSelectedSizeText(selectedSizeText.filter(id => id !== attr.Id));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`size-text-${attr.Id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {attr.Name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Size Số</label>
+                    <div className="grid grid-cols-6 gap-2 max-h-32 overflow-y-auto">
+                      {TPOS_ATTRIBUTES.sizeNumber.map((attr) => (
+                        <div key={attr.Id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`size-number-${attr.Id}`}
+                            checked={selectedSizeNumber.includes(attr.Id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedSizeNumber([...selectedSizeNumber, attr.Id]);
+                              } else {
+                                setSelectedSizeNumber(selectedSizeNumber.filter(id => id !== attr.Id));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`size-number-${attr.Id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {attr.Name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Màu</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {TPOS_ATTRIBUTES.color.map((attr) => (
+                        <div key={attr.Id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`color-${attr.Id}`}
+                            checked={selectedColor.includes(attr.Id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedColor([...selectedColor, attr.Id]);
+                              } else {
+                                setSelectedColor(selectedColor.filter(id => id !== attr.Id));
+                              }
+                            }}
+                          />
+                          <label
+                            htmlFor={`color-${attr.Id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {attr.Name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handlePostVariant}
+                  disabled={isPostingVariant}
+                  className="w-full"
+                >
+                  {isPostingVariant ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Đang POST...
+                    </>
+                  ) : (
+                    "POST Create Variants"
+                  )}
+                </Button>
+              </div>
+
+              {variantPostResult && (
+                <Alert>
+                  <CheckCircle className="h-4 w-4" />
+                  <AlertTitle>Variant Created</AlertTitle>
+                  <AlertDescription>
+                    <div className="mt-2 text-sm">
+                      Response đã nhận. Xem chi tiết bên dưới.
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <Collapsible open={isTestJsonOpen} onOpenChange={setIsTestJsonOpen}>
+                <Card className="border-dashed">
+                  <CollapsibleTrigger className="w-full">
+                    <CardHeader className="hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">Chi tiết JSON Response</CardTitle>
+                        {isTestJsonOpen ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </div>
+                    </CardHeader>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <CardContent>
+                      <div className="space-y-4">
+                        {testProduct && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium">GET Product Response:</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyToClipboard(JSON.stringify(testProduct, null, 2))}
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy
+                              </Button>
+                            </div>
+                            <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                              {JSON.stringify(testProduct, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                        {variantPostResult && (
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <p className="text-sm font-medium">POST Variant Response:</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyToClipboard(JSON.stringify(variantPostResult, null, 2))}
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy
+                              </Button>
+                            </div>
+                            <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                              {JSON.stringify(variantPostResult, null, 2)}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            </>
           )}
         </CardContent>
       </Card>
