@@ -31,7 +31,8 @@ import {
   RefreshCw,
   Maximize2,
   Download,
-  CheckCircle
+  CheckCircle,
+  Code
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -43,6 +44,9 @@ import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface LiveSession {
   id: string;
@@ -189,6 +193,13 @@ export default function LiveProducts() {
     errors: number;
   } | null>(null);
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
+  
+  // States for TPOS GET Order Test
+  const [testOrderId, setTestOrderId] = useState("");
+  const [testOrderResponse, setTestOrderResponse] = useState<any>(null);
+  const [isTestingOrder, setIsTestingOrder] = useState(false);
+  const [testOrderError, setTestOrderError] = useState<string | null>(null);
+  const [isTestResponseOpen, setIsTestResponseOpen] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -903,6 +914,44 @@ export default function LiveProducts() {
     }
   };
 
+  // Test GET TPOS Order
+  const handleTestGetOrder = async () => {
+    if (!testOrderId.trim()) {
+      toast.error("Vui lòng nhập Order ID");
+      return;
+    }
+
+    setIsTestingOrder(true);
+    setTestOrderError(null);
+    setTestOrderResponse(null);
+    
+    try {
+      const token = await getActiveTPOSToken();
+      if (!token) {
+        throw new Error("Không tìm thấy TPOS token");
+      }
+
+      const response = await fetch(
+        `https://tomato.tpos.vn/odata/SaleOnline_Order(${testOrderId})?$expand=Details,Partner,User,CRMTeam`,
+        { headers: getTPOSHeaders(token) }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Lỗi ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      setTestOrderResponse(data);
+      setIsTestResponseOpen(true);
+      toast.success("Lấy thông tin order thành công!");
+    } catch (error: any) {
+      setTestOrderError(error.message);
+      toast.error("Lỗi khi lấy thông tin order");
+    } finally {
+      setIsTestingOrder(false);
+    }
+  };
+
   const getPhaseDisplayName = (phase: LivePhase) => {
     const date = new Date(phase.phase_date);
     const dayNumber = Math.floor((date.getTime() - new Date(livePhases[0]?.phase_date || phase.phase_date).getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -1059,6 +1108,10 @@ export default function LiveProducts() {
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
                   Đơn hàng (theo mã đơn)
+                </TabsTrigger>
+                <TabsTrigger value="tpos-debug" className="flex items-center gap-2">
+                  <Code className="h-4 w-4" />
+                  TPOS Debug
                 </TabsTrigger>
               </TabsList>
 
@@ -1746,6 +1799,98 @@ export default function LiveProducts() {
                   </Table>
                 </Card>
               )}
+            </TabsContent>
+
+            {/* TPOS Debug Tab */}
+            <TabsContent value="tpos-debug" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Code className="h-5 w-5" />
+                    Test GET TPOS Order
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Input
+                        placeholder="Nhập Order ID (ví dụ: 12345)"
+                        value={testOrderId}
+                        onChange={(e) => setTestOrderId(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleTestGetOrder();
+                          }
+                        }}
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleTestGetOrder}
+                      disabled={isTestingOrder || !testOrderId.trim()}
+                    >
+                      {isTestingOrder ? (
+                        <>
+                          <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                          Đang tải...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          Test GET Order
+                        </>
+                      )}
+                    </Button>
+                  </div>
+
+                  {testOrderError && (
+                    <Alert variant="destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle>Lỗi</AlertTitle>
+                      <AlertDescription>{testOrderError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {testOrderResponse && (
+                    <Collapsible open={isTestResponseOpen} onOpenChange={setIsTestResponseOpen}>
+                      <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/50">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="font-medium">Kết quả (Order ID: {testOrderResponse.Id})</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(JSON.stringify(testOrderResponse, null, 2));
+                              toast.success("Đã copy JSON!");
+                            }}
+                          >
+                            <Copy className="h-4 w-4 mr-1" />
+                            Copy JSON
+                          </Button>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              {isTestResponseOpen ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </CollapsibleTrigger>
+                        </div>
+                      </div>
+                      <CollapsibleContent className="mt-2">
+                        <ScrollArea className="h-[500px] w-full rounded-md border">
+                          <pre className="p-4 text-xs bg-muted">
+                            {JSON.stringify(testOrderResponse, null, 2)}
+                          </pre>
+                        </ScrollArea>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </>
