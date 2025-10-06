@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Package } from "lucide-react";
+import { Package, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,8 @@ import { ImportProductsDialog } from "@/components/products/ImportProductsDialog
 import { ImportTPOSIdsDialog } from "@/components/products/ImportTPOSIdsDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 export default function Products() {
   const isMobile = useIsMobile();
@@ -20,6 +22,8 @@ export default function Products() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
   const [isImportTPOSIdsDialogOpen, setIsImportTPOSIdsDialogOpen] = useState(false);
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Query for displayed products (search results or 50 latest)
   const { data: products = [], isLoading, refetch } = useQuery({
@@ -79,6 +83,32 @@ export default function Products() {
     staleTime: 60000,
   });
 
+  const handleClearTPOSIds = async () => {
+    setIsClearing(true);
+    try {
+      // Update all products with TPOS IDs, set to NULL
+      const { error, data } = await supabase
+        .from("products")
+        .update({ 
+          tpos_product_id: null, 
+          productid_bienthe: null 
+        })
+        .or("tpos_product_id.not.is.null,productid_bienthe.not.is.null")
+        .select();
+
+      if (error) throw error;
+
+      toast.success(`Đã xóa TPOS IDs của ${data?.length || 0} sản phẩm`);
+      refetch();
+    } catch (error) {
+      console.error("Error clearing TPOS IDs:", error);
+      toast.error("Có lỗi khi xóa TPOS IDs");
+    } finally {
+      setIsClearing(false);
+      setIsAlertDialogOpen(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className={`${isMobile ? "p-4 space-y-4" : "p-8 space-y-6"}`}>
@@ -109,6 +139,16 @@ export default function Products() {
             />
 
             <div className={`flex gap-2 ${isMobile ? "w-full" : ""}`}>
+              <Button
+                onClick={() => setIsAlertDialogOpen(true)}
+                variant="destructive"
+                size={isMobile ? "sm" : "default"}
+                className={isMobile ? "flex-1 text-xs" : ""}
+                disabled={isClearing}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isClearing ? "Đang xóa..." : "Xóa TPOS IDs"}
+              </Button>
               <Button
                 onClick={() => setIsImportTPOSIdsDialogOpen(true)}
                 variant="outline"
@@ -167,6 +207,29 @@ export default function Products() {
           onOpenChange={setIsImportTPOSIdsDialogOpen}
           onSuccess={refetch}
         />
+
+        <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xác nhận xóa TPOS IDs</AlertDialogTitle>
+              <AlertDialogDescription className="text-destructive font-semibold">
+                Bạn có chắc chắn muốn xóa TẤT CẢ dữ liệu tpos_product_id và productid_bienthe?
+                <br /><br />
+                ⚠️ Hành động này sẽ set NULL cho 2 cột này trong TOÀN BỘ sản phẩm và KHÔNG THỂ hoàn tác!
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isClearing}>Hủy</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleClearTPOSIds}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={isClearing}
+              >
+                {isClearing ? "Đang xóa..." : "Xác nhận xóa"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
