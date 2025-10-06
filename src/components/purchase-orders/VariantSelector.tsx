@@ -1,4 +1,4 @@
-import { useState, KeyboardEvent } from "react";
+import { useState, KeyboardEvent, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { X, Check } from "lucide-react";
 import {
@@ -34,6 +34,7 @@ export function VariantSelector({ value, onChange, className }: VariantSelectorP
   const [inputValue, setInputValue] = useState("");
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Parse value string to array of selected variants
   const selectedVariants = value
@@ -79,7 +80,21 @@ export function VariantSelector({ value, onChange, className }: VariantSelectorP
     } else {
       updateSelection([...selectedVariants, variant]);
     }
+    
+    // Clear input and refocus for continuous selection
+    setInputValue("");
+    setSearchValue("");
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 0);
   };
+
+  // Maintain focus when popover opens
+  useEffect(() => {
+    if (open && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [open]);
 
   // Filter variants based on search
   const filterVariants = (variants: typeof allVariants) => {
@@ -130,9 +145,13 @@ export function VariantSelector({ value, onChange, className }: VariantSelectorP
               </Badge>
             ))}
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+                setSearchValue(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               onBlur={addVariant}
               onFocus={() => setOpen(true)}
