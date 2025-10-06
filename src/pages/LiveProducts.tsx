@@ -2015,6 +2015,7 @@ export default function LiveProducts() {
                 size="lg"
                 onClick={(e) => {
                   e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                   setIsAddProductOpen(true);
                 }}
                 className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
