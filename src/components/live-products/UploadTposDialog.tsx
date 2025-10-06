@@ -1,20 +1,23 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Upload, Loader2 } from "lucide-react";
+import { Upload, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
+import { useState } from "react";
+import { uploadOrderToTPOS, type UploadResult } from "@/lib/tpos-order-uploader";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Order {
   order_code: string;
   tpos_order_id?: string | null;
+  code_tpos_oder_id?: string | null;
   product_code: string;
   product_name: string;
   quantity: number;
   live_product_id: string;
+  tpos_product_id?: number;
+  selling_price?: number;
 }
 
 interface UploadTposDialogProps {
@@ -25,22 +28,22 @@ export function UploadTposDialog({ orders }: UploadTposDialogProps) {
   const [open, setOpen] = useState(false);
   const [selectedOrders, setSelectedOrders] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadResults, setUploadResults] = useState<UploadResult[]>([]);
+  const [progress, setProgress] = useState(0);
 
-  // Group orders by order_code and filter only those with tpos_order_id
-  const ordersWithTpos = orders.filter(o => o.tpos_order_id);
-  const orderGroups = ordersWithTpos.reduce((groups, order) => {
-    if (!groups[order.order_code]) {
-      groups[order.order_code] = {
-        order_code: order.order_code,
-        tpos_order_id: order.tpos_order_id!,
-        items: []
-      };
-    }
-    groups[order.order_code].items.push(order);
-    return groups;
-  }, {} as Record<string, { order_code: string; tpos_order_id: string; items: Order[] }>);
+  // Filter orders that have TPOS ID (use code_tpos_oder_id as primary, fallback to tpos_order_id)
+  const ordersWithTpos = orders.filter(order => order.code_tpos_oder_id || order.tpos_order_id);
 
-  const orderList = Object.values(orderGroups);
+  // Group by order_code
+  const orderGroups = Array.from(
+    ordersWithTpos.reduce((groups, order) => {
+      if (!groups.has(order.order_code)) {
+        groups.set(order.order_code, []);
+      }
+      groups.get(order.order_code)!.push(order);
+      return groups;
+    }, new Map<string, Order[]>())
+  );
 
   const toggleOrder = (orderCode: string) => {
     const newSelected = new Set(selectedOrders);
@@ -53,96 +56,97 @@ export function UploadTposDialog({ orders }: UploadTposDialogProps) {
   };
 
   const toggleAll = () => {
-    if (selectedOrders.size === orderList.length) {
+    if (selectedOrders.size === orderGroups.length) {
       setSelectedOrders(new Set());
     } else {
-      setSelectedOrders(new Set(orderList.map(o => o.order_code)));
+      setSelectedOrders(new Set(orderGroups.map(([code]) => code)));
     }
   };
 
   const handleUpload = async () => {
     if (selectedOrders.size === 0) {
-      toast.error("Vui lòng chọn ít nhất 1 đơn hàng");
+      toast.error("Vui lòng chọn ít nhất một đơn hàng để upload");
       return;
     }
 
     setIsUploading(true);
-    let successCount = 0;
-    let errorCount = 0;
+    setUploadResults([]);
+    setProgress(0);
 
     try {
-      const token = await getActiveTPOSToken();
-      if (!token) {
-        toast.error("Chưa có TPOS Bearer Token. Vui lòng cập nhật trong Cài đặt.");
-        return;
-      }
-      
-      const selectedOrderList = orderList.filter(o => selectedOrders.has(o.order_code));
+      const ordersToUpload = ordersWithTpos.filter(order => 
+        selectedOrders.has(order.order_code)
+      );
 
-      for (const orderGroup of selectedOrderList) {
+      const results: UploadResult[] = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < ordersToUpload.length; i++) {
+        const order = ordersToUpload[i];
+        const tposOrderId = order.code_tpos_oder_id || order.tpos_order_id;
+
+        if (!tposOrderId) {
+          results.push({
+            success: false,
+            orderId: order.order_code,
+            message: "Không có TPOS Order ID",
+            error: "Missing TPOS Order ID"
+          });
+          errorCount++;
+          continue;
+        }
+
         try {
-          // Build payload theo format TPOS
-          const payload = {
-            Details: orderGroup.items.map(item => ({
-              // Note: ProductId cần được lấy từ TPOS, tạm thời skip nếu không có
-              ProductName: item.product_name,
-              Quantity: item.quantity,
-              Price: 0, // Cần lấy giá từ database nếu có
-              UOMName: "Cái",
-              Factor: 1,
-              ProductWeight: 0
-            }))
-          };
+          const result = await uploadOrderToTPOS({
+            tpos_order_id: tposOrderId,
+            product_code: order.product_code,
+            product_name: order.product_name,
+            quantity: order.quantity,
+            tpos_product_id: order.tpos_product_id,
+            selling_price: order.selling_price,
+          });
 
-          const response = await fetch(
-            `https://tomato.tpos.vn/odata/SaleOnline_Order(${orderGroup.tpos_order_id})`,
-            {
-              method: "PUT",
-              headers: getTPOSHeaders(token),
-              body: JSON.stringify(payload)
-            }
-          );
-
-          if (response.ok) {
+          results.push(result);
+          
+          if (result.success) {
             successCount++;
-            
-            // Scroll to the order row
-            const orderRow = document.getElementById(orderGroup.tpos_order_id);
-            if (orderRow) {
-              orderRow.scrollIntoView({ behavior: "smooth", block: "center" });
-              orderRow.classList.add("bg-green-100", "dark:bg-green-900");
-              setTimeout(() => {
-                orderRow.classList.remove("bg-green-100", "dark:bg-green-900");
-              }, 2000);
-            }
           } else {
             errorCount++;
-            console.error(`Failed to upload order ${orderGroup.order_code}:`, await response.text());
           }
-        } catch (error) {
+        } catch (error: any) {
+          results.push({
+            success: false,
+            orderId: tposOrderId,
+            message: "Lỗi upload",
+            error: error.message
+          });
           errorCount++;
-          console.error(`Error uploading order ${orderGroup.order_code}:`, error);
         }
+
+        // Update progress
+        setProgress(((i + 1) / ordersToUpload.length) * 100);
+        setUploadResults([...results]);
       }
 
-      if (successCount > 0) {
-        toast.success(`Đã upload ${successCount} đơn hàng thành công`);
-      }
-      if (errorCount > 0) {
-        toast.error(`${errorCount} đơn hàng upload thất bại`);
+      // Show final toast
+      if (errorCount === 0) {
+        toast.success(`✅ Upload thành công ${successCount} đơn hàng`);
+      } else if (successCount === 0) {
+        toast.error(`❌ Upload thất bại ${errorCount} đơn hàng`);
+      } else {
+        toast.warning(`⚠️ Hoàn thành: ${successCount} thành công, ${errorCount} lỗi`);
       }
 
-      setSelectedOrders(new Set());
-      setOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      toast.error("Có lỗi xảy ra khi upload");
+      toast.error(`Lỗi: ${error.message}`);
     } finally {
       setIsUploading(false);
     }
   };
 
-  if (orderList.length === 0) {
+  if (ordersWithTpos.length === 0) {
     return null;
   }
 
@@ -151,82 +155,164 @@ export function UploadTposDialog({ orders }: UploadTposDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" className="gap-2">
           <Upload className="h-4 w-4" />
-          Upload lên TPOS
+          Upload lên TPOS ({ordersWithTpos.length})
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col">
+
+      <DialogContent className="max-w-5xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle>Chọn đơn hàng upload lên TPOS</DialogTitle>
+          <DialogTitle>Upload đơn hàng lên TPOS</DialogTitle>
         </DialogHeader>
-        
-        <div className="flex-1 overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={selectedOrders.size === orderList.length && orderList.length > 0}
-                    onCheckedChange={toggleAll}
-                  />
-                </TableHead>
-                <TableHead>Mã đơn</TableHead>
-                <TableHead>Mã TPOS</TableHead>
-                <TableHead>Sản phẩm</TableHead>
-                <TableHead className="text-right">Tổng SL</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orderList.map((orderGroup) => {
-                const totalQuantity = orderGroup.items.reduce((sum, item) => sum + item.quantity, 0);
-                return (
-                  <TableRow key={orderGroup.order_code}>
+
+        <div className="space-y-4">
+          {/* Summary Stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Tổng đơn hàng</p>
+              <p className="text-2xl font-bold">{ordersWithTpos.length}</p>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Đã chọn</p>
+              <p className="text-2xl font-bold">{selectedOrders.size}</p>
+            </div>
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Tiến độ</p>
+              <p className="text-2xl font-bold">{Math.round(progress)}%</p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          {isUploading && (
+            <div className="space-y-2">
+              <Progress value={progress} className="h-2" />
+              <p className="text-sm text-muted-foreground text-center">
+                Đang upload {uploadResults.length}/{selectedOrders.size} đơn hàng...
+              </p>
+            </div>
+          )}
+
+          {/* Upload Results */}
+          {uploadResults.length > 0 && (
+            <ScrollArea className="h-48 border rounded-lg p-4">
+              <div className="space-y-2">
+                {uploadResults.map((result, index) => (
+                  <div 
+                    key={index} 
+                    className={`flex items-center gap-2 p-2 rounded ${
+                      result.success ? 'bg-green-50 dark:bg-green-950' : 'bg-red-50 dark:bg-red-950'
+                    }`}
+                  >
+                    {result.success ? (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-600" />
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Order ID: {result.orderId}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {result.success ? result.message : result.error}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+
+          {/* Orders Table */}
+          <ScrollArea className="h-64 border rounded-lg">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrders.size === orderGroups.length}
+                      onChange={toggleAll}
+                      className="rounded border-gray-300"
+                      disabled={isUploading}
+                    />
+                  </TableHead>
+                  <TableHead>Mã đơn</TableHead>
+                  <TableHead>TPOS Order ID</TableHead>
+                  <TableHead>Sản phẩm</TableHead>
+                  <TableHead>SL</TableHead>
+                  <TableHead>TPOS Product ID</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {orderGroups.map(([orderCode, groupOrders]) => (
+                  <TableRow key={orderCode}>
                     <TableCell>
-                      <Checkbox
-                        checked={selectedOrders.has(orderGroup.order_code)}
-                        onCheckedChange={() => toggleOrder(orderGroup.order_code)}
+                      <input
+                        type="checkbox"
+                        checked={selectedOrders.has(orderCode)}
+                        onChange={() => toggleOrder(orderCode)}
+                        className="rounded border-gray-300"
+                        disabled={isUploading}
                       />
                     </TableCell>
-                    <TableCell>
-                      <Badge className="font-mono">{orderGroup.order_code}</Badge>
+                    <TableCell className="font-medium">{orderCode}</TableCell>
+                    <TableCell className="text-sm">
+                      {groupOrders[0].code_tpos_oder_id || groupOrders[0].tpos_order_id}
                     </TableCell>
                     <TableCell>
-                      <span className="text-sm text-muted-foreground font-mono">
-                        {orderGroup.tpos_order_id}
-                      </span>
+                      {groupOrders.map(o => (
+                        <div key={o.live_product_id} className="text-sm">
+                          [{o.product_code}] {o.product_name}
+                        </div>
+                      ))}
                     </TableCell>
                     <TableCell>
-                      <div className="space-y-1">
-                        {orderGroup.items.map((item, idx) => (
-                          <div key={idx} className="text-sm">
-                            {item.product_name} ({item.product_code}) x{item.quantity}
-                          </div>
-                        ))}
-                      </div>
+                      {groupOrders.map(o => (
+                        <div key={o.live_product_id} className="text-sm">
+                          {o.quantity}
+                        </div>
+                      ))}
                     </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {totalQuantity}
+                    <TableCell>
+                      {groupOrders.map(o => (
+                        <div key={o.live_product_id} className="text-sm">
+                          {o.tpos_product_id || '-'}
+                        </div>
+                      ))}
                     </TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
         </div>
 
-        <div className="flex justify-between items-center pt-4 border-t">
-          <div className="text-sm text-muted-foreground">
-            Đã chọn: {selectedOrders.size}/{orderList.length} đơn
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Hủy
-            </Button>
-            <Button onClick={handleUpload} disabled={isUploading || selectedOrders.size === 0}>
-              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Upload ({selectedOrders.size})
-            </Button>
-          </div>
-        </div>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              setOpen(false);
+              setUploadResults([]);
+              setProgress(0);
+            }} 
+            disabled={isUploading}
+          >
+            {isUploading ? "Đóng sau khi hoàn thành" : "Đóng"}
+          </Button>
+          <Button 
+            onClick={handleUpload} 
+            disabled={selectedOrders.size === 0 || isUploading}
+          >
+            {isUploading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Đang upload...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload ({selectedOrders.size})
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
