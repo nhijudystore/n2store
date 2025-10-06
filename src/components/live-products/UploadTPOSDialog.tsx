@@ -177,8 +177,16 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
             );
           }
 
-          // Map data để tạo Details array
-          const detailsArray = liveOrdersData.map(liveOrder => {
+          // Map data và GROUP BY product_code để gộp số lượng
+          const productsMap = new Map<string, {
+            productId: number;
+            productName: string;
+            productNameGet: string;
+            quantity: number;
+            price: number;
+          }>();
+
+          liveOrdersData.forEach(liveOrder => {
             const product = dbProducts.find(
               db => db.product_code === liveOrder.live_products.product_code
             );
@@ -187,18 +195,36 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
               throw new Error(`Không tìm thấy sản phẩm ${liveOrder.live_products.product_code}`);
             }
 
-            return {
-              ProductId: product.productid_bienthe,
-              ProductName: product.product_name,
-              ProductNameGet: `[${product.product_code}] ${product.product_name}`,
-              UOMId: 1,
-              UOMName: "Cái",
-              Quantity: liveOrder.quantity,
-              Price: product.selling_price || 0,
-              Factor: 1,
-              ProductWeight: 0
-            };
+            const productCode = liveOrder.live_products.product_code;
+            
+            if (productsMap.has(productCode)) {
+              // SUM quantity nếu product đã tồn tại
+              const existing = productsMap.get(productCode)!;
+              existing.quantity += liveOrder.quantity;
+            } else {
+              // Tạo mới nếu chưa tồn tại
+              productsMap.set(productCode, {
+                productId: product.productid_bienthe!,
+                productName: product.product_name,
+                productNameGet: `[${product.product_code}] ${product.product_name}`,
+                quantity: liveOrder.quantity,
+                price: product.selling_price || 0
+              });
+            }
           });
+
+          // Chuyển Map thành Details array
+          const detailsArray = Array.from(productsMap.values()).map(item => ({
+            ProductId: item.productId,
+            ProductName: item.productName,
+            ProductNameGet: item.productNameGet,
+            UOMId: 1,
+            UOMName: "Cái",
+            Quantity: item.quantity,
+            Price: item.price,
+            Factor: 1,
+            ProductWeight: 0
+          }));
 
           // BƯỚC 4: Tạo PUT payload - CHỈ chứa sản phẩm mới từ DB
           const updatePayload = {
