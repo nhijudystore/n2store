@@ -683,9 +683,27 @@ export type Database = {
         Args: { session_id: string; start_date: string }
         Returns: undefined
       }
+      extract_supplier_from_name: {
+        Args: { product_name: string }
+        Returns: string
+      }
       get_product_stats: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_supplier_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          out_of_stock_count: number
+          supplier_name: string
+          total_products: number
+          total_quantity: number
+          total_stock_value: number
+        }[]
+      }
+      update_missing_suppliers: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
     }
     Enums: {
