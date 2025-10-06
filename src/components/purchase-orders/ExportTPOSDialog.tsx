@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Download, Loader2, CheckSquare, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadToTPOS, generateTPOSExcel, type TPOSProductItem } from "@/lib/tpos-api";
+import { createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -216,6 +217,43 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         // Store count of products added to inventory
         result.productsAddedToInventory = successfulItems.length;
+
+        // Auto-create variants for products with variant field
+        setCurrentStep("Đang tạo biến thể cho sản phẩm...");
+        result.variantsCreated = 0;
+        result.variantsFailed = 0;
+        result.variantErrors = [];
+
+        for (const item of successfulItems) {
+          // Only process products with variant
+          if (!item.variant) continue;
+
+          // Get tpos_product_id from result
+          const productIdData = result.productIds.find(p => p.itemId === item.id);
+          if (!productIdData) continue;
+
+          try {
+            console.log(`🎨 Creating variants for: ${item.product_name} (TPOS ID: ${productIdData.tposId})`);
+            
+            await createTPOSVariants(
+              productIdData.tposId,
+              item.variant,
+              (msg) => console.log(`  → ${msg}`)
+            );
+            
+            console.log(`✅ Variants created for ${item.product_name}`);
+            result.variantsCreated++;
+          } catch (error) {
+            console.error(`❌ Failed to create variants for ${item.product_name}:`, error);
+            result.variantsFailed++;
+            result.variantErrors.push({
+              productName: item.product_name,
+              productCode: item.product_code || 'N/A',
+              errorMessage: error instanceof Error ? error.message : String(error)
+            });
+            // Don't throw error, just log to not block other products
+          }
+        }
       }
 
       // Thông báo kết quả chi tiết
@@ -237,6 +275,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               <p>✅ Thành công: {result.successCount}/{result.totalProducts} sản phẩm</p>
               <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
               <p>📦 Đã thêm vào kho: {result.productsAddedToInventory || 0} sản phẩm</p>
+              {result.variantsCreated !== undefined && result.variantsCreated > 0 && (
+                <p className="text-green-600 dark:text-green-400">🎨 Đã tạo biến thể: {result.variantsCreated} sản phẩm</p>
+              )}
+              {result.variantsFailed !== undefined && result.variantsFailed > 0 && (
+                <p className="text-yellow-600 dark:text-yellow-400">⚠️ Tạo biến thể thất bại: {result.variantsFailed} sản phẩm</p>
+              )}
               {result.productIds.length > 0 && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
                   <p className="font-medium mb-1">TPOS Product IDs:</p>
