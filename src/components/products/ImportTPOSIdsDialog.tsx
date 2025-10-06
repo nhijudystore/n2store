@@ -110,11 +110,11 @@ export function ImportTPOSIdsDialog({
           if (!variantId || !productCode) continue;
 
           try {
-            // Update products table matching by product_code
+            // Update products table matching by product_code or barcode
             const { error } = await supabase
               .from("products")
               .update({ productid_bienthe: variantId })
-              .eq("product_code", productCode);
+              .or(`product_code.eq.${productCode},barcode.eq.${productCode}`);
 
             if (error) {
               console.error(`Error updating variant ${productCode}:`, error);
