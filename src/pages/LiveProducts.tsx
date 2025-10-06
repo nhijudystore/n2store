@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CreateLiveSessionDialog } from "@/components/live-products/CreateLiveSessionDialog";
 import { EditLiveSessionDialog } from "@/components/live-products/EditLiveSessionDialog";
 import { AddProductToLiveDialog } from "@/components/live-products/AddProductToLiveDialog";
+import { UploadTPOSDialog } from "@/components/live-products/UploadTPOSDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
 import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
@@ -32,7 +33,8 @@ import {
   Maximize2,
   Download,
   CheckCircle,
-  Code
+  Code,
+  Upload
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -93,6 +95,8 @@ interface LiveOrder {
   quantity: number;
   order_date: string;
   is_oversell?: boolean;
+  uploaded_at?: string | null;
+  upload_status?: string | null;
 }
 
 interface OrderWithProduct extends LiveOrder {
@@ -170,6 +174,7 @@ export default function LiveProducts() {
   const [isFullScreenProductViewOpen, setIsFullScreenProductViewOpen] = useState(false);
   const [tposTopValue, setTposTopValue] = useState("20");
   const [isSyncingTpos, setIsSyncingTpos] = useState(false);
+  const [isUploadTPOSOpen, setIsUploadTPOSOpen] = useState(false);
   const [tposSyncResult, setTposSyncResult] = useState<{
     matched: number;
     notFound: number;
@@ -1539,6 +1544,24 @@ export default function LiveProducts() {
                 </Card>
               )}
               
+              {/* Upload TPOS Orders Card */}
+              {ordersWithProducts.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Upload Orders lên TPOS</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Chọn và upload các đơn hàng lên hệ thống TPOS
+                    </p>
+                    <Button onClick={() => setIsUploadTPOSOpen(true)}>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload TPOS
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              
               {/* Sync Product IDs Card */}
               {ordersWithProducts.length > 0 && (
                 <Card>
@@ -1638,6 +1661,7 @@ export default function LiveProducts() {
                   <TableHead className="w-20 text-center font-bold text-base">Số lượng</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Thao tác SP</TableHead>
                   <TableHead className="w-24 text-center font-bold text-base">Trạng thái</TableHead>
+                  <TableHead className="w-28 text-center font-bold text-base">Upload</TableHead>
                 </TableRow>
               </TableHeader>
                     <TableBody>
@@ -1790,6 +1814,26 @@ export default function LiveProducts() {
                                       </label>
                                     </div>
                                   </TableCell>
+                              )}
+                              {index === 0 && (
+                                <TableCell 
+                                  rowSpan={aggregatedProducts.length}
+                                  className="text-center py-2 align-middle border-r"
+                                >
+                                  {(() => {
+                                    const uploadStatus = orders[0]?.upload_status;
+                                    if (uploadStatus === 'success') {
+                                      return <Badge variant="default" className="bg-green-600">Đã upload</Badge>;
+                                    }
+                                    if (uploadStatus === 'failed') {
+                                      return <Badge variant="destructive">Lỗi</Badge>;
+                                    }
+                                    if (orders[0]?.code_tpos_order_id) {
+                                      return <Badge variant="outline">Chưa upload</Badge>;
+                                    }
+                                    return <span className="text-xs text-muted-foreground">-</span>;
+                                  })()}
+                                </TableCell>
                               )}
                             </TableRow>
                           ));
@@ -1964,6 +2008,16 @@ export default function LiveProducts() {
         orders={ordersWithProducts}
         selectedPhase={selectedPhase}
         selectedSession={selectedSession}
+      />
+
+      <UploadTPOSDialog
+        open={isUploadTPOSOpen}
+        onOpenChange={setIsUploadTPOSOpen}
+        sessionId={selectedSession}
+        onUploadComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ['live-orders'] });
+          setIsUploadTPOSOpen(false);
+        }}
       />
     </div>
   );

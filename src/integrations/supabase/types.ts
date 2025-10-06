@@ -180,6 +180,8 @@ export type Database = {
           order_date: string
           quantity: number
           tpos_order_id: string | null
+          upload_status: string | null
+          uploaded_at: string | null
         }
         Insert: {
           code_tpos_order_id?: string | null
@@ -193,6 +195,8 @@ export type Database = {
           order_date?: string
           quantity?: number
           tpos_order_id?: string | null
+          upload_status?: string | null
+          uploaded_at?: string | null
         }
         Update: {
           code_tpos_order_id?: string | null
@@ -206,6 +210,8 @@ export type Database = {
           order_date?: string
           quantity?: number
           tpos_order_id?: string | null
+          upload_status?: string | null
+          uploaded_at?: string | null
         }
         Relationships: [
           {
