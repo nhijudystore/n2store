@@ -166,21 +166,21 @@ export function VariantSelector({ value, onChange, className }: VariantSelectorP
             <CommandList>
               {!hasResults && <CommandEmpty>Không tìm thấy biến thể</CommandEmpty>}
 
-              {filteredColors.length > 0 && (
-                <CommandGroup heading="🎨 Màu sắc">
-                  {filteredColors.map((color) => (
-                    <CommandItem key={color} onSelect={() => handleSelect(color)}>
-                      {color}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-
               {filteredTextSizes.length > 0 && (
                 <CommandGroup heading="📏 Size chữ">
                   {filteredTextSizes.map((size) => (
                     <CommandItem key={size} onSelect={() => handleSelect(size)}>
                       {size}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+
+              {filteredColors.length > 0 && (
+                <CommandGroup heading="🎨 Màu sắc">
+                  {filteredColors.map((color) => (
+                    <CommandItem key={color} onSelect={() => handleSelect(color)}>
+                      {color}
                     </CommandItem>
                   ))}
                 </CommandGroup>
