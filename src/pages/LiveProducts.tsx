@@ -2011,8 +2011,12 @@ export default function LiveProducts() {
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
+                type="button"
                 size="lg"
-                onClick={() => setIsAddProductOpen(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setIsAddProductOpen(true);
+                }}
                 className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
               >
                 <Plus className="h-6 w-6" />
