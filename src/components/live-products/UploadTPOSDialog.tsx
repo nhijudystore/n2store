@@ -115,11 +115,12 @@ export function UploadTPOSDialog({ open, onOpenChange, sessionId, onUploadComple
 
         try {
           // BƯỚC 1: Lấy code_tpos_order_id
-          const { data: orderData, error: orderError } = await supabase
-            .from('live_orders')
-            .select('code_tpos_order_id, id')
-            .eq('order_code', orderCode)
-            .single();
+        const { data: orderData, error: orderError } = await supabase
+          .from('live_orders')
+          .select('code_tpos_order_id, id')
+          .eq('order_code', orderCode)
+          .limit(1)
+          .maybeSingle();
 
           if (orderError) throw orderError;
           if (!orderData.code_tpos_order_id) {
