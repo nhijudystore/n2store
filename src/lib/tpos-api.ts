@@ -1162,7 +1162,11 @@ export async function uploadToTPOS(
     // ========================================
     // PHASE 3: Match CHÍNH XÁC trong phạm vi N products
     // ========================================
-    // Build map: DefaultCode -> Product (CHỈ trong N products mới nhất)
+    // QUAN TRỌNG:
+    // - DefaultCode (TPOS) = product_code (local item) → để match
+    // - Id (TPOS) = tpos_product_id → để lưu vào DB
+    // Là 2 field KHÁC NHAU!
+    
     const tposProductMap = new Map<string, any>();
     const tposProductIds = new Set<number>();
     
@@ -1175,6 +1179,8 @@ export async function uploadToTPOS(
 
     console.log(`\n🔗 Đang match ${uploadedItems.length} products...`);
     console.log(`   QUAN TRỌNG: Chỉ match trong ${tposProductIds.size} products mới nhất`);
+    console.log(`   Match rule: DefaultCode (TPOS) === product_code (local)`);
+    console.log(`   Save rule: Id (TPOS) → tpos_product_id (DB)`);
     
     for (const { item, index } of uploadedItems) {
       const currentStep = index + 1 + items.length;
@@ -1187,10 +1193,10 @@ export async function uploadToTPOS(
       const tposProduct = tposProductMap.get(item.product_code.trim());
       
       // VALIDATION CHẶT CHẼ: 
-      // 1. DefaultCode phải khớp
-      // 2. Product ID phải nằm trong danh sách N products mới nhất
+      // 1. DefaultCode (TPOS) phải === product_code (local)
+      // 2. Id (TPOS) phải nằm trong danh sách N products mới nhất
       if (!tposProduct) {
-        console.warn(`⚠️ [${currentStep}/${items.length * 2}] Không tìm thấy DefaultCode "${item.product_code}" trong ${tposProductIds.size} products mới nhất`);
+        console.warn(`⚠️ [${currentStep}/${items.length * 2}] DefaultCode "${item.product_code}" không tìm thấy trong ${tposProductIds.size} products mới nhất`);
         result.errors.push({
           productName: item.product_name,
           productCode: item.product_code,
@@ -1200,19 +1206,22 @@ export async function uploadToTPOS(
         continue;
       }
 
-      // Double-check: Product ID phải trong danh sách allowed
+      // Double-check: Id (TPOS) phải trong danh sách allowed
       if (!tposProductIds.has(tposProduct.Id)) {
-        console.error(`❌ [${currentStep}/${items.length * 2}] SECURITY: Product ID ${tposProduct.Id} KHÔNG nằm trong danh sách mới nhất!`);
+        console.error(`❌ [${currentStep}/${items.length * 2}] SECURITY: Product Id ${tposProduct.Id} KHÔNG nằm trong danh sách mới nhất!`);
         result.errors.push({
           productName: item.product_name,
           productCode: item.product_code,
-          errorMessage: `Product ID ${tposProduct.Id} không thuộc ${tposProductIds.size} products mới nhất`,
+          errorMessage: `Product Id ${tposProduct.Id} không thuộc ${tposProductIds.size} products mới nhất`,
           fullError: null,
         });
         continue;
       }
 
-      console.log(`✅ [${currentStep}/${items.length * 2}] MATCHED: ${item.product_code} → TPOS ID: ${tposProduct.Id} (DefaultCode: ${tposProduct.DefaultCode})`);
+      console.log(`✅ [${currentStep}/${items.length * 2}] MATCHED:`);
+      console.log(`   Local: product_code="${item.product_code}"`);
+      console.log(`   TPOS:  DefaultCode="${tposProduct.DefaultCode}" | Id=${tposProduct.Id}`);
+      console.log(`   → Will save: tpos_product_id = ${tposProduct.Id}`);
       
       onProgress?.(
         currentStep, 
@@ -1220,10 +1229,10 @@ export async function uploadToTPOS(
         `[2/2] Đang xử lý ${item.product_name}...`
       );
 
-      // Lưu mapping
+      // Lưu mapping: itemId → tpos_product_id (Id field từ TPOS)
       result.productIds.push({
         itemId: item.id,
-        tposId: tposProduct.Id,
+        tposId: tposProduct.Id, // Lưu Id (TPOS) vào tpos_product_id
       });
 
       // Lưu vào cache
