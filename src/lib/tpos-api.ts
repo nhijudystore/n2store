@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { TPOS_CONFIG, getTPOSHeaders, cleanBase64, randomDelay } from "./tpos-config";
+import { TPOS_CONFIG, getTPOSHeaders, getActiveTPOSToken, cleanBase64, randomDelay } from "./tpos-config";
 import { 
   COLORS, 
   TEXT_SIZES, 
@@ -92,12 +92,17 @@ interface SyncTPOSProductIdsResult {
  * Fetch TPOS Products with pagination
  */
 async function fetchTPOSProducts(skip: number = 0): Promise<TPOSProduct[]> {
+  const token = await getActiveTPOSToken();
+  if (!token) {
+    throw new Error("TPOS Bearer Token not found. Please configure in Settings.");
+  }
+  
   const url = `https://tomato.tpos.vn/odata/Product/ODataService.GetViewV2?Active=true&$top=1000&$skip=${skip}&$orderby=DateCreated desc&$filter=Active eq true&$count=true`;
   
   console.log(`[TPOS Product Sync] Fetching from skip=${skip}`);
   
   const response = await fetch(url, {
-    headers: getTPOSHeaders()
+    headers: getTPOSHeaders(token)
   });
   
   if (!response.ok) {
@@ -235,6 +240,11 @@ export async function uploadProductToTPOS(
   }>
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const token = await getActiveTPOSToken();
+    if (!token) {
+      return { success: false, error: "TPOS Bearer Token not found" };
+    }
+    
     // Fetch product details from Supabase to get productid_bienthe and selling_price
     const productCodes = products.map(p => p.product_code);
     const { data: productData, error: productError } = await supabase
@@ -278,7 +288,7 @@ export async function uploadProductToTPOS(
     const response = await fetch(url, {
       method: "PUT",
       headers: {
-        ...getTPOSHeaders(),
+        ...getTPOSHeaders(token),
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ Details: details })
@@ -432,6 +442,19 @@ export interface TPOSUploadResponse {
 }
 
 export async function uploadExcelToTPOS(excelBlob: Blob): Promise<TPOSUploadResponse> {
+  const token = await getActiveTPOSToken();
+  if (!token) {
+    return {
+      status: 'error',
+      message: 'TPOS Bearer Token not found. Please configure in Settings.',
+      success_count: 0,
+      failed_count: 0,
+      errors: [{
+        error: 'Missing TPOS Bearer Token'
+      }]
+    };
+  }
+  
   const reader = new FileReader();
   
   return new Promise((resolve, reject) => {
@@ -456,7 +479,7 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<TPOSUploadResp
 
         const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.ActionImportSimple`, {
           method: "POST",
-          headers: getTPOSHeaders(),
+          headers: getTPOSHeaders(token),
           body: JSON.stringify(payload),
         });
 
@@ -511,13 +534,18 @@ export async function uploadExcelToTPOS(excelBlob: Blob): Promise<TPOSUploadResp
 
 export async function getLatestProducts(count: number): Promise<any[]> {
   try {
+    const token = await getActiveTPOSToken();
+    if (!token) {
+      throw new Error("TPOS Bearer Token not found");
+    }
+    
     console.log(`📥 [TPOS] Fetching latest ${count} products...`);
     
     await randomDelay(400, 900);
 
     const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2`, {
       method: "GET",
-      headers: getTPOSHeaders(),
+      headers: getTPOSHeaders(token),
     });
 
     console.log("Response status:", response.status);
@@ -548,6 +576,11 @@ export async function getLatestProducts(count: number): Promise<any[]> {
 }
 
 export async function getProductDetail(productId: number): Promise<any> {
+  const token = await getActiveTPOSToken();
+  if (!token) {
+    throw new Error("TPOS Bearer Token not found");
+  }
+  
   console.log(`🔎 [TPOS] Fetching product detail: ${productId}`);
   
   await randomDelay(200, 600);
@@ -556,7 +589,7 @@ export async function getProductDetail(productId: number): Promise<any> {
 
   const response = await fetch(`${TPOS_CONFIG.API_BASE}(${productId})?$expand=${expand}`, {
     method: "GET",
-    headers: getTPOSHeaders(),
+    headers: getTPOSHeaders(token),
   });
 
   if (!response.ok) {
@@ -576,6 +609,12 @@ export async function checkTPOSProductsExist(productIds: number[]): Promise<Map<
     return new Map();
   }
 
+  const token = await getActiveTPOSToken();
+  if (!token) {
+    console.error('❌ [TPOS] Token not found');
+    return new Map();
+  }
+
   console.log(`🔍 [TPOS] Checking existence of ${productIds.length} products...`);
   
   try {
@@ -590,7 +629,7 @@ export async function checkTPOSProductsExist(productIds: number[]): Promise<Map<
       `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=${filterQuery}&$select=Id,Name`,
       {
         method: "GET",
-        headers: getTPOSHeaders(),
+        headers: getTPOSHeaders(token),
       }
     );
 
@@ -927,6 +966,11 @@ export async function updateProductWithImage(
   base64Image: string,
   detectedAttributes?: DetectedAttributes
 ): Promise<any> {
+  const token = await getActiveTPOSToken();
+  if (!token) {
+    throw new Error("TPOS Bearer Token not found");
+  }
+  
   console.log(`🖼️ [TPOS] Updating product ${productDetail.Id} with image...`);
   
   await randomDelay(300, 700);
@@ -947,7 +991,7 @@ export async function updateProductWithImage(
 
   const response = await fetch(`${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`, {
     method: "POST",
-    headers: getTPOSHeaders(),
+    headers: getTPOSHeaders(token),
     body: JSON.stringify(payload),
   });
 
@@ -1035,10 +1079,13 @@ export async function uploadToTPOS(
       // Step 3: Đợi TPOS xử lý
       await randomDelay(800, 1200);
       
+      const token = await getActiveTPOSToken();
+      if (!token) throw new Error("TPOS Bearer Token not found");
+      
       // Step 4: Fetch product mới nhất của user "Tú"
       const listResponse = await fetch(
         `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2`,
-        { headers: getTPOSHeaders() }
+        { headers: getTPOSHeaders(token) }
       );
       
       if (!listResponse.ok) {
@@ -1065,7 +1112,7 @@ export async function uploadToTPOS(
       const expandParams = "Images,ProductVariants($select=Id,Name)";
       const detailResponse = await fetch(
         `${TPOS_CONFIG.API_BASE}(${latestProduct.Id})?$expand=${encodeURIComponent(expandParams)}`,
-        { headers: getTPOSHeaders() }
+        { headers: getTPOSHeaders(token) }
       );
 
       if (!detailResponse.ok) {
@@ -1089,7 +1136,7 @@ export async function uploadToTPOS(
             `${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`,
             {
               method: "POST",
-              headers: getTPOSHeaders(),
+              headers: getTPOSHeaders(token),
               body: JSON.stringify(productDetail)
             }
           );

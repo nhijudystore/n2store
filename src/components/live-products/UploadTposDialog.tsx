@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getTPOSHeaders } from "@/lib/tpos-config";
+import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 
 interface Order {
   order_code: string;
@@ -71,6 +71,12 @@ export function UploadTposDialog({ orders }: UploadTposDialogProps) {
     let errorCount = 0;
 
     try {
+      const token = await getActiveTPOSToken();
+      if (!token) {
+        toast.error("Chưa có TPOS Bearer Token. Vui lòng cập nhật trong Cài đặt.");
+        return;
+      }
+      
       const selectedOrderList = orderList.filter(o => selectedOrders.has(o.order_code));
 
       for (const orderGroup of selectedOrderList) {
@@ -92,7 +98,7 @@ export function UploadTposDialog({ orders }: UploadTposDialogProps) {
             `https://tomato.tpos.vn/odata/SaleOnline_Order(${orderGroup.tpos_order_id})`,
             {
               method: "PUT",
-              headers: getTPOSHeaders(),
+              headers: getTPOSHeaders(token),
               body: JSON.stringify(payload)
             }
           );

@@ -169,7 +169,7 @@ export type Database = {
       }
       live_orders: {
         Row: {
-          code_tpos_oder_id: string | null
+          code_tpos_order_id: string | null
           created_at: string
           id: string
           is_oversell: boolean | null
@@ -182,7 +182,7 @@ export type Database = {
           tpos_order_id: string | null
         }
         Insert: {
-          code_tpos_oder_id?: string | null
+          code_tpos_order_id?: string | null
           created_at?: string
           id?: string
           is_oversell?: boolean | null
@@ -195,7 +195,7 @@ export type Database = {
           tpos_order_id?: string | null
         }
         Update: {
-          code_tpos_oder_id?: string | null
+          code_tpos_order_id?: string | null
           created_at?: string
           id?: string
           is_oversell?: boolean | null
@@ -637,6 +637,33 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tpos_config: {
+        Row: {
+          bearer_token: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          bearer_token: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bearer_token?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
           updated_at?: string
         }
         Relationships: []

@@ -39,7 +39,7 @@ import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { getTPOSHeaders } from "@/lib/tpos-config";
+import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import type { DateRange } from "react-day-picker";
@@ -748,8 +748,15 @@ export default function LiveProducts() {
       
       console.log('[TPOS Sync] Fetching from URL:', url);
       
+      const token = await getActiveTPOSToken();
+      if (!token) {
+        toast.error("Chưa có TPOS Bearer Token. Vui lòng cập nhật trong Cài đặt.");
+        setIsSyncingTpos(false);
+        return;
+      }
+      
       const response = await fetch(url, {
-        headers: getTPOSHeaders()
+        headers: getTPOSHeaders(token)
       });
       
       if (!response.ok) throw new Error("Failed to fetch TPOS orders");

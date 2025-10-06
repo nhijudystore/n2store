@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { getTPOSHeaders } from "@/lib/tpos-config";
+import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -21,6 +22,11 @@ const Settings = () => {
   const [isFetchingOrders, setIsFetchingOrders] = useState(false);
   const [ordersResult, setOrdersResult] = useState<any>(null);
   const [isOrdersJsonOpen, setIsOrdersJsonOpen] = useState(false);
+  
+  const [bearerToken, setBearerToken] = useState("");
+  const [isUpdatingToken, setIsUpdatingToken] = useState(false);
+  const [isLoadingToken, setIsLoadingToken] = useState(false);
+  const [currentToken, setCurrentToken] = useState<any>(null);
   
   const { toast } = useToast();
 
@@ -96,11 +102,115 @@ const Settings = () => {
     }
   };
 
+  const loadCurrentToken = async () => {
+    setIsLoadingToken(true);
+    try {
+      const { data, error } = await supabase
+        .from("tpos_config")
+        .select("*")
+        .eq("is_active", true)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setCurrentToken(data);
+        setBearerToken(data.bearer_token);
+        toast({
+          title: "Tải token thành công",
+          description: "Token hiện tại đã được tải",
+        });
+      } else {
+        toast({
+          title: "Chưa có token",
+          description: "Chưa có token nào được lưu trong hệ thống",
+        });
+      }
+    } catch (error: any) {
+      console.error("Load token error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi tải token",
+        description: error.message,
+      });
+    } finally {
+      setIsLoadingToken(false);
+    }
+  };
+
+  const handleUpdateToken = async () => {
+    if (!bearerToken.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập Bearer Token",
+      });
+      return;
+    }
+    
+    setIsUpdatingToken(true);
+    
+    try {
+      // Deactivate all existing tokens
+      const { error: deactivateError } = await supabase
+        .from("tpos_config")
+        .update({ is_active: false })
+        .eq("is_active", true);
+      
+      if (deactivateError) throw deactivateError;
+      
+      // Insert new token
+      const { data: userData } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("tpos_config")
+        .insert({
+          bearer_token: bearerToken.trim(),
+          is_active: true,
+          created_by: userData.user?.id,
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Call edge function to log (manual secret update still required)
+      await supabase.functions.invoke('update-tpos-token', {
+        body: { bearerToken: bearerToken.trim() }
+      });
+      
+      setCurrentToken(data);
+      
+      toast({
+        title: "Cập nhật thành công",
+        description: "Bearer Token đã được cập nhật. Lưu ý: Cần cập nhật manual trong Supabase Secrets cho Edge Functions.",
+      });
+    } catch (error: any) {
+      console.error("Update token error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi cập nhật",
+        description: error.message,
+      });
+    } finally {
+      setIsUpdatingToken(false);
+    }
+  };
+
   const handleFetchOrders = async () => {
     setIsFetchingOrders(true);
     setOrdersResult(null);
     
     try {
+      const token = await getActiveTPOSToken();
+      if (!token) {
+        toast({
+          variant: "destructive",
+          title: "Lỗi",
+          description: "Chưa có TPOS Bearer Token. Vui lòng cập nhật token trước.",
+        });
+        return;
+      }
+      
       // Get today's date range (00:00:00 to 23:59:59)
       const today = new Date();
       const startDate = new Date(today.setHours(0, 0, 0, 0));
@@ -112,7 +222,7 @@ const Settings = () => {
       const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetView?$top=${topValue}&$orderby=DateCreated desc&$filter=(DateCreated ge ${startDateStr} and DateCreated le ${endDateStr})&$count=true`;
       
       const response = await fetch(url, {
-        headers: getTPOSHeaders(),
+        headers: getTPOSHeaders(token),
       });
       
       if (!response.ok) {
@@ -314,6 +424,92 @@ const Settings = () => {
                 </CollapsibleContent>
               </Card>
             </Collapsible>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Cập nhật TPOS Bearer Token
+          </CardTitle>
+          <CardDescription>
+            Quản lý Bearer Token để kết nối với hệ thống TPOS
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Bearer Token</label>
+            <Textarea
+              value={bearerToken}
+              onChange={(e) => setBearerToken(e.target.value)}
+              placeholder="Nhập Bearer Token từ TPOS..."
+              className="min-h-[100px] font-mono text-xs"
+            />
+            <p className="text-xs text-muted-foreground">
+              Token này sẽ được sử dụng để gọi API TPOS. Vui lòng lấy token mới từ TPOS khi token cũ hết hạn.
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <Button
+              onClick={handleUpdateToken}
+              disabled={isUpdatingToken || !bearerToken.trim()}
+            >
+              {isUpdatingToken ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Đang cập nhật...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Cập nhật Token
+                </>
+              )}
+            </Button>
+            
+            <Button
+              onClick={loadCurrentToken}
+              variant="outline"
+              disabled={isLoadingToken}
+            >
+              {isLoadingToken ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Đang tải...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Tải token hiện tại
+                </>
+              )}
+            </Button>
+          </div>
+          
+          {currentToken && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Token hiện tại</AlertTitle>
+              <AlertDescription>
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span>Đã lưu lúc:</span>
+                    <Badge variant="secondary">
+                      {new Date(currentToken.updated_at).toLocaleString('vi-VN')}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Trạng thái:</span>
+                    <Badge variant={currentToken.is_active ? "default" : "secondary"}>
+                      {currentToken.is_active ? "Đang hoạt động" : "Không hoạt động"}
+                    </Badge>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

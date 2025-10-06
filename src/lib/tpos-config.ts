@@ -2,11 +2,10 @@
 // TPOS API CONFIGURATION
 // =====================================================
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const TPOS_CONFIG = {
   API_BASE: "https://tomato.tpos.vn/odata/ProductTemplate",
-  
-  // Bearer Token
-  BEARER_TOKEN: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJDbGllbnRJZCI6InRtdFdlYkFwcCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiZmMwZjQ0MzktOWNmNi00ZDg4LWE4YzctNzU5Y2E4Mjk1MTQyIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZSI6Im52MjAiLCJEaXNwbGF5TmFtZSI6IlTDuiIsIkF2YXRhclVybCI6IiIsIlNlY3VyaXR5U3RhbXAiOiI2ODgxNTgxYi1jZTc1LTRjMWQtYmM4ZC0yNjEwMzAzYzAzN2EiLCJDb21wYW55SWQiOiIxIiwiVGVuYW50SWQiOiJ0b21hdG8udHBvcy52biIsIlJvbGVJZHMiOiI0MmZmYzk5Yi1lNGY2LTQwMDAtYjcyOS1hZTNmMDAyOGEyODksNmExZDAwMDAtNWQxYS0wMDE1LTBlNmMtMDhkYzM3OTUzMmU5LDc2MzlhMDQ4LTdjZmUtNDBiNS1hNDFkLWFlM2YwMDNiODlkZiw4YmM4ZjQ1YS05MWY4LTQ5NzMtYjE4Mi1hZTNmMDAzYWI4NTUsYTljMjAwMDAtNWRiNi0wMDE1LTQ1YWItMDhkYWIxYmZlMjIyIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjpbIlF14bqjbiBMw70gTWFpIiwiQ8OSSSIsIkNTS0ggLSBMw6BpIiwiS2hvIFBoxrDhu5tjLSBLaeG7h3QiLCJRdeG6o24gTMO9IEtobyAtIEJvIl0sImp0aSI6IjY2MzA3MjlkLWJlM2MtNDcwOS1iOWJjLWM2YjNmNzc2ZGYyZSIsImlhdCI6IjE3NTkzODc4NjciLCJuYmYiOjE3NTkzODc4NjcsImV4cCI6MTc2MDY4Mzg2NywiaXNzIjoiaHR0cHM6Ly90b21hdG8udHBvcy52biIsImF1ZCI6Imh0dHBzOi8vdG9tYXRvLnRwb3Mudm4saHR0cHM6Ly90cG9zLnZuIn0.38Srsqs7uhUknlXr08NgtH34ZCBg9TuZ-geO2IrdYcU",
   
   // Upload settings
   CONCURRENT_UPLOADS: 3,
@@ -20,6 +19,30 @@ export const TPOS_CONFIG = {
   // API version
   API_VERSION: "2701",
 } as const;
+
+// =====================================================
+// TOKEN MANAGEMENT
+// =====================================================
+
+export async function getActiveTPOSToken(): Promise<string | null> {
+  try {
+    const { data, error } = await supabase
+      .from('tpos_config')
+      .select('bearer_token')
+      .eq('is_active', true)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error fetching TPOS token:', error);
+      return null;
+    }
+    
+    return data?.bearer_token || null;
+  } catch (error) {
+    console.error('Exception fetching TPOS token:', error);
+    return null;
+  }
+}
 
 // =====================================================
 // UTILITY FUNCTIONS
@@ -46,13 +69,13 @@ export function cleanBase64(base64String: string | null | undefined): string | n
   return base64String.replace(/\s/g, "");
 }
 
-export function getTPOSHeaders() {
+export function getTPOSHeaders(bearerToken: string) {
   return {
     accept: "application/json, text/plain, */*",
     "accept-encoding": "gzip, deflate, br",
     "accept-language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
     "content-type": "application/json;charset=UTF-8",
-    authorization: `Bearer ${TPOS_CONFIG.BEARER_TOKEN}`,
+    authorization: `Bearer ${bearerToken}`,
     origin: "https://tomato.tpos.vn",
     referer: "https://tomato.tpos.vn/",
     "sec-ch-ua": '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
