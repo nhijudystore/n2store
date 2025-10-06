@@ -1136,17 +1136,6 @@ export default function LiveProducts() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsAddProductOpen(true)}
-                      disabled={selectedPhase === "all"}
-                      className="flex items-center gap-2"
-                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để thêm sản phẩm" : ""}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Thêm sản phẩm
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
                       onClick={handleRefreshProducts}
                       disabled={liveProducts.length === 0}
                       className="flex items-center gap-2"
@@ -1168,10 +1157,6 @@ export default function LiveProducts() {
                     <p className="text-muted-foreground text-center mb-4">
                       Thêm sản phẩm đầu tiên cho phiên live này
                     </p>
-                    <Button onClick={() => setIsAddProductOpen(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Thêm sản phẩm
-                    </Button>
                   </CardContent>
                 </Card>
               ) : (
@@ -2019,6 +2004,26 @@ export default function LiveProducts() {
           setIsUploadTPOSOpen(false);
         }}
       />
+
+      {/* Floating Action Button - Thêm sản phẩm */}
+      {selectedPhase && selectedPhase !== "all" && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="lg"
+                onClick={() => setIsAddProductOpen(true)}
+                className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow z-50"
+              >
+                <Plus className="h-6 w-6" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">
+              <p>Thêm sản phẩm</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
     </div>
   );
 }
