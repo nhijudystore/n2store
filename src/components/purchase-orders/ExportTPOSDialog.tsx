@@ -138,9 +138,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   };
 
   /**
-   * Create variant product entries in inventory for color variants
-   * - Root product: M800 (no variant)
-   * - Variant products: M800XD (Xanh Đậu), M800XD1 (Xanh Đen), M800D (Đỏ), M800D1 (Đen)
+   * Create product entries in inventory
+   * - If multiple variants (comma-separated): split into separate products with unique codes
+   * - Example: TEST with variants "Trắng, Đen, Tím" → TESTT (Trắng), TESTD (Đen), TESTT1 (Tím)
    */
   const createVariantProductsInInventory = async (
     rootProductCode: string,
@@ -149,88 +149,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   ): Promise<number> => {
     let createdCount = 0;
     
-    // Separate color variants from non-color variants
-    const colorVariants: Array<{ variant: string; item: TPOSProductItem }> = [];
-    const nonColorVariants: Array<{ variant: string | null; item: TPOSProductItem }> = [];
-    
-    for (const { variant, item } of variants) {
-      if (variant && getVariantType(variant) === 'color') {
-        colorVariants.push({ variant, item });
-      } else {
-        nonColorVariants.push({ variant, item });
-      }
-    }
-    
-    // If no color variants, save normally with root product code
-    if (colorVariants.length === 0) {
-      console.log(`📦 ${rootProductCode}: No color variants, saving normally`);
-      for (const { variant, item } of nonColorVariants) {
-        const { error } = await supabase
-          .from("products")
-          .upsert({
-            product_code: rootProductCode,
-            product_name: item.product_name,
-            variant: variant || null,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            supplier_name: item.supplier_name || '',
-            product_images: item.product_images?.length > 0 ? item.product_images : null,
-            price_images: item.price_images?.length > 0 ? item.price_images : null,
-            stock_quantity: 0,
-            unit: 'Cái',
-            tpos_product_id: tposProductId
-          }, {
-            onConflict: 'product_code,variant',
-            ignoreDuplicates: false
-          });
-        
-        if (!error) createdCount++;
-      }
-      return createdCount;
-    }
-    
-    // Has color variants - create root product first
-    console.log(`🎨 ${rootProductCode}: Has ${colorVariants.length} color variants, creating root + variant entries`);
-    
-    // Step 1: Check if root product exists
-    const { data: existingRoot } = await supabase
-      .from("products")
-      .select("product_code")
-      .eq("product_code", rootProductCode)
-      .is("variant", null)
-      .maybeSingle();
-    
-    // Step 2: Create root product if not exists
-    if (!existingRoot) {
-      console.log(`  Creating root product: ${rootProductCode}`);
-      const representative = colorVariants[0].item;
-      const { error } = await supabase
-        .from("products")
-        .insert({
-          product_code: rootProductCode,
-          product_name: representative.product_name,
-          variant: null,
-          purchase_price: representative.unit_price || 0,
-          selling_price: representative.selling_price || 0,
-          supplier_name: representative.supplier_name || '',
-          product_images: representative.product_images?.length > 0 ? representative.product_images : null,
-          price_images: representative.price_images?.length > 0 ? representative.price_images : null,
-          stock_quantity: 0,
-          unit: 'Cái',
-          tpos_product_id: tposProductId
-        });
-      
-      if (!error) {
-        createdCount++;
-        console.log(`  ✅ Created root product: ${rootProductCode}`);
-      } else {
-        console.error(`  ❌ Failed to create root product:`, error);
-      }
-    } else {
-      console.log(`  ✓ Root product already exists: ${rootProductCode}`);
-    }
-    
-    // Step 3: Get all existing variant product codes for this root to detect duplicates
+    // Get all existing variant codes for this root product to avoid duplicates
     const { data: existingVariants } = await supabase
       .from("products")
       .select("product_code, variant")
@@ -238,44 +157,99 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     
     const usedCodes = new Set<string>();
     existingVariants?.forEach(p => {
-      // Extract the suffix from product_code (e.g., "M800XD" -> "XD")
       const suffix = p.product_code.substring(rootProductCode.length);
       if (suffix) usedCodes.add(suffix);
     });
     
-    console.log(`  Existing variant codes for ${rootProductCode}: ${Array.from(usedCodes).join(', ') || 'none'}`);
+    console.log(`📦 ${rootProductCode}: Existing codes: ${Array.from(usedCodes).join(', ') || 'none'}`);
     
-    // Step 4: Create variant products with unique codes
-    for (const { variant, item } of colorVariants) {
-      const colorCode = generateColorCode(variant, usedCodes);
-      const variantProductCode = `${rootProductCode}${colorCode}`;
+    // Process each variant item
+    for (const { variant, item } of variants) {
+      if (!variant || !variant.trim()) {
+        // No variant - create single product with root code
+        console.log(`  Creating product without variant: ${rootProductCode}`);
+        const { error } = await supabase
+          .from("products")
+          .upsert({
+            product_code: rootProductCode,
+            product_name: item.product_name,
+            variant: null,
+            purchase_price: item.unit_price || 0,
+            selling_price: item.selling_price || 0,
+            supplier_name: item.supplier_name || '',
+            product_images: item.product_images?.length > 0 ? item.product_images : null,
+            price_images: item.price_images?.length > 0 ? item.price_images : null,
+            stock_quantity: 1,
+            unit: 'Cái',
+            tpos_product_id: tposProductId
+          }, {
+            onConflict: 'product_code'
+          });
+        
+        if (!error) createdCount++;
+        continue;
+      }
       
-      console.log(`  Creating variant: ${variant} -> ${variantProductCode}`);
+      // Split variants by comma
+      const variantList = variant.split(',').map(v => v.trim()).filter(Boolean);
       
-      const { error } = await supabase
-        .from("products")
-        .upsert({
-          product_code: variantProductCode,
-          product_name: item.product_name,
-          variant: variant,
-          purchase_price: item.unit_price || 0,
-          selling_price: item.selling_price || 0,
-          supplier_name: item.supplier_name || '',
-          product_images: item.product_images?.length > 0 ? item.product_images : null,
-          price_images: item.price_images?.length > 0 ? item.price_images : null,
-          stock_quantity: 0,
-          unit: 'Cái',
-          tpos_product_id: tposProductId
-        }, {
-          onConflict: 'product_code,variant',
-          ignoreDuplicates: false
-        });
-      
-      if (!error) {
-        createdCount++;
-        console.log(`  ✅ Created variant: ${variantProductCode} (${variant})`);
+      if (variantList.length === 1) {
+        // Single variant - create with root code
+        console.log(`  Creating single variant: ${rootProductCode} (${variantList[0]})`);
+        const { error } = await supabase
+          .from("products")
+          .upsert({
+            product_code: rootProductCode,
+            product_name: item.product_name,
+            variant: variantList[0],
+            purchase_price: item.unit_price || 0,
+            selling_price: item.selling_price || 0,
+            supplier_name: item.supplier_name || '',
+            product_images: item.product_images?.length > 0 ? item.product_images : null,
+            price_images: item.price_images?.length > 0 ? item.price_images : null,
+            stock_quantity: 1,
+            unit: 'Cái',
+            tpos_product_id: tposProductId
+          }, {
+            onConflict: 'product_code'
+          });
+        
+        if (!error) createdCount++;
       } else {
-        console.error(`  ❌ Failed to create variant ${variantProductCode}:`, error);
+        // Multiple variants - split into separate products
+        console.log(`  Splitting ${variantList.length} variants for ${rootProductCode}`);
+        
+        for (const variantItem of variantList) {
+          const colorCode = generateColorCode(variantItem, usedCodes);
+          const variantProductCode = `${rootProductCode}${colorCode}`;
+          
+          console.log(`    Creating: ${variantProductCode} (${variantItem})`);
+          
+          const { error } = await supabase
+            .from("products")
+            .upsert({
+              product_code: variantProductCode,
+              product_name: item.product_name,
+              variant: variantItem,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              supplier_name: item.supplier_name || '',
+              product_images: item.product_images?.length > 0 ? item.product_images : null,
+              price_images: item.price_images?.length > 0 ? item.price_images : null,
+              stock_quantity: 1,
+              unit: 'Cái',
+              tpos_product_id: tposProductId
+            }, {
+              onConflict: 'product_code'
+            });
+          
+          if (!error) {
+            createdCount++;
+            console.log(`    ✅ Created: ${variantProductCode} (${variantItem})`);
+          } else {
+            console.error(`    ❌ Failed to create ${variantProductCode}:`, error);
+          }
+        }
       }
     }
     
@@ -287,6 +261,27 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       toast({
         title: "Chưa chọn sản phẩm",
         description: "Vui lòng chọn ít nhất một sản phẩm",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate variant quantity matching
+    const invalidItems: string[] = [];
+    selectedItems.forEach(item => {
+      const variant = item.variant || "";
+      const quantity = item.quantity || 0;
+      const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
+      
+      if (variantCount > 1 && variantCount !== quantity) {
+        invalidItems.push(`${item.product_code || item.product_name}: ${variantCount} biến thể nhưng số lượng là ${quantity}`);
+      }
+    });
+
+    if (invalidItems.length > 0) {
+      toast({
+        title: "❌ Lỗi validation",
+        description: `Các sản phẩm sau có số lượng không khớp với số biến thể:\n${invalidItems.join('\n')}`,
         variant: "destructive",
       });
       return;
