@@ -217,9 +217,17 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const existingTPOSId = existingTPOSIds.get(productCode);
       
       // Try to get variants from products table first
-      let allVariants = existingVariants
+      // Split comma-separated variants and flatten to get all unique variants
+      let allVariantsFromProducts = existingVariants
         .map(v => v.variant)
-        .filter((v): v is string => Boolean(v));
+        .filter((v): v is string => Boolean(v))
+        .flatMap(v => v.split(/[,，]/).map(s => s.trim())) // Split by comma (English and Chinese)
+        .filter(v => v.length > 0); // Remove empty strings
+      
+      // Remove duplicates
+      allVariantsFromProducts = [...new Set(allVariantsFromProducts)];
+      
+      let allVariants = allVariantsFromProducts;
       
       // If no variants in products table, use variants from purchase_order_items
       if (allVariants.length === 0) {
@@ -227,7 +235,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         allVariants = items
           .map(i => i.variant)
           .filter((v): v is string => Boolean(v))
-          .filter((v, i, arr) => arr.indexOf(v) === i); // Remove duplicates
+          .flatMap(v => v.split(/[,，]/).map(s => s.trim())) // Also split purchase order variants
+          .filter(v => v.length > 0);
+        
+        // Remove duplicates
+        allVariants = [...new Set(allVariants)];
       }
       
       const combinedVariant = allVariants.join(', ');
@@ -243,7 +255,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         return;
       }
 
-      console.log(`📦 ${productCode}: Will upload ${allVariants.length} variants: ${allVariants.join(', ')}`);
+      console.log(`📦 ${productCode}: Will upload ${allVariants.length} unique variants: ${allVariants.join(', ')}`);
       
       // Use first item as representative
       const representative = { ...items[0] };
