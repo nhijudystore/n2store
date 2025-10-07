@@ -12,6 +12,7 @@ import { createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -134,6 +135,151 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         variant: "destructive",
       });
     }
+  };
+
+  /**
+   * Create variant product entries in inventory for color variants
+   * - Root product: M800 (no variant)
+   * - Variant products: M800XD (Xanh Đậu), M800XD1 (Xanh Đen), M800D (Đỏ), M800D1 (Đen)
+   */
+  const createVariantProductsInInventory = async (
+    rootProductCode: string,
+    variants: Array<{ variant: string | null; item: TPOSProductItem }>,
+    tposProductId: number
+  ): Promise<number> => {
+    let createdCount = 0;
+    
+    // Separate color variants from non-color variants
+    const colorVariants: Array<{ variant: string; item: TPOSProductItem }> = [];
+    const nonColorVariants: Array<{ variant: string | null; item: TPOSProductItem }> = [];
+    
+    for (const { variant, item } of variants) {
+      if (variant && getVariantType(variant) === 'color') {
+        colorVariants.push({ variant, item });
+      } else {
+        nonColorVariants.push({ variant, item });
+      }
+    }
+    
+    // If no color variants, save normally with root product code
+    if (colorVariants.length === 0) {
+      console.log(`📦 ${rootProductCode}: No color variants, saving normally`);
+      for (const { variant, item } of nonColorVariants) {
+        const { error } = await supabase
+          .from("products")
+          .upsert({
+            product_code: rootProductCode,
+            product_name: item.product_name,
+            variant: variant || null,
+            purchase_price: item.unit_price || 0,
+            selling_price: item.selling_price || 0,
+            supplier_name: item.supplier_name || '',
+            product_images: item.product_images?.length > 0 ? item.product_images : null,
+            price_images: item.price_images?.length > 0 ? item.price_images : null,
+            stock_quantity: 0,
+            unit: 'Cái',
+            tpos_product_id: tposProductId
+          }, {
+            onConflict: 'product_code,variant',
+            ignoreDuplicates: false
+          });
+        
+        if (!error) createdCount++;
+      }
+      return createdCount;
+    }
+    
+    // Has color variants - create root product first
+    console.log(`🎨 ${rootProductCode}: Has ${colorVariants.length} color variants, creating root + variant entries`);
+    
+    // Step 1: Check if root product exists
+    const { data: existingRoot } = await supabase
+      .from("products")
+      .select("product_code")
+      .eq("product_code", rootProductCode)
+      .is("variant", null)
+      .maybeSingle();
+    
+    // Step 2: Create root product if not exists
+    if (!existingRoot) {
+      console.log(`  Creating root product: ${rootProductCode}`);
+      const representative = colorVariants[0].item;
+      const { error } = await supabase
+        .from("products")
+        .insert({
+          product_code: rootProductCode,
+          product_name: representative.product_name,
+          variant: null,
+          purchase_price: representative.unit_price || 0,
+          selling_price: representative.selling_price || 0,
+          supplier_name: representative.supplier_name || '',
+          product_images: representative.product_images?.length > 0 ? representative.product_images : null,
+          price_images: representative.price_images?.length > 0 ? representative.price_images : null,
+          stock_quantity: 0,
+          unit: 'Cái',
+          tpos_product_id: tposProductId
+        });
+      
+      if (!error) {
+        createdCount++;
+        console.log(`  ✅ Created root product: ${rootProductCode}`);
+      } else {
+        console.error(`  ❌ Failed to create root product:`, error);
+      }
+    } else {
+      console.log(`  ✓ Root product already exists: ${rootProductCode}`);
+    }
+    
+    // Step 3: Get all existing variant product codes for this root to detect duplicates
+    const { data: existingVariants } = await supabase
+      .from("products")
+      .select("product_code, variant")
+      .like("product_code", `${rootProductCode}%`);
+    
+    const usedCodes = new Set<string>();
+    existingVariants?.forEach(p => {
+      // Extract the suffix from product_code (e.g., "M800XD" -> "XD")
+      const suffix = p.product_code.substring(rootProductCode.length);
+      if (suffix) usedCodes.add(suffix);
+    });
+    
+    console.log(`  Existing variant codes for ${rootProductCode}: ${Array.from(usedCodes).join(', ') || 'none'}`);
+    
+    // Step 4: Create variant products with unique codes
+    for (const { variant, item } of colorVariants) {
+      const colorCode = generateColorCode(variant, usedCodes);
+      const variantProductCode = `${rootProductCode}${colorCode}`;
+      
+      console.log(`  Creating variant: ${variant} -> ${variantProductCode}`);
+      
+      const { error } = await supabase
+        .from("products")
+        .upsert({
+          product_code: variantProductCode,
+          product_name: item.product_name,
+          variant: variant,
+          purchase_price: item.unit_price || 0,
+          selling_price: item.selling_price || 0,
+          supplier_name: item.supplier_name || '',
+          product_images: item.product_images?.length > 0 ? item.product_images : null,
+          price_images: item.price_images?.length > 0 ? item.price_images : null,
+          stock_quantity: 0,
+          unit: 'Cái',
+          tpos_product_id: tposProductId
+        }, {
+          onConflict: 'product_code,variant',
+          ignoreDuplicates: false
+        });
+      
+      if (!error) {
+        createdCount++;
+        console.log(`  ✅ Created variant: ${variantProductCode} (${variant})`);
+      } else {
+        console.error(`  ❌ Failed to create variant ${variantProductCode}:`, error);
+      }
+    }
+    
+    return createdCount;
   };
 
   const handleUploadToTPOS = async () => {
@@ -358,7 +504,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         console.log(`💾 Saved TPOS IDs to ${allItemUpdates.length} items (including grouped items)`);
         result.savedIds = allItemUpdates.length;
 
-        // Upsert products to inventory (use upsert to handle duplicates)
+        // Upsert products to inventory with color variant handling
         setCurrentStep("Đang cập nhật kho hàng...");
         
         // Create a map of product_code to tpos_product_id for new products
@@ -370,57 +516,40 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           }
         }
         
-        // Collect unique variants to upsert (deduplicate by product_code + variant)
-        const uniqueVariantsToUpsert = new Map<string, TPOSProductItem & { tpos_product_id: number }>();
+        // Group variants by product_code for inventory creation
+        const variantsByProductCode = new Map<string, Array<{ variant: string | null; item: TPOSProductItem }>>();
         
         for (const [productCode, variantInfo] of variantMapping) {
           const tposId = productCodeToTPOSId.get(productCode);
           if (!tposId) continue; // Skip if no TPOS ID (not a new product)
           
-          // Deduplicate variants - only keep one item per unique (product_code, variant) combo
+          if (!variantsByProductCode.has(productCode)) {
+            variantsByProductCode.set(productCode, []);
+          }
+          
+          // Add all items with their variants
           for (const item of variantInfo.items) {
-            const uniqueKey = `${item.product_code}|||${item.variant || ''}`;
-            if (!uniqueVariantsToUpsert.has(uniqueKey)) {
-              uniqueVariantsToUpsert.set(uniqueKey, { ...item, tpos_product_id: tposId });
-            }
-          }
-        }
-        
-        console.log(`📦 Upserting ${uniqueVariantsToUpsert.size} unique variants to inventory`);
-        
-        // Upsert each unique variant as a separate product entry
-        let upsertedCount = 0;
-        for (const item of uniqueVariantsToUpsert.values()) {
-          const { error: productError } = await supabase
-            .from("products")
-            .upsert({
-              product_code: item.product_code,
-              product_name: item.product_name,
+            variantsByProductCode.get(productCode)!.push({
               variant: item.variant || null,
-              purchase_price: item.unit_price || 0,
-              selling_price: item.selling_price || 0,
-              supplier_name: item.supplier_name || '',
-              product_images: item.product_images?.length > 0 ? item.product_images : null,
-              price_images: item.price_images?.length > 0 ? item.price_images : null,
-              stock_quantity: 0,
-              unit: 'Cái',
-              tpos_product_id: item.tpos_product_id
-            }, {
-              onConflict: 'product_code,variant',
-              ignoreDuplicates: false // Update if exists
-            })
-            .select()
-            .single();
-
-          if (productError) {
-            console.error('Error upserting product variant:', productError);
-          } else {
-            upsertedCount++;
+              item: item
+            });
           }
         }
         
-        result.productsAddedToInventory = upsertedCount;
-        console.log(`✅ Successfully upserted ${upsertedCount} unique product variants to inventory`);
+        console.log(`📦 Creating inventory entries for ${variantsByProductCode.size} product codes`);
+        
+        // Create inventory entries using the new helper function
+        let totalCreated = 0;
+        for (const [productCode, variants] of variantsByProductCode) {
+          const tposId = productCodeToTPOSId.get(productCode);
+          if (!tposId) continue;
+          
+          const created = await createVariantProductsInInventory(productCode, variants, tposId);
+          totalCreated += created;
+        }
+        
+        result.productsAddedToInventory = totalCreated;
+        console.log(`✅ Successfully created ${totalCreated} product entries in inventory`);
 
         // Auto-create variants for NEW products uploaded to TPOS
         setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
@@ -498,41 +627,23 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             console.log(`✅ Variants added to ${productCode}`);
             result.variantsCreated = (result.variantsCreated || 0) + 1;
 
-            // Upsert variants to products table
+            // Create inventory entries for variants using the helper function
+            const variantsToCreate = items.map(item => ({
+              variant: item.variant || null,
+              item: item
+            }));
+            
+            const created = await createVariantProductsInInventory(productCode, variantsToCreate, existingTPOSId);
+            
+            // Update purchase_order_items with TPOS ID
             for (const item of items) {
-              const { error: productError } = await supabase
-                .from("products")
-                .upsert({
-                  product_code: item.product_code,
-                  product_name: item.product_name,
-                  variant: item.variant || null,
-                  purchase_price: item.unit_price || 0,
-                  selling_price: item.selling_price || 0,
-                  supplier_name: item.supplier_name || '',
-                  product_images: item.product_images?.length > 0 ? item.product_images : null,
-                  price_images: item.price_images?.length > 0 ? item.price_images : null,
-                  stock_quantity: 0,
-                  unit: 'Cái',
-                  tpos_product_id: existingTPOSId
-                }, {
-                  onConflict: 'product_code,variant',
-                  ignoreDuplicates: false // Update if exists
-                })
-                .select()
-                .single();
-
-              if (productError) {
-                console.error('Error upserting variant:', productError);
-              }
-
-              // Update purchase_order_items with TPOS ID
               await supabase
                 .from("purchase_order_items")
                 .update({ tpos_product_id: existingTPOSId })
                 .eq("id", item.id);
             }
 
-            result.productsAddedToInventory = (result.productsAddedToInventory || 0) + items.length;
+            result.productsAddedToInventory = (result.productsAddedToInventory || 0) + created;
           } catch (error) {
             console.error(`❌ Failed to add variants for ${productCode}:`, error);
             result.variantsFailed = (result.variantsFailed || 0) + 1;
