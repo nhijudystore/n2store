@@ -14,6 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
 import { detectVariantsFromText } from "@/lib/variant-detector";
+import { generateAllVariants } from "@/lib/variant-code-generator";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -395,104 +396,86 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         }
       }
       
-      // THEN: Create variant products with unique codes
-      for (const { variantName, item, quantity } of allVariantsToCreate) {
-        // Split combination (may contain multiple attributes like "S, Hồng")
+      // THEN: Create variant products with unique codes using generateAllVariants
+      
+      // Step 1: Collect all unique attributes from variants
+      const sizeTexts: string[] = [];
+      const colors: string[] = [];
+      const sizeNumbers: string[] = [];
+      
+      for (const { variantName } of allVariantsToCreate) {
         const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
         
-        // Detect all attributes in this combination
-        let sizeText = '';
-        let colorValue = '';
-        let sizeNumber = '';
+        for (const part of variantParts) {
+          const detection = detectVariantsFromText(part);
+          
+          if (detection.sizeText.length > 0) {
+            const value = detection.sizeText[0].value;
+            if (!sizeTexts.includes(value)) sizeTexts.push(value);
+          }
+          if (detection.colors.length > 0) {
+            const value = detection.colors[0].value;
+            if (!colors.includes(value)) colors.push(value);
+          }
+          if (detection.sizeNumber.length > 0) {
+            const value = detection.sizeNumber[0].value;
+            if (!sizeNumbers.includes(value)) sizeNumbers.push(value);
+          }
+        }
+      }
+      
+      console.log(`    📦 Detected attributes - Size text: [${sizeTexts.join(', ')}], Colors: [${colors.join(', ')}], Size numbers: [${sizeNumbers.join(', ')}]`);
+      
+      // Step 2: Generate ALL variants using the standard generator
+      const generatedVariants = generateAllVariants({
+        productCode: rootProductCode,
+        productName: firstItem.product_name,
+        sizeTexts,
+        colors,
+        sizeNumbers
+      });
+      
+      console.log(`    ✅ Generated ${generatedVariants.length} variants using standard generator`);
+      
+      // Step 3: Match each local variant to generated variant and create products
+      for (const { variantName, item, quantity } of allVariantsToCreate) {
+        // Parse variant parts to match with generated variants
+        const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
         
-        // Process each part and categorize
+        let sizeText: string | null = null;
+        let color: string | null = null;
+        let sizeNumber: string | null = null;
+        
         for (const part of variantParts) {
           const detection = detectVariantsFromText(part);
           
           if (detection.sizeText.length > 0 && !sizeText) {
             sizeText = detection.sizeText[0].value;
-          } else if (detection.colors.length > 0 && !colorValue) {
-            colorValue = detection.colors[0].value;
-          } else if (detection.sizeNumber.length > 0 && !sizeNumber) {
+          }
+          if (detection.colors.length > 0 && !color) {
+            color = detection.colors[0].value;
+          }
+          if (detection.sizeNumber.length > 0 && !sizeNumber) {
             sizeNumber = detection.sizeNumber[0].value;
           }
         }
         
-        // Helper function to normalize Vietnamese text (remove diacritics)
-        const normalizeVietnamese = (text: string): string => {
-          return text
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/đ/g, 'd')
-            .replace(/Đ/g, 'D');
-        };
+        // Find matching generated variant
+        const matchedVariant = generatedVariants.find(gv => 
+          gv.sizeText === sizeText &&
+          gv.color === color &&
+          gv.sizeNumber === sizeNumber
+        );
         
-        // Build variant code in order: Size + Color + Numeric Size
-        let variantCode = '';
-        let baseCode = ''; // Code without numeric suffix for duplicate checking
-        
-        // 1. Add size text - normalize and take first letter of each word, then only first character
-        if (sizeText) {
-          const normalized = normalizeVietnamese(sizeText);
-          const words = normalized.split(/\s+/);
-          const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
-          variantCode += firstLetters.charAt(0);
-          baseCode += firstLetters.charAt(0);
+        if (!matchedVariant) {
+          console.error(`    ❌ Could not match variant: ${variantName} (size: ${sizeText}, color: ${color}, num: ${sizeNumber})`);
+          continue;
         }
         
-        // 2. Add color code - normalize and take first letter of each word
-        if (colorValue) {
-          const normalized = normalizeVietnamese(colorValue);
-          const colorWords = normalized.split(/\s+/);
-          const colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
-          variantCode += colorCode;
-          baseCode += colorCode;
-        }
+        const variantProductCode = matchedVariant.fullCode;
+        const fullProductName = matchedVariant.productName;
         
-        // Check if this base code already exists
-        const baseKey = baseCode;
-        const existingSameCodes = Array.from(usedCodes).filter(code => code.startsWith(baseKey));
-        
-        // 3. Add numeric size or duplicate suffix
-        if (existingSameCodes.length > 0 && sizeNumber) {
-          // If duplicate, append sequential numbers (1, 12, 123, 1234...)
-          let sequentialSuffix = '';
-          for (let i = 1; i <= existingSameCodes.length; i++) {
-            sequentialSuffix += i;
-          }
-          variantCode += sizeNumber + sequentialSuffix;
-        } else if (sizeNumber) {
-          // First occurrence, use the actual size number
-          // Special case: Nếu chỉ có size số (không có size chữ và màu) 
-          // VÀ productCode kết thúc bằng số → thêm "A" trước size số
-          const hasOtherAttributes = sizeText || colorValue;
-          const productCodeEndsWithNumber = /\d$/.test(rootProductCode);
-          
-          if (!hasOtherAttributes && productCodeEndsWithNumber) {
-            variantCode += `A${sizeNumber}`;
-          } else {
-            variantCode += sizeNumber;
-          }
-        }
-        
-        // Fallback: if no detection, use the original color code generation
-        if (!variantCode) {
-          variantCode = generateColorCode(variantName, usedCodes);
-        }
-        
-        usedCodes.add(variantCode);
-        const variantProductCode = `${rootProductCode}${variantCode}`;
-        
-        console.log(`    Creating: ${variantProductCode} (${variantName}, size: ${sizeText}, color: ${colorValue}, sizeNum: ${sizeNumber}, code: ${variantCode}, qty: ${quantity})`);
-        
-        // Generate product name with variant details format: BaseName (sizeNumber, color, sizeText)
-        const nameParts: string[] = [];
-        if (sizeNumber) nameParts.push(sizeNumber);
-        if (colorValue) nameParts.push(colorValue);
-        if (sizeText) nameParts.push(sizeText);
-        const fullProductName = nameParts.length > 0 
-          ? `${item.product_name} (${nameParts.join(', ')})`
-          : item.product_name;
+        console.log(`    Creating: ${variantProductCode} (${variantName} -> ${fullProductName}, qty: ${quantity})`);
         
         // Check if product already exists
         const { data: existing } = await supabase
