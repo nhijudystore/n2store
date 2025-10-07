@@ -413,40 +413,44 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
         
         // Detect all attributes in this combination
-        let combinedDetection = {
-          colors: [] as Array<{value: string; confidence: number}>,
-          sizeText: [] as Array<{value: string; confidence: number}>,
-          sizeNumber: [] as Array<{value: string; confidence: number}>
-        };
+        let sizeText = '';
+        let colorValue = '';
+        let sizeNumber = '';
         
+        // Process each part and categorize
         for (const part of variantParts) {
           const detection = detectVariantsFromText(part);
-          combinedDetection.colors.push(...detection.colors);
-          combinedDetection.sizeText.push(...detection.sizeText);
-          combinedDetection.sizeNumber.push(...detection.sizeNumber);
+          
+          if (detection.sizeText.length > 0 && !sizeText) {
+            sizeText = detection.sizeText[0].value;
+          } else if (detection.colors.length > 0 && !colorValue) {
+            colorValue = detection.colors[0].value;
+          } else if (detection.sizeNumber.length > 0 && !sizeNumber) {
+            sizeNumber = detection.sizeNumber[0].value;
+          }
         }
         
+        // Build variant code in order: Size + Color + Numeric Size
         let variantCode = '';
         
-        // Build code in CORRECT order: text size + color + numeric size
-        if (combinedDetection.sizeText.length > 0) {
-          const sizeText = combinedDetection.sizeText[0].value.toUpperCase();
-          // For XL, use just 'X' in the code
-          variantCode += sizeText === 'XL' ? 'X' : sizeText;
+        // 1. Add size text (XL → X, others stay the same)
+        if (sizeText) {
+          const sizeUpper = sizeText.toUpperCase();
+          variantCode += sizeUpper === 'XL' ? 'X' : sizeUpper;
         }
         
-        if (combinedDetection.colors.length > 0) {
-          const colorCode = generateColorCode(combinedDetection.colors[0].value, usedCodes);
+        // 2. Add color code
+        if (colorValue) {
+          const colorCode = generateColorCode(colorValue, usedCodes);
           variantCode += colorCode;
         }
         
-        if (combinedDetection.sizeNumber.length > 0) {
-          const sizeNum = combinedDetection.sizeNumber[0].value;
-          // If root code ends with number and we only have numeric size, add 'A' prefix
-          if (/\d$/.test(rootProductCode) && combinedDetection.colors.length === 0 && combinedDetection.sizeText.length === 0) {
-            variantCode += `A${sizeNum}`;
+        // 3. Add numeric size (only if no color/size text, add 'A' prefix for numeric-ending product codes)
+        if (sizeNumber) {
+          if (/\d$/.test(rootProductCode) && !colorValue && !sizeText) {
+            variantCode += `A${sizeNumber}`;
           } else {
-            variantCode += sizeNum;
+            variantCode += sizeNumber;
           }
         }
         
@@ -458,7 +462,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         usedCodes.add(variantCode);
         const variantProductCode = `${rootProductCode}${variantCode}`;
         
-        console.log(`    Creating: ${variantProductCode} (${variantName}, code: ${variantCode}, qty: ${quantity})`);
+        console.log(`    Creating: ${variantProductCode} (${variantName}, size: ${sizeText}, color: ${colorValue}, sizeNum: ${sizeNumber}, code: ${variantCode}, qty: ${quantity})`);
         
         // Check if product already exists
         const { data: existing } = await supabase
