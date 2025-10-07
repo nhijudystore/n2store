@@ -28,6 +28,8 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 import { detectSupplierFromProductName } from "@/lib/supplier-detector";
 import { Badge } from "@/components/ui/badge";
+import { detectVariantsFromText } from "@/lib/variant-detector";
+import { generateProductName, generateVariantCode } from "@/lib/variant-code-generator";
 import { Store } from "lucide-react";
 
 interface AddProductToLiveDialogProps {
@@ -177,40 +179,60 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const productCode = data.product_code.trim() || "N/A";
-      const productName = data.product_name.trim() || "Không có";
+      const baseProductCode = data.product_code.trim() || "N/A";
+      const baseProductName = data.product_name.trim() || "Không có";
       
       const finalImageUrl = imageUrl || null;
       
-      // Check for duplicates for each variant
+      // Process each variant to generate unique product codes and names
+      const usedCodes = new Set<string>();
+      const codeCollisionCount = new Map<string, number>();
+      const insertData = [];
+      
       for (const variant of data.variants) {
-        const variantName = variant.name.trim() || null;
+        const variantName = variant.name.trim();
         
+        // Parse variant name to extract parts using variant detector
+        const detectionResult = detectVariantsFromText(variantName);
+        
+        // Extract parts from detection
+        const sizeNumber = detectionResult.sizeNumber.length > 0 ? detectionResult.sizeNumber[0].value : undefined;
+        const color = detectionResult.colors.length > 0 ? detectionResult.colors[0].value : undefined;
+        const sizeText = detectionResult.sizeText.length > 0 ? detectionResult.sizeText[0].value : undefined;
+        
+        // Generate variant code and full product code
+        const combo = {
+          text: variantName,
+          parts: { sizeNumber, color, sizeText }
+        };
+        
+        const codeInfo = generateVariantCode(combo, baseProductCode, usedCodes, codeCollisionCount);
+        const fullProductName = generateProductName(baseProductName, combo.parts);
+        
+        // Check for duplicates with the new full code
         const { data: existingProducts, error: checkError } = await supabase
           .from("live_products")
           .select("id")
           .eq("live_phase_id", phaseId)
-          .eq("product_code", productCode)
-          .eq("variant", variantName);
+          .eq("product_code", codeInfo.fullCode);
 
         if (checkError) throw checkError;
 
         if (existingProducts && existingProducts.length > 0) {
-          throw new Error(`Biến thể "${variant.name || '(Không có)'}" đã tồn tại cho sản phẩm này`);
+          throw new Error(`Sản phẩm "${codeInfo.fullCode}" đã tồn tại trong phiên live này`);
         }
+        
+        insertData.push({
+          live_session_id: sessionId,
+          live_phase_id: phaseId,
+          product_code: codeInfo.fullCode,
+          product_name: fullProductName,
+          variant: variantName || null,
+          prepared_quantity: variant.quantity,
+          sold_quantity: 0,
+          image_url: finalImageUrl,
+        });
       }
-
-      // Insert all variants
-      const insertData = data.variants.map(variant => ({
-        live_session_id: sessionId,
-        live_phase_id: phaseId,
-        product_code: productCode,
-        product_name: productName,
-        variant: variant.name.trim() || null,
-        prepared_quantity: variant.quantity,
-        sold_quantity: 0,
-        image_url: finalImageUrl,
-      }));
 
       const { error } = await supabase
         .from("live_products")
