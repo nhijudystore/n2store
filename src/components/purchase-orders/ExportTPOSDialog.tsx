@@ -670,6 +670,27 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 .update({ tpos_product_id: existingTPOSId })
                 .eq("id", item.id);
             }
+
+            // Add variants to inventory
+            const allVariants = combinedVariant.split('\n').filter(v => v.trim());
+            const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+            const quantityPerVariant = Math.floor(totalQuantity / allVariants.length);
+            
+            const variantsToCreate = allVariants.map(variantName => ({
+              variantName,
+              item: items[0],
+              quantity: quantityPerVariant
+            }));
+            
+            const inventoryResult = await createVariantProductsInInventory(
+              productCode,
+              items[0].product_name,
+              variantsToCreate,
+              existingTPOSId
+            );
+            
+            result.inventoryCreated += inventoryResult.createdCount;
+            result.inventoryUpdated += inventoryResult.updatedCount;
           } catch (error) {
             console.error(`❌ Failed to add variants for ${productCode}:`, error);
             result.variantsFailed = (result.variantsFailed || 0) + 1;
