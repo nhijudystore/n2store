@@ -216,15 +216,24 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const existingVariants = existingVariantsByCode.get(productCode) || [];
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Use ALL variants from products table (not from purchase_orders)
-      const allVariants = existingVariants
+      // Try to get variants from products table first
+      let allVariants = existingVariants
         .map(v => v.variant)
         .filter((v): v is string => Boolean(v));
+      
+      // If no variants in products table, use variants from purchase_order_items
+      if (allVariants.length === 0) {
+        console.log(`⚠️ ${productCode}: No variants in products table, using variants from purchase_orders`);
+        allVariants = items
+          .map(i => i.variant)
+          .filter((v): v is string => Boolean(v))
+          .filter((v, i, arr) => arr.indexOf(v) === i); // Remove duplicates
+      }
       
       const combinedVariant = allVariants.join(', ');
 
       if (allVariants.length === 0) {
-        console.log(`⚠️ ${productCode}: No variants found in products table, skipping variant upload`);
+        console.log(`⚠️ ${productCode}: No variants found anywhere, skipping variant upload`);
         // Still upload the product itself if needed
         if (!existingTPOSId) {
           const representative = { ...items[0] };
@@ -234,15 +243,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         return;
       }
 
-      console.log(`📦 ${productCode}: Will upload ${allVariants.length} variants from products table: ${allVariants.join(', ')}`);
+      console.log(`📦 ${productCode}: Will upload ${allVariants.length} variants: ${allVariants.join(', ')}`);
       
       // Use first item as representative
       const representative = { ...items[0] };
       
       // Check if product already exists on TPOS
       if (existingTPOSId) {
-        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync all variants from products table`);
-        // Store for variant creation - use ALL variants from products table
+        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync all variants`);
+        // Store for variant creation
         variantMapping.set(productCode, {
           items: items,
           allVariants: allVariants,
@@ -250,8 +259,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           existingTPOSId: existingTPOSId
         });
       } else {
-        // Product doesn't exist on TPOS yet - need to upload with all variants from products table
-        console.log(`📤 ${productCode}: New product, will upload to TPOS with all variants from products table`);
+        // Product doesn't exist on TPOS yet - need to upload with all variants
+        console.log(`📤 ${productCode}: New product, will upload to TPOS with variants`);
         
         variantMapping.set(productCode, {
           items: items,
