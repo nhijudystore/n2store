@@ -76,6 +76,20 @@ export function createCartesianProduct({
 }): Combination[] {
   let combinations: Combination[] = [{ text: '', parts: {} }];
 
+  // Add colors first
+  if (colors.length > 0) {
+    const newCombinations: Combination[] = [];
+    for (const base of combinations) {
+      for (const color of colors) {
+        newCombinations.push({
+          text: base.text ? `${base.text}, ${color}` : color,
+          parts: { ...base.parts, color }
+        });
+      }
+    }
+    combinations = newCombinations;
+  }
+
   // Add size texts
   if (sizeTexts.length > 0) {
     const newCombinations: Combination[] = [];
@@ -84,20 +98,6 @@ export function createCartesianProduct({
         newCombinations.push({
           text: base.text ? `${base.text}, ${size}` : size,
           parts: { ...base.parts, sizeText: size }
-        });
-      }
-    }
-    combinations = newCombinations;
-  }
-
-  // Add colors
-  if (colors.length > 0) {
-    const newCombinations: Combination[] = [];
-    for (const base of combinations) {
-      for (const color of colors) {
-        newCombinations.push({
-          text: base.text ? `${base.text}, ${color}` : color,
-          parts: { ...base.parts, color }
         });
       }
     }
@@ -131,9 +131,9 @@ export function generateProductName(
   { sizeNumber, color, sizeText }: VariantParts
 ): string {
   const nameParts: string[] = [];
-  if (sizeNumber) nameParts.push(sizeNumber);
   if (color) nameParts.push(color);
   if (sizeText) nameParts.push(sizeText);
+  if (sizeNumber) nameParts.push(sizeNumber);
   
   return nameParts.length > 0 
     ? `${baseName} (${nameParts.join(', ')})`
