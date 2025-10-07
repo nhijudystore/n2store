@@ -12,8 +12,6 @@ import { createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COLORS, TEXT_SIZES, NUMBER_SIZES } from "@/lib/variant-attributes";
-import { generateAllVariants } from "@/lib/variant-code-generator";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -139,120 +137,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   };
 
 
-  // Function to create variant products in inventory using generateAllVariants
-  const createVariantProductsInInventory = async (
-    rootProductCode: string,
-    productName: string,
-    variantsToCreate: Array<{
-      variantName: string;
-      item: any;
-      quantity: number;
-    }>,
-    tposProductId?: number
-  ) => {
-    console.log(`🏭 Creating inventory variants for ${rootProductCode}...`);
-    
-    // Step 1: Extract attributes from variant names
-    const sizeTexts = new Set<string>();
-    const colors = new Set<string>();
-    const sizeNumbers = new Set<string>();
-    
-    for (const { variantName } of variantsToCreate) {
-      const parts = variantName.split(',').map(v => v.trim());
-      
-      for (const part of parts) {
-        if (TEXT_SIZES.includes(part)) {
-          sizeTexts.add(part);
-        } else if (COLORS.includes(part)) {
-          colors.add(part);
-        } else if (NUMBER_SIZES.includes(part)) {
-          sizeNumbers.add(part);
-        }
-      }
-    }
-    
-    console.log(`  📋 Extracted: ${sizeTexts.size} text sizes, ${colors.size} colors, ${sizeNumbers.size} number sizes`);
-    
-    // Step 2: Generate ALL variants using the test tool logic
-    const generatedVariants = generateAllVariants({
-      productCode: rootProductCode,
-      productName: productName,
-      sizeTexts: Array.from(sizeTexts),
-      colors: Array.from(colors),
-      sizeNumbers: Array.from(sizeNumbers)
-    });
-    
-    console.log(`  🎯 Generated ${generatedVariants.length} variant combinations`);
-    
-    // Step 3: Match and upsert to products table
-    let createdCount = 0;
-    let updatedCount = 0;
-    
-    for (const { variantName, item, quantity } of variantsToCreate) {
-      const matchedVariant = generatedVariants.find(
-        gv => gv.variantText === variantName
-      );
-      
-      if (!matchedVariant) {
-        console.warn(`⚠️ No match for variant: ${variantName}`);
-        continue;
-      }
-      
-      const variantProductCode = matchedVariant.fullCode;
-      const fullProductName = matchedVariant.productName;
-      
-      console.log(`  🔗 Matched: ${variantName} -> ${variantProductCode} (${fullProductName})`);
-      
-      // Check if product exists
-      const { data: existing } = await supabase
-        .from("products")
-        .select("product_code, stock_quantity")
-        .eq("product_code", variantProductCode)
-        .maybeSingle();
-      
-      if (existing) {
-        // Update existing product
-        await supabase
-          .from("products")
-          .update({
-            stock_quantity: (existing.stock_quantity || 0) + quantity,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            product_images: item.product_images,
-            price_images: item.price_images,
-            tpos_product_id: tposProductId,
-            updated_at: new Date().toISOString()
-          })
-          .eq("product_code", variantProductCode);
-        
-        updatedCount++;
-        console.log(`  ✅ Updated: ${variantProductCode} (stock: ${existing.stock_quantity} -> ${(existing.stock_quantity || 0) + quantity})`);
-      } else {
-        // Insert new product
-        await supabase
-          .from("products")
-          .insert({
-            product_code: variantProductCode,
-            product_name: fullProductName,
-            variant: variantName,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            supplier_name: item.supplier_name || '',
-            product_images: item.product_images,
-            price_images: item.price_images,
-            stock_quantity: quantity,
-            unit: 'Cái',
-            tpos_product_id: tposProductId
-          });
-        
-        createdCount++;
-        console.log(`  ✅ Created: ${variantProductCode} (stock: ${quantity})`);
-      }
-    }
-    
-    console.log(`🏭 Inventory complete: ${createdCount} created, ${updatedCount} updated`);
-    return { createdCount, updatedCount };
-  };
 
   const handleUploadToTPOS = async () => {
     if (selectedItems.length === 0) {
@@ -497,58 +381,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         result.savedIds = allItemUpdates.length;
       }
 
-      // Upsert products to inventory with color variant handling
-      setCurrentStep("Đang cập nhật kho hàng...");
-      
-      // Create a map of product_code to tpos_product_id for new products
-      const productCodeToTPOSId = new Map<string, number>();
-      for (const { itemId, tposId } of result.productIds) {
-        const representative = itemsToUpload.find(i => i.id === itemId);
-        if (representative?.product_code) {
-          productCodeToTPOSId.set(representative.product_code, tposId);
-        }
-      }
-      
-      // Group variants by product_code for inventory creation
-      // Include both products with TPOS IDs AND successfully uploaded products without IDs
-      const variantsByProductCode = new Map<string, Array<{ variant: string | null; item: TPOSProductItem; tposId?: number }>>();
-      
-      for (const [productCode, variantInfo] of variantMapping) {
-        const tposId = productCodeToTPOSId.get(productCode);
-        const wasSuccessfullyUploaded = successfullyUploadedCodes.has(productCode);
-        
-        // Include if has TPOS ID OR was successfully uploaded
-        if (!tposId && !wasSuccessfullyUploaded) {
-          console.log(`⏭️  Skipping ${productCode}: no TPOS ID and not successfully uploaded`);
-          continue;
-        }
-        
-        if (!variantsByProductCode.has(productCode)) {
-          variantsByProductCode.set(productCode, []);
-        }
-        
-        // Add all items with their variants
-        for (const item of variantInfo.items) {
-          variantsByProductCode.get(productCode)!.push({
-            variant: item.variant || null,
-            item: item,
-            tposId: tposId
-          });
-        }
-        
-        if (wasSuccessfullyUploaded && !tposId) {
-          console.log(`⚠️  Creating inventory for ${productCode} without TPOS ID (upload was successful)`);
-        }
-      }
-      
-
       // Auto-create variants for NEW products uploaded to TPOS
       setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
       result.variantsCreated = 0;
       result.variantsFailed = 0;
       result.variantErrors = [];
-      result.inventoryCreated = 0;
-      result.inventoryUpdated = 0;
 
       for (const { itemId, tposId } of result.productIds) {
         const representative = itemsToUpload.find(i => i.id === itemId);
@@ -577,27 +414,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           
           console.log(`✅ Variants created for ${representative.product_name}`);
           result.variantsCreated++;
-
-          // Add to inventory after TPOS variant creation
-          setCurrentStep(`Đang thêm vào kho: ${representative.product_name}...`);
-          const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-          const quantityPerVariant = Math.floor(totalQuantity / allVariants.length);
-          
-          const variantsToCreate = allVariants.map(variantName => ({
-            variantName,
-            item: items[0],
-            quantity: quantityPerVariant
-          }));
-          
-          const inventoryResult = await createVariantProductsInInventory(
-            representative.product_code!,
-            representative.product_name,
-            variantsToCreate,
-            tposId
-          );
-          
-          result.inventoryCreated += inventoryResult.createdCount;
-          result.inventoryUpdated += inventoryResult.updatedCount;
         } catch (error) {
           console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
           result.variantsFailed++;
@@ -647,27 +463,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 .update({ tpos_product_id: existingTPOSId })
                 .eq("id", item.id);
             }
-
-            // Add variants to inventory
-            const allVariants = combinedVariant.split('\n').filter(v => v.trim());
-            const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-            const quantityPerVariant = Math.floor(totalQuantity / allVariants.length);
-            
-            const variantsToCreate = allVariants.map(variantName => ({
-              variantName,
-              item: items[0],
-              quantity: quantityPerVariant
-            }));
-            
-            const inventoryResult = await createVariantProductsInInventory(
-              productCode,
-              items[0].product_name,
-              variantsToCreate,
-              existingTPOSId
-            );
-            
-            result.inventoryCreated += inventoryResult.createdCount;
-            result.inventoryUpdated += inventoryResult.updatedCount;
           } catch (error) {
             console.error(`❌ Failed to add variants for ${productCode}:`, error);
             result.variantsFailed = (result.variantsFailed || 0) + 1;
@@ -701,12 +496,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
               {result.variantsCreated !== undefined && result.variantsCreated > 0 && (
                 <p className="text-green-600 dark:text-green-400">🎨 Đã tạo biến thể: {result.variantsCreated} sản phẩm</p>
-              )}
-              {result.inventoryCreated !== undefined && result.inventoryCreated > 0 && (
-                <p className="text-blue-600 dark:text-blue-400">📦 Đã thêm vào kho: {result.inventoryCreated} biến thể mới</p>
-              )}
-              {result.inventoryUpdated !== undefined && result.inventoryUpdated > 0 && (
-                <p className="text-blue-600 dark:text-blue-400">🔄 Đã cập nhật kho: {result.inventoryUpdated} biến thể</p>
               )}
               {result.variantsFailed !== undefined && result.variantsFailed > 0 && (
                 <p className="text-yellow-600 dark:text-yellow-400">⚠️ Tạo biến thể thất bại: {result.variantsFailed} sản phẩm</p>
