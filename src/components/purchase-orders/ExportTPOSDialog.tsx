@@ -216,31 +216,24 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const existingVariants = existingVariantsByCode.get(productCode) || [];
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Try to get variants from products table first
-      // Split comma-separated variants and flatten to get all unique variants
+      // Get variants from products table
       let allVariantsFromProducts = existingVariants
         .map(v => v.variant)
         .filter((v): v is string => Boolean(v))
         .flatMap(v => v.split(/[,，]/).map(s => s.trim())) // Split by comma (English and Chinese)
         .filter(v => v.length > 0); // Remove empty strings
       
-      // Remove duplicates
-      allVariantsFromProducts = [...new Set(allVariantsFromProducts)];
+      // Get variants from purchase_order_items
+      let allVariantsFromPurchaseOrder = items
+        .map(i => i.variant)
+        .filter((v): v is string => Boolean(v))
+        .flatMap(v => v.split(/[,，]/).map(s => s.trim()))
+        .filter(v => v.length > 0);
       
-      let allVariants = allVariantsFromProducts;
+      // Merge variants from both sources and remove duplicates
+      let allVariants = [...new Set([...allVariantsFromProducts, ...allVariantsFromPurchaseOrder])];
       
-      // If no variants in products table, use variants from purchase_order_items
-      if (allVariants.length === 0) {
-        console.log(`⚠️ ${productCode}: No variants in products table, using variants from purchase_orders`);
-        allVariants = items
-          .map(i => i.variant)
-          .filter((v): v is string => Boolean(v))
-          .flatMap(v => v.split(/[,，]/).map(s => s.trim())) // Also split purchase order variants
-          .filter(v => v.length > 0);
-        
-        // Remove duplicates
-        allVariants = [...new Set(allVariants)];
-      }
+      console.log(`📦 ${productCode}: Merged ${allVariantsFromProducts.length} variants from products + ${allVariantsFromPurchaseOrder.length} from purchase order = ${allVariants.length} unique variants`);
       
       const combinedVariant = allVariants.join(', ');
 
