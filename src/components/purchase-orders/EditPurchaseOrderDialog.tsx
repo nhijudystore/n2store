@@ -299,9 +299,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         .from("purchase_orders")
         .update({
           order_date: orderDate,
-          supplier_name: supplierName,
-          invoice_number: invoiceNumber || null,
-          notes: notes || null,
+          supplier_name: supplierName.trim().toUpperCase(),
+          invoice_number: invoiceNumber.trim().toUpperCase() || null,
+          notes: notes.trim().toUpperCase() || null,
           invoice_images: invoiceImages.length > 0 ? invoiceImages : null,
           total_amount: totalAmount,
           discount_amount: discountAmount * 1000,
@@ -342,14 +342,14 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         const item = items[i];
         const itemData = {
           purchase_order_id: order.id,
-          product_name: item.product_name,
-          product_code: item.product_code || null,
-          variant: item.variant || null,
+          product_name: item.product_name.trim().toUpperCase(),
+          product_code: item.product_code.trim().toUpperCase() || null,
+          variant: item.variant.trim().toUpperCase() || null,
           quantity: item.quantity,
           unit_price: Number(item.unit_price || 0) * 1000,
           selling_price: Number(item.selling_price || 0) * 1000,
           total_price: item.total_price * 1000,
-          notes: item.notes || null,
+          notes: item.notes.trim().toUpperCase() || null,
           product_images: item.product_images.length > 0 ? item.product_images : null,
           price_images: item.price_images.length > 0 ? item.price_images : null,
         };
@@ -397,10 +397,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
             
             return {
               ...po,
-              supplier_name: supplierName,
+              supplier_name: supplierName.trim().toUpperCase(),
               order_date: orderDate,
-              invoice_number: invoiceNumber,
-              notes,
+              invoice_number: invoiceNumber.trim().toUpperCase(),
+              notes: notes.trim().toUpperCase(),
               invoice_images: invoiceImages,
               discount_amount: Number(discountAmount) * 1000,
               total_amount: totalAmount,

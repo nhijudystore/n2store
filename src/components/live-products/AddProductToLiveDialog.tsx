@@ -179,7 +179,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      let baseProductCode = data.product_code.trim();
+      let baseProductCode = data.product_code.trim().toUpperCase();
       
       // If product code is empty, generate N/A1, N/A2, N/A3...
       if (!baseProductCode) {
@@ -206,7 +206,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
         baseProductCode = `N/A${maxNumber + 1}`;
       }
       
-      const baseProductName = data.product_name.trim() || "Không có";
+      const baseProductName = data.product_name.trim().toUpperCase() || "KHÔNG CÓ";
       
       const finalImageUrl = imageUrl || null;
       
@@ -216,7 +216,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       const insertData = [];
       
       for (const variant of data.variants) {
-        const variantName = variant.name.trim();
+        const variantName = variant.name.trim().toUpperCase();
         
         // Parse variant name to extract parts using variant detector
         const detectionResult = detectVariantsFromText(variantName);

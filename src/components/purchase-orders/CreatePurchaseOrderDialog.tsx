@@ -113,13 +113,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
         .insert({
-          supplier_name: formData.supplier_name.trim(),
+          supplier_name: formData.supplier_name.trim().toUpperCase(),
           order_date: formData.order_date,
           total_amount: totalAmount,
           final_amount: finalAmount,
           discount_amount: discountAmount,
           invoice_images: formData.invoice_images.length > 0 ? formData.invoice_images : null,
-          notes: formData.notes
+          notes: formData.notes.trim().toUpperCase()
         })
         .select()
         .single();
@@ -130,9 +130,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         .filter(item => item.product_name.trim())
         .map((item, index) => ({
           purchase_order_id: order.id,
-          product_name: item.product_name,
-          variant: item.variant,
-          product_code: item.product_code,
+          product_name: item.product_name.trim().toUpperCase(),
+          variant: item.variant.trim().toUpperCase(),
+          product_code: item.product_code.trim().toUpperCase(),
           quantity: item.quantity,
           unit_price: Number(item.unit_price || 0) * 1000,
           selling_price: Number(item.selling_price || 0) * 1000,
