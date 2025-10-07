@@ -140,7 +140,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   /**
    * Create product entries in inventory
    * - If multiple variants (comma-separated): split into separate products with unique codes
-   * - Example: TEST with variants "Trắng, Đen, Tím" → TESTT (Trắng), TESTD (Đen), TESTT1 (Tím)
+   * - Quantity is divided equally among variants
+   * - Example: TEST with variants "Trắng, Đen, Tím" & quantity 3 → TESTT (Trắng, qty 1), TESTD (Đen, qty 1), TESTT1 (Tím, qty 1)
+   * - Example: M900 with variants "Xanh Đậu, Đỏ, Đen, Xanh Đen" & quantity 4 → 4 products, each with qty 1
    */
   const createVariantProductsInInventory = async (
     rootProductCode: string,
@@ -163,22 +165,26 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     
     console.log(`📦 ${rootProductCode}: Existing codes: ${Array.from(usedCodes).join(', ') || 'none'}`);
     
-    // Collect ALL variants that need to be created
-    const allVariantsToCreate: Array<{ variantName: string; item: TPOSProductItem }> = [];
+    // Collect ALL variants that need to be created with their quantities
+    const allVariantsToCreate: Array<{ variantName: string; item: TPOSProductItem; quantity: number }> = [];
     
     for (const { variant, item } of variants) {
       if (!variant || !variant.trim()) {
-        // No variant - add as single product
-        allVariantsToCreate.push({ variantName: '', item });
+        // No variant - add as single product with original quantity
+        allVariantsToCreate.push({ variantName: '', item, quantity: item.quantity || 1 });
         continue;
       }
       
       // Split variants by comma
       const variantList = variant.split(',').map(v => v.trim()).filter(Boolean);
+      const totalQuantity = item.quantity || 1;
+      const quantityPerVariant = Math.floor(totalQuantity / variantList.length);
       
-      // Add each variant separately
+      console.log(`  Item has ${variantList.length} variants, total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
+      
+      // Add each variant separately with divided quantity
       for (const variantItem of variantList) {
-        allVariantsToCreate.push({ variantName: variantItem, item });
+        allVariantsToCreate.push({ variantName: variantItem, item, quantity: quantityPerVariant });
       }
     }
     
@@ -187,8 +193,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     // Now create each variant as a separate product
     if (allVariantsToCreate.length === 1 && !allVariantsToCreate[0].variantName) {
       // Single product without variant
-      const { item } = allVariantsToCreate[0];
-      console.log(`  Creating single product: ${rootProductCode}`);
+      const { item, quantity } = allVariantsToCreate[0];
+      console.log(`  Creating single product: ${rootProductCode} (qty: ${quantity})`);
       const { error } = await supabase
         .from("products")
         .upsert({
@@ -200,7 +206,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           supplier_name: item.supplier_name || '',
           product_images: item.product_images?.length > 0 ? item.product_images : null,
           price_images: item.price_images?.length > 0 ? item.price_images : null,
-          stock_quantity: 1,
+          stock_quantity: quantity,
           unit: 'Cái',
           tpos_product_id: tposProductId
         }, {
@@ -210,8 +216,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       if (!error) createdCount++;
     } else if (allVariantsToCreate.length === 1) {
       // Single variant
-      const { variantName, item } = allVariantsToCreate[0];
-      console.log(`  Creating single variant: ${rootProductCode} (${variantName})`);
+      const { variantName, item, quantity } = allVariantsToCreate[0];
+      console.log(`  Creating single variant: ${rootProductCode} (${variantName}, qty: ${quantity})`);
       const { error } = await supabase
         .from("products")
         .upsert({
@@ -223,7 +229,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           supplier_name: item.supplier_name || '',
           product_images: item.product_images?.length > 0 ? item.product_images : null,
           price_images: item.price_images?.length > 0 ? item.price_images : null,
-          stock_quantity: 1,
+          stock_quantity: quantity,
           unit: 'Cái',
           tpos_product_id: tposProductId
         }, {
@@ -235,11 +241,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Multiple variants - create separate products with unique codes
       console.log(`  Splitting ${allVariantsToCreate.length} variants for ${rootProductCode}`);
       
-      for (const { variantName, item } of allVariantsToCreate) {
+      for (const { variantName, item, quantity } of allVariantsToCreate) {
         const colorCode = generateColorCode(variantName, usedCodes);
         const variantProductCode = `${rootProductCode}${colorCode}`;
         
-        console.log(`    Creating: ${variantProductCode} (${variantName})`);
+        console.log(`    Creating: ${variantProductCode} (${variantName}, qty: ${quantity})`);
         
         const { error } = await supabase
           .from("products")
@@ -252,7 +258,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             supplier_name: item.supplier_name || '',
             product_images: item.product_images?.length > 0 ? item.product_images : null,
             price_images: item.price_images?.length > 0 ? item.price_images : null,
-            stock_quantity: 1,
+            stock_quantity: quantity,
             unit: 'Cái',
             tpos_product_id: tposProductId
           }, {
@@ -261,7 +267,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         if (!error) {
           createdCount++;
-          console.log(`    ✅ Created: ${variantProductCode} (${variantName})`);
+          console.log(`    ✅ Created: ${variantProductCode} (${variantName}, qty: ${quantity})`);
         } else {
           console.error(`    ❌ Failed to create ${variantProductCode}:`, error);
         }
@@ -288,15 +294,18 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const quantity = item.quantity || 0;
       const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
       
-      if (variantCount > 1 && variantCount !== quantity) {
-        invalidItems.push(`${item.product_code || item.product_name}: ${variantCount} biến thể nhưng số lượng là ${quantity}`);
+      // Allow if: quantity equals variant count OR quantity is multiple of variant count
+      if (variantCount > 1) {
+        if (quantity % variantCount !== 0) {
+          invalidItems.push(`${item.product_code || item.product_name}: ${variantCount} biến thể nhưng số lượng ${quantity} không chia hết cho ${variantCount}`);
+        }
       }
     });
 
     if (invalidItems.length > 0) {
       toast({
         title: "❌ Lỗi validation",
-        description: `Các sản phẩm sau có số lượng không khớp với số biến thể:\n${invalidItems.join('\n')}`,
+        description: `Các sản phẩm sau có số lượng không chia hết cho số biến thể:\n${invalidItems.join('\n')}`,
         variant: "destructive",
       });
       return;

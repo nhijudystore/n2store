@@ -506,28 +506,28 @@ export function PurchaseOrderList({
                       <span className="text-muted-foreground">-</span>
                     )}
                   </TableCell>
-                  <TableCell className={cn(
-                    "border-r",
-                    (() => {
-                      const variant = flatItem.item?.variant || "";
-                      const quantity = flatItem.item?.quantity || 0;
-                      const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
-                      return variantCount > 1 && variantCount !== quantity ? "bg-red-100 border-2 border-red-300" : "";
-                    })()
-                  )}>
-                    {flatItem.item?.variant || "-"}
-                  </TableCell>
-                  <TableCell className={cn(
-                    "border-r text-center",
-                    (() => {
-                      const variant = flatItem.item?.variant || "";
-                      const quantity = flatItem.item?.quantity || 0;
-                      const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
-                      return variantCount > 1 && variantCount !== quantity ? "bg-red-100 border-2 border-red-300" : "";
-                    })()
-                  )}>
-                    {flatItem.item?.quantity || 0}
-                  </TableCell>
+                    <TableCell className={cn(
+                      "border-r",
+                      (() => {
+                        const variant = flatItem.item?.variant || "";
+                        const quantity = flatItem.item?.quantity || 0;
+                        const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
+                        return variantCount > 1 && (quantity % variantCount !== 0) ? "bg-red-100 border-2 border-red-300" : "";
+                      })()
+                    )}>
+                      {flatItem.item?.variant || "-"}
+                    </TableCell>
+                    <TableCell className={cn(
+                      "border-r text-center",
+                      (() => {
+                        const variant = flatItem.item?.variant || "";
+                        const quantity = flatItem.item?.quantity || 0;
+                        const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
+                        return variantCount > 1 && (quantity % variantCount !== 0) ? "bg-red-100 border-2 border-red-300" : "";
+                      })()
+                    )}>
+                      {flatItem.item?.quantity || 0}
+                    </TableCell>
                   <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
                       {flatItem.item?.price_images && flatItem.item.price_images.length > 0 ? (
