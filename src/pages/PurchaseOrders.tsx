@@ -772,6 +772,49 @@ const PurchaseOrders = () => {
                   </div>
                 </div>
 
+                {/* Bulk selection actions */}
+                {selectedOrders.length > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">
+                      Đã chọn: <span className="text-primary">{selectedOrders.length}</span> đơn hàng
+                    </span>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={clearSelection} 
+                        variant="outline" 
+                        size="sm"
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Bỏ chọn
+                      </Button>
+                      <Button 
+                        onClick={handleBulkDelete} 
+                        variant="destructive" 
+                        size="sm"
+                        disabled={deleteBulkOrdersMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Xóa đã chọn
+                      </Button>
+                      <Button onClick={handleExportPurchaseExcel} variant="outline" size="sm">
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Xuất Excel Mua hàng
+                      </Button>
+                      <Button onClick={handleExportExcel} variant="outline" size="sm">
+                        <Download className="w-4 h-4 mr-2" />
+                        Xuất Excel Thêm SP
+                      </Button>
+                      <Button onClick={handleExportVariantsExcel} variant="outline" size="sm">
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        Xuất Excel Biến thể
+                      </Button>
+                      <Button onClick={handleExportToTPOS} variant="default" size="sm">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Export & Upload TPOS
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Regular export actions */}
                 <div className="flex gap-2">
@@ -821,13 +864,6 @@ const PurchaseOrders = () => {
               onToggleSelect={toggleSelectOrder}
               onToggleSelectAll={toggleSelectAll}
               deletedTPOSIds={deletedTPOSIds}
-              onClearSelection={clearSelection}
-              onBulkDelete={handleBulkDelete}
-              onExportPurchaseExcel={handleExportPurchaseExcel}
-              onExportExcel={handleExportExcel}
-              onExportVariantsExcel={handleExportVariantsExcel}
-              onExportToTPOS={handleExportToTPOS}
-              isBulkDeleting={deleteBulkOrdersMutation.isPending}
             />
             </CardContent>
           </Card>
