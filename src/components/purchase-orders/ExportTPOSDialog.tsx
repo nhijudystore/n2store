@@ -197,7 +197,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         }
       }
       
-      // Count how many attribute types we have (ignore unknown)
+      // Count how many attribute types we have
       const hasMultipleTypes = 
         [sizeTextVariants.length > 0, sizeNumberVariants.length > 0, colorVariants.length > 0]
           .filter(Boolean).length > 1;
@@ -205,53 +205,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       console.log(`  Detected: ${sizeTextVariants.length} size text, ${colorVariants.length} colors, ${sizeNumberVariants.length} size numbers`);
       
       if (hasMultipleTypes) {
-        // Create cartesian product of all attribute types
-        console.log(`  🔄 Creating cartesian product: ${sizeTextVariants.length} size text × ${colorVariants.length} colors × ${sizeNumberVariants.length} size numbers`);
-        
-        // Start with base combinations
-        let combinations: string[] = [''];
-        
-        // Add size text combinations
-        if (sizeTextVariants.length > 0) {
-          const newCombinations: string[] = [];
-          for (const base of combinations) {
-            for (const size of sizeTextVariants) {
-              newCombinations.push(base ? `${base}, ${size}` : size);
-            }
-          }
-          combinations = newCombinations;
-        }
-        
-        // Add color combinations
-        if (colorVariants.length > 0) {
-          const newCombinations: string[] = [];
-          for (const base of combinations) {
-            for (const color of colorVariants) {
-              newCombinations.push(base ? `${base}, ${color}` : color);
-            }
-          }
-          combinations = newCombinations;
-        }
-        
-        // Add size number combinations
-        if (sizeNumberVariants.length > 0) {
-          const newCombinations: string[] = [];
-          for (const base of combinations) {
-            for (const sizeNum of sizeNumberVariants) {
-              newCombinations.push(base ? `${base}, ${sizeNum}` : sizeNum);
-            }
-          }
-          combinations = newCombinations;
-        }
-        
-        const quantityPerVariant = Math.floor(totalQuantity / combinations.length);
-        console.log(`  ✅ Created ${combinations.length} combinations, ${quantityPerVariant} qty each:`, combinations);
-        
-        for (const combo of combinations) {
-          allVariantsToCreate.push({ variantName: combo, item, quantity: quantityPerVariant });
-        }
+        // Multiple types - DO NOT SPLIT, keep as single product with combined variant text
+        console.log(`  🔗 Multiple types detected - keeping as single combined product`);
+        const combinedVariantText = variantList.join(', ');
+        allVariantsToCreate.push({ variantName: combinedVariantText, item, quantity: totalQuantity });
       } else {
-        // Single type - just split normally
+        // Single type - split into separate products
         const quantityPerVariant = Math.floor(totalQuantity / variantList.length);
         console.log(`  📦 Single type: ${variantList.length} variants, total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
         
@@ -310,53 +269,104 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         if (!error) createdCount++;
       }
     } else if (allVariantsToCreate.length === 1) {
-      // Single variant
+      // Single variant (could be multiple types combined)
       const { variantName, item, quantity } = allVariantsToCreate[0];
-      console.log(`  Creating single variant: ${rootProductCode} (${variantName}, qty: ${quantity})`);
       
-      // Check if exists
-      const { data: existing } = await supabase
-        .from("products")
-        .select("product_code, stock_quantity")
-        .eq("product_code", rootProductCode)
-        .maybeSingle();
+      // Check if this variant contains multiple types (comma-separated)
+      const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
+      const detection = detectVariantsFromText(variantName);
+      const hasMultipleTypesInVariant = variantParts.length > 1 && 
+        [detection.sizeText.length > 0, detection.colors.length > 0, detection.sizeNumber.length > 0]
+          .filter(Boolean).length > 1;
       
-      if (existing) {
-        // Update stock
-        const { error } = await supabase
-          .from("products")
-          .update({
-            stock_quantity: (existing.stock_quantity || 0) + quantity,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            tpos_product_id: tposProductId
-          })
-          .eq("product_code", rootProductCode);
+      if (hasMultipleTypesInVariant) {
+        // Multiple types combined - keep as single product with root code
+        console.log(`  Creating combined variant product: ${rootProductCode} (${variantName}, qty: ${quantity})`);
         
-        if (!error) createdCount++;
+        const { data: existing } = await supabase
+          .from("products")
+          .select("product_code, stock_quantity")
+          .eq("product_code", rootProductCode)
+          .maybeSingle();
+        
+        if (existing) {
+          const { error } = await supabase
+            .from("products")
+            .update({
+              stock_quantity: (existing.stock_quantity || 0) + quantity,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              variant: variantName,
+              tpos_product_id: tposProductId
+            })
+            .eq("product_code", rootProductCode);
+          
+          if (!error) createdCount++;
+        } else {
+          const { error } = await supabase
+            .from("products")
+            .insert({
+              product_code: rootProductCode,
+              product_name: item.product_name,
+              variant: variantName,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              supplier_name: item.supplier_name || '',
+              product_images: item.product_images?.length > 0 ? item.product_images : null,
+              price_images: item.price_images?.length > 0 ? item.price_images : null,
+              stock_quantity: quantity,
+              unit: 'Cái',
+              tpos_product_id: tposProductId
+            });
+          
+          if (!error) createdCount++;
+        }
       } else {
-        // Insert new
-        const { error } = await supabase
-          .from("products")
-          .insert({
-            product_code: rootProductCode,
-            product_name: item.product_name,
-            variant: variantName,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            supplier_name: item.supplier_name || '',
-            product_images: item.product_images?.length > 0 ? item.product_images : null,
-            price_images: item.price_images?.length > 0 ? item.price_images : null,
-            stock_quantity: quantity,
-            unit: 'Cái',
-            tpos_product_id: tposProductId
-          });
+        // Single type variant - use root code
+        console.log(`  Creating single variant: ${rootProductCode} (${variantName}, qty: ${quantity})`);
         
-        if (!error) createdCount++;
+        const { data: existing } = await supabase
+          .from("products")
+          .select("product_code, stock_quantity")
+          .eq("product_code", rootProductCode)
+          .maybeSingle();
+        
+        if (existing) {
+          const { error } = await supabase
+            .from("products")
+            .update({
+              stock_quantity: (existing.stock_quantity || 0) + quantity,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              variant: variantName,
+              tpos_product_id: tposProductId
+            })
+            .eq("product_code", rootProductCode);
+          
+          if (!error) createdCount++;
+        } else {
+          const { error } = await supabase
+            .from("products")
+            .insert({
+              product_code: rootProductCode,
+              product_name: item.product_name,
+              variant: variantName,
+              purchase_price: item.unit_price || 0,
+              selling_price: item.selling_price || 0,
+              supplier_name: item.supplier_name || '',
+              product_images: item.product_images?.length > 0 ? item.product_images : null,
+              price_images: item.price_images?.length > 0 ? item.price_images : null,
+              stock_quantity: quantity,
+              unit: 'Cái',
+              tpos_product_id: tposProductId
+            });
+          
+          if (!error) createdCount++;
+        }
       }
     } else {
-      // Multiple variants - create separate products with unique codes
-      console.log(`  Splitting ${allVariantsToCreate.length} variants for ${rootProductCode}`);
+      // Multiple single-type variants - create separate products with unique codes
+      console.log(`  Splitting ${allVariantsToCreate.length} single-type variants for ${rootProductCode}`);
       
       // FIRST: Create base product (without variant) as required
       const firstItem = allVariantsToCreate[0].item;
@@ -426,6 +436,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             .replace(/đ/g, 'd')
             .replace(/Đ/g, 'D');
         };
+        
+        // Generate product name with variant details: BaseName (sizeNumber, color, sizeText)
+        const nameParts: string[] = [];
+        if (sizeNumber) nameParts.push(sizeNumber);
+        if (colorValue) nameParts.push(colorValue);
+        if (sizeText) nameParts.push(sizeText);
+        const fullProductName = nameParts.length > 0 
+          ? `${item.product_name} (${nameParts.join(', ')})`
+          : item.product_name;
         
         // Build variant code in order: Size + Color + Numeric Size
         let variantCode = '';
@@ -518,7 +537,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             .from("products")
             .insert({
               product_code: variantProductCode,
-              product_name: item.product_name,
+              product_name: fullProductName,
               variant: variantName,
               purchase_price: item.unit_price || 0,
               selling_price: item.selling_price || 0,
