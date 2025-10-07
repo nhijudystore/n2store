@@ -418,28 +418,40 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           }
         }
         
+        // Helper function to normalize Vietnamese text (remove diacritics)
+        const normalizeVietnamese = (text: string): string => {
+          return text
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd')
+            .replace(/Đ/g, 'D');
+        };
+        
         // Build variant code in order: Size + Color + Numeric Size
         let variantCode = '';
         
-        // 1. Add size text - take first letter of each word, then only first character
+        // 1. Add size text - normalize and take first letter of each word, then only first character
         if (sizeText) {
-          const words = sizeText.split(/\s+/);
+          const normalized = normalizeVietnamese(sizeText);
+          const words = normalized.split(/\s+/);
           const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
           variantCode += firstLetters.charAt(0);
         }
         
-        // 2. Add color code - take first letter of each word
+        // 2. Add color code - normalize and take first letter of each word
         if (colorValue) {
-          const colorWords = colorValue.split(/\s+/);
-          let colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+          const normalized = normalizeVietnamese(colorValue);
+          const colorWords = normalized.split(/\s+/);
+          const baseColorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
           
-          // Handle duplicates by adding number suffix
-          let finalColorCode = colorCode;
+          // Handle duplicates by checking existing codes
+          let finalColorCode = baseColorCode;
           let suffix = 1;
-          while (usedCodes.has(variantCode + finalColorCode + (sizeNumber || ''))) {
-            finalColorCode = colorCode + suffix;
+          while (usedCodes.has(finalColorCode)) {
+            finalColorCode = baseColorCode + suffix;
             suffix++;
           }
+          usedCodes.add(finalColorCode);
           variantCode += finalColorCode;
         }
         

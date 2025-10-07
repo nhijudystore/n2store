@@ -77,31 +77,40 @@ export function VariantTestTool() {
 
     console.log(`  Total combinations: ${combinations.length}`);
 
+    // Helper function to normalize Vietnamese text (remove diacritics)
+    const normalizeVietnamese = (text: string): string => {
+      return text
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D');
+    };
+
     // Generate product codes for each combination
-    const usedCodes = new Set<string>();
+    const usedColorCodes = new Map<string, number>(); // Track color codes and their usage count
     const generatedResults = combinations.map(combo => {
       let variantCode = '';
 
       // Build code: Size Text + Color + Size Number
       if (combo.parts.sizeText) {
-        // Take first letter of each word, then take only the first character
-        const words = combo.parts.sizeText.split(/\s+/);
+        // Normalize and take first letter of each word, then take only the first character
+        const normalized = normalizeVietnamese(combo.parts.sizeText);
+        const words = normalized.split(/\s+/);
         const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
         variantCode += firstLetters.charAt(0);
       }
 
       if (combo.parts.color) {
-        // Take first letter of each word in color name
-        const colorWords = combo.parts.color.split(/\s+/);
-        let colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+        // Normalize and take first letter of each word in color name
+        const normalized = normalizeVietnamese(combo.parts.color);
+        const colorWords = normalized.split(/\s+/);
+        const baseColorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
         
-        // Handle duplicates by adding number suffix
-        let finalColorCode = colorCode;
-        let suffix = 1;
-        while (usedCodes.has(variantCode + finalColorCode + (combo.parts.sizeNumber || ''))) {
-          finalColorCode = colorCode + suffix;
-          suffix++;
-        }
+        // Handle duplicates by tracking color code usage
+        const currentCount = usedColorCodes.get(baseColorCode) || 0;
+        const finalColorCode = currentCount === 0 ? baseColorCode : baseColorCode + currentCount;
+        usedColorCodes.set(baseColorCode, currentCount + 1);
+        
         variantCode += finalColorCode;
       }
 
@@ -116,11 +125,11 @@ export function VariantTestTool() {
 
       // Fallback if no detection
       if (!variantCode && combo.text) {
-        const words = combo.text.split(/\s+/);
+        const normalized = normalizeVietnamese(combo.text);
+        const words = normalized.split(/\s+/);
         variantCode = words.map(w => w.charAt(0).toUpperCase()).join('');
       }
 
-      usedCodes.add(variantCode);
       const fullCode = `${productCode}${variantCode}`;
 
       console.log(`  ${fullCode} = ${productCode} + ${variantCode} (${combo.text})`);
