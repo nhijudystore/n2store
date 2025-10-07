@@ -1130,11 +1130,14 @@ export async function uploadToTPOS(
     const token = await getActiveTPOSToken();
     if (!token) throw new Error("TPOS Bearer Token not found");
     
-    await randomDelay(1000, 1500);
+    // Tăng delay để TPOS có thời gian xử lý
+    console.log("⏳ Đang chờ TPOS xử lý...");
+    await randomDelay(3000, 5000);
     
     // GET products của "Tú", sort by Id DESC (mới nhất lên đầu)
+    // Tăng số lượng lên 100 để đảm bảo lấy được
     const listResponse = await fetch(
-      `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$orderby=Id desc&$top=50`,
+      `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$orderby=Id desc&$top=100`,
       { headers: getTPOSHeaders(token) }
     );
     
@@ -1158,6 +1161,7 @@ export async function uploadToTPOS(
     console.log(`✅ Found ${latestNProducts.length} products mới nhất của "${TPOS_CONFIG.CREATED_BY_NAME}"`);
     console.log(`   Product IDs: ${latestNProducts.map((p: any) => p.Id).join(', ')}`);
     console.log(`   DefaultCodes: ${latestNProducts.map((p: any) => p.DefaultCode).join(', ')}`);
+    console.log(`   Names: ${latestNProducts.map((p: any) => p.Name).join(' | ')}`);
 
     // ========================================
     // PHASE 3: Match CHÍNH XÁC trong phạm vi N products
