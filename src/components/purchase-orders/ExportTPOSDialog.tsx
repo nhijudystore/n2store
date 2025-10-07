@@ -12,8 +12,7 @@ import { createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
-import { detectVariantsFromText } from "@/lib/variant-detector";
+import { COLORS, TEXT_SIZES, NUMBER_SIZES } from "@/lib/variant-attributes";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 
 interface ExportTPOSDialogProps {
@@ -187,13 +186,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const colorVariants: string[] = [];
       
       for (const v of variantList) {
-        const detection = detectVariantsFromText(v);
-        
-        if (detection.sizeText.length > 0) {
+        // Detect variant type using TPOS constants
+        if (TEXT_SIZES.includes(v)) {
           sizeTextVariants.push(v);
-        } else if (detection.sizeNumber.length > 0) {
+        } else if (NUMBER_SIZES.includes(v)) {
           sizeNumberVariants.push(v);
-        } else if (detection.colors.length > 0) {
+        } else if (COLORS.includes(v)) {
           colorVariants.push(v);
         }
       }
@@ -407,19 +405,13 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
         
         for (const part of variantParts) {
-          const detection = detectVariantsFromText(part);
-          
-          if (detection.sizeText.length > 0) {
-            const value = detection.sizeText[0].value;
-            if (!sizeTexts.includes(value)) sizeTexts.push(value);
-          }
-          if (detection.colors.length > 0) {
-            const value = detection.colors[0].value;
-            if (!colors.includes(value)) colors.push(value);
-          }
-          if (detection.sizeNumber.length > 0) {
-            const value = detection.sizeNumber[0].value;
-            if (!sizeNumbers.includes(value)) sizeNumbers.push(value);
+          // Detect variant type using TPOS constants
+          if (TEXT_SIZES.includes(part) && !sizeTexts.includes(part)) {
+            sizeTexts.push(part);
+          } else if (COLORS.includes(part) && !colors.includes(part)) {
+            colors.push(part);
+          } else if (NUMBER_SIZES.includes(part) && !sizeNumbers.includes(part)) {
+            sizeNumbers.push(part);
           }
         }
       }
@@ -439,36 +431,13 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       
       // Step 3: Match each local variant to generated variant and create products
       for (const { variantName, item, quantity } of allVariantsToCreate) {
-        // Parse variant parts to match with generated variants
-        const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
-        
-        let sizeText: string | null = null;
-        let color: string | null = null;
-        let sizeNumber: string | null = null;
-        
-        for (const part of variantParts) {
-          const detection = detectVariantsFromText(part);
-          
-          if (detection.sizeText.length > 0 && !sizeText) {
-            sizeText = detection.sizeText[0].value;
-          }
-          if (detection.colors.length > 0 && !color) {
-            color = detection.colors[0].value;
-          }
-          if (detection.sizeNumber.length > 0 && !sizeNumber) {
-            sizeNumber = detection.sizeNumber[0].value;
-          }
-        }
-        
-        // Find matching generated variant
+        // Find matching generated variant by variantText
         const matchedVariant = generatedVariants.find(gv => 
-          gv.sizeText === sizeText &&
-          gv.color === color &&
-          gv.sizeNumber === sizeNumber
+          gv.variantText === variantName
         );
         
         if (!matchedVariant) {
-          console.error(`    ❌ Could not match variant: ${variantName} (size: ${sizeText}, color: ${color}, num: ${sizeNumber})`);
+          console.error(`    ❌ Could not match variant: ${variantName}`);
           continue;
         }
         
