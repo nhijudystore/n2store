@@ -13,6 +13,7 @@ import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
+import { detectVariantsFromText } from "@/lib/variant-detector";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -324,10 +325,40 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       
       // THEN: Create variant products with unique codes
       for (const { variantName, item, quantity } of allVariantsToCreate) {
-        const colorCode = generateColorCode(variantName, usedCodes);
-        const variantProductCode = `${rootProductCode}${colorCode}`;
+        // Detect variant attributes (color, text size, numeric size)
+        const detection = detectVariantsFromText(variantName);
+        let variantCode = '';
         
-        console.log(`    Creating: ${variantProductCode} (${variantName}, qty: ${quantity})`);
+        // Build code in order: color + text size + numeric size
+        if (detection.colors.length > 0) {
+          const colorCode = generateColorCode(detection.colors[0].value, usedCodes);
+          variantCode += colorCode;
+        }
+        
+        if (detection.sizeText.length > 0) {
+          const sizeText = detection.sizeText[0].value.toUpperCase();
+          variantCode += sizeText;
+        }
+        
+        if (detection.sizeNumber.length > 0) {
+          const sizeNum = detection.sizeNumber[0].value;
+          // If product code ends with number and we only have numeric size, add 'A' prefix
+          if (!detection.colors.length && !detection.sizeText.length && /\d$/.test(rootProductCode)) {
+            variantCode += `A${sizeNum}`;
+          } else {
+            variantCode += sizeNum;
+          }
+        }
+        
+        // Fallback: if no detection, use the original color code generation
+        if (!variantCode) {
+          variantCode = generateColorCode(variantName, usedCodes);
+        }
+        
+        usedCodes.add(variantCode);
+        const variantProductCode = `${rootProductCode}${variantCode}`;
+        
+        console.log(`    Creating: ${variantProductCode} (${variantName}, code: ${variantCode}, qty: ${quantity})`);
         
         // Check if product already exists
         const { data: existing } = await supabase
