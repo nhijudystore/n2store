@@ -463,7 +463,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           variantCode += sizeNumber + sequentialSuffix;
         } else if (sizeNumber) {
           // First occurrence, use the actual size number
-          if (/\d$/.test(rootProductCode) && !colorValue && !sizeText) {
+          // Special case: Nếu chỉ có size số (không có size chữ và màu) 
+          // VÀ productCode kết thúc bằng số → thêm "A" trước size số
+          const hasOtherAttributes = sizeText || colorValue;
+          const productCodeEndsWithNumber = /\d$/.test(rootProductCode);
+          
+          if (!hasOtherAttributes && productCodeEndsWithNumber) {
             variantCode += `A${sizeNumber}`;
           } else {
             variantCode += sizeNumber;

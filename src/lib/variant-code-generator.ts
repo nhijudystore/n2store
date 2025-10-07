@@ -173,8 +173,17 @@ export function generateVariantCode(
   }
 
   // Size số: giữ nguyên
+  // Special case: Nếu chỉ có size số (không có size chữ và màu) 
+  // VÀ productCode kết thúc bằng số → thêm "A" trước size số
   if (combo.parts.sizeNumber) {
-    variantCode += combo.parts.sizeNumber;
+    const hasOtherAttributes = combo.parts.sizeText || combo.parts.color;
+    const productCodeEndsWithNumber = /\d$/.test(productCode);
+    
+    if (!hasOtherAttributes && productCodeEndsWithNumber) {
+      variantCode += `A${combo.parts.sizeNumber}`;
+    } else {
+      variantCode += combo.parts.sizeNumber;
+    }
   }
 
   // Handle collision with sequential suffix: 1, 12, 123, 1234...

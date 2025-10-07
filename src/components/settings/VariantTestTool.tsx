@@ -126,7 +126,12 @@ export function VariantTestTool() {
         variantCode += combo.parts.sizeNumber + sequentialSuffix;
       } else if (combo.parts.sizeNumber) {
         // First occurrence, use the actual size number
-        if (/\d$/.test(productCode) && !combo.parts.color && !combo.parts.sizeText) {
+        // Special case: Nếu chỉ có size số (không có size chữ và màu) 
+        // VÀ productCode kết thúc bằng số → thêm "A" trước size số
+        const hasOtherAttributes = combo.parts.sizeText || combo.parts.color;
+        const productCodeEndsWithNumber = /\d$/.test(productCode);
+        
+        if (!hasOtherAttributes && productCodeEndsWithNumber) {
           variantCode += `A${combo.parts.sizeNumber}`;
         } else {
           variantCode += combo.parts.sizeNumber;
