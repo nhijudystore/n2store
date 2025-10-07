@@ -1514,13 +1514,14 @@ export async function saveTPOSVariantsToInventory(
       // UPDATE purchase_order_items with TPOS data
       // ============================================================
       try {
+        // Query by product_code instead since ProductId may not exist in API response
         const { data: purchaseItems, error: fetchError } = await supabase
           .from("purchase_order_items")
-          .select("id, product_code, variant")
-          .eq("tpos_product_id", variant.ProductId);
+          .select("id, product_code, variant, tpos_product_id")
+          .or(`product_code.eq.${variant.DefaultCode},tpos_product_id.eq.${variant.Id}`);
 
         if (fetchError) {
-          console.error(`⚠️ Error fetching purchase_order_items for ProductId ${variant.ProductId}:`, fetchError);
+          console.error(`⚠️ Error fetching purchase_order_items for ${variant.DefaultCode}:`, fetchError);
         } else if (purchaseItems && purchaseItems.length > 0) {
           console.log(`📝 Updating ${purchaseItems.length} purchase_order_items for ${variant.DefaultCode}...`);
           
