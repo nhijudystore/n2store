@@ -87,9 +87,12 @@ export function VariantTestTool() {
     };
 
     // Generate product codes for each combination
-    const usedColorCodes = new Map<string, number>(); // Track color codes and their usage count
+    const usedCodes = new Set<string>();
+    const baseCodeCount = new Map<string, number>(); // Track base codes for duplicate handling
+    
     const generatedResults = combinations.map(combo => {
       let variantCode = '';
+      let baseCode = ''; // Code without the numeric size
 
       // Build code: Size Text + Color + Size Number
       if (combo.parts.sizeText) {
@@ -98,30 +101,36 @@ export function VariantTestTool() {
         const words = normalized.split(/\s+/);
         const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
         variantCode += firstLetters.charAt(0);
+        baseCode += firstLetters.charAt(0);
       }
 
       if (combo.parts.color) {
         // Normalize and take first letter of each word in color name
         const normalized = normalizeVietnamese(combo.parts.color);
         const colorWords = normalized.split(/\s+/);
-        const baseColorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
-        
-        // Handle duplicates by tracking color code usage
-        const currentCount = usedColorCodes.get(baseColorCode) || 0;
-        const finalColorCode = currentCount === 0 ? baseColorCode : baseColorCode + currentCount;
-        usedColorCodes.set(baseColorCode, currentCount + 1);
-        
-        variantCode += finalColorCode;
+        const colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+        variantCode += colorCode;
+        baseCode += colorCode;
       }
 
-      if (combo.parts.sizeNumber) {
-        // If root code ends with number and we only have numeric size, add 'A' prefix
+      // Check if this base code (without number) already exists
+      const baseKey = `${productCode}${baseCode}`;
+      const count = baseCodeCount.get(baseKey) || 0;
+      
+      if (count > 0) {
+        // If duplicate, use 0 + count (01, 02, 03...)
+        const suffix = String(count).padStart(2, '0');
+        variantCode += suffix;
+      } else if (combo.parts.sizeNumber) {
+        // First occurrence, use the actual size number
         if (/\d$/.test(productCode) && !combo.parts.color && !combo.parts.sizeText) {
           variantCode += `A${combo.parts.sizeNumber}`;
         } else {
           variantCode += combo.parts.sizeNumber;
         }
       }
+      
+      baseCodeCount.set(baseKey, count + 1);
 
       // Fallback if no detection
       if (!variantCode && combo.text) {
@@ -130,6 +139,7 @@ export function VariantTestTool() {
         variantCode = words.map(w => w.charAt(0).toUpperCase()).join('');
       }
 
+      usedCodes.add(variantCode);
       const fullCode = `${productCode}${variantCode}`;
 
       console.log(`  ${fullCode} = ${productCode} + ${variantCode} (${combo.text})`);

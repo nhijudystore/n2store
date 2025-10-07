@@ -429,6 +429,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         // Build variant code in order: Size + Color + Numeric Size
         let variantCode = '';
+        let baseCode = ''; // Code without numeric suffix for duplicate checking
         
         // 1. Add size text - normalize and take first letter of each word, then only first character
         if (sizeText) {
@@ -436,27 +437,29 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           const words = normalized.split(/\s+/);
           const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
           variantCode += firstLetters.charAt(0);
+          baseCode += firstLetters.charAt(0);
         }
         
         // 2. Add color code - normalize and take first letter of each word
         if (colorValue) {
           const normalized = normalizeVietnamese(colorValue);
           const colorWords = normalized.split(/\s+/);
-          const baseColorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
-          
-          // Handle duplicates by checking existing codes
-          let finalColorCode = baseColorCode;
-          let suffix = 1;
-          while (usedCodes.has(finalColorCode)) {
-            finalColorCode = baseColorCode + suffix;
-            suffix++;
-          }
-          usedCodes.add(finalColorCode);
-          variantCode += finalColorCode;
+          const colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+          variantCode += colorCode;
+          baseCode += colorCode;
         }
         
-        // 3. Add numeric size (only if no color/size text, add 'A' prefix for numeric-ending product codes)
-        if (sizeNumber) {
+        // Check if this base code already exists
+        const baseKey = baseCode;
+        const existingSameCodes = Array.from(usedCodes).filter(code => code.startsWith(baseKey));
+        
+        // 3. Add numeric size or duplicate suffix
+        if (existingSameCodes.length > 0) {
+          // If duplicate, use 0 + count (01, 02, 03...)
+          const suffix = String(existingSameCodes.length).padStart(2, '0');
+          variantCode += suffix;
+        } else if (sizeNumber) {
+          // First occurrence, use the actual size number
           if (/\d$/.test(rootProductCode) && !colorValue && !sizeText) {
             variantCode += `A${sizeNumber}`;
           } else {
