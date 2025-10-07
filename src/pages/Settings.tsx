@@ -15,6 +15,7 @@ import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload, createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { VariantTestTool } from "@/components/settings/VariantTestTool";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -1399,6 +1400,8 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <VariantTestTool />
     </div>
   );
 };
