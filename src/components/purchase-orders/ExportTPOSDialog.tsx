@@ -348,45 +348,51 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         // Insert NEW products to inventory (not upsert - only new variants)
         setCurrentStep("Đang thêm sản phẩm mới vào kho hàng...");
         
-        // Get all NEW successful items
-        const newSuccessfulItemIds = new Set<string>();
-        for (const { itemId } of result.productIds) {
+        // Create a map of product_code to tpos_product_id for new products
+        const productCodeToTPOSId = new Map<string, number>();
+        for (const { itemId, tposId } of result.productIds) {
           const representative = itemsToUpload.find(i => i.id === itemId);
           if (representative?.product_code) {
-            const variantInfo = variantMapping.get(representative.product_code);
-            if (variantInfo) {
-              variantInfo.items.forEach(item => newSuccessfulItemIds.add(item.id));
+            productCodeToTPOSId.set(representative.product_code, tposId);
+          }
+        }
+        
+        // Insert all variants for newly uploaded products
+        let insertedCount = 0;
+        for (const [productCode, variantInfo] of variantMapping) {
+          const tposId = productCodeToTPOSId.get(productCode);
+          if (!tposId) continue; // Skip if no TPOS ID (not a new product)
+          
+          // Insert each variant as a separate product entry
+          for (const item of variantInfo.items) {
+            const { error: productError } = await supabase
+              .from("products")
+              .insert({
+                product_code: item.product_code,
+                product_name: item.product_name,
+                variant: item.variant || null,
+                purchase_price: item.unit_price || 0,
+                selling_price: item.selling_price || 0,
+                supplier_name: item.supplier_name || '',
+                product_images: item.product_images?.length > 0 ? item.product_images : null,
+                price_images: item.price_images?.length > 0 ? item.price_images : null,
+                stock_quantity: 0,
+                unit: 'Cái',
+                tpos_product_id: tposId
+              })
+              .select()
+              .single();
+
+            if (productError && productError.code !== '23505') { // Ignore duplicate key error
+              console.error('Error inserting product variant:', productError);
+            } else if (!productError) {
+              insertedCount++;
             }
           }
         }
         
-        const newSuccessfulItems = selectedItems.filter(item => newSuccessfulItemIds.has(item.id));
-
-        for (const item of newSuccessfulItems) {
-          // Insert only - don't update existing products
-          const { error: productError } = await supabase
-            .from("products")
-            .insert({
-              product_code: item.product_code,
-              product_name: item.product_name,
-              variant: item.variant || null,
-              purchase_price: item.unit_price || 0,
-              selling_price: item.selling_price || 0,
-              supplier_name: item.supplier_name || '',
-              product_images: item.product_images?.length > 0 ? item.product_images : null,
-              price_images: item.price_images?.length > 0 ? item.price_images : null,
-              stock_quantity: 0,
-              unit: 'Cái'
-            })
-            .select()
-            .single();
-
-          if (productError && productError.code !== '23505') { // Ignore duplicate key error
-            console.error('Error inserting product:', productError);
-          }
-        }
-        
-        result.productsAddedToInventory = newSuccessfulItems.length;
+        result.productsAddedToInventory = insertedCount;
+        console.log(`📦 Inserted ${insertedCount} product variants to inventory`);
 
         // Auto-create variants for NEW products uploaded to TPOS
         setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
