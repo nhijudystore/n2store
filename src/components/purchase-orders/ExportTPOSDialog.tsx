@@ -179,13 +179,97 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Split variants by comma
       const variantList = variant.split(',').map(v => v.trim()).filter(Boolean);
       const totalQuantity = item.quantity || 1;
-      const quantityPerVariant = Math.floor(totalQuantity / variantList.length);
       
-      console.log(`  Item has ${variantList.length} variants, total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
+      // Detect all variants and categorize them by type
+      const sizeTextVariants: string[] = [];
+      const sizeNumberVariants: string[] = [];
+      const colorVariants: string[] = [];
+      const unknownVariants: string[] = [];
       
-      // Add each variant separately with divided quantity
-      for (const variantItem of variantList) {
-        allVariantsToCreate.push({ variantName: variantItem, item, quantity: quantityPerVariant });
+      for (const v of variantList) {
+        const detection = detectVariantsFromText(v);
+        
+        if (detection.sizeText.length > 0) {
+          sizeTextVariants.push(v);
+        } else if (detection.sizeNumber.length > 0) {
+          sizeNumberVariants.push(v);
+        } else if (detection.colors.length > 0) {
+          colorVariants.push(v);
+        } else {
+          unknownVariants.push(v);
+        }
+      }
+      
+      // Count how many attribute types we have
+      const hasMultipleTypes = 
+        [sizeTextVariants.length > 0, sizeNumberVariants.length > 0, colorVariants.length > 0, unknownVariants.length > 0]
+          .filter(Boolean).length > 1;
+      
+      if (hasMultipleTypes) {
+        // Create cartesian product of all attribute types
+        console.log(`  Creating combinations: ${sizeTextVariants.length} size text × ${colorVariants.length} colors × ${sizeNumberVariants.length} size numbers`);
+        
+        // Start with base combinations
+        let combinations: string[] = [''];
+        
+        // Add size text combinations
+        if (sizeTextVariants.length > 0) {
+          const newCombinations: string[] = [];
+          for (const base of combinations) {
+            for (const size of sizeTextVariants) {
+              newCombinations.push(base ? `${base}, ${size}` : size);
+            }
+          }
+          combinations = newCombinations;
+        }
+        
+        // Add color combinations
+        if (colorVariants.length > 0) {
+          const newCombinations: string[] = [];
+          for (const base of combinations) {
+            for (const color of colorVariants) {
+              newCombinations.push(base ? `${base}, ${color}` : color);
+            }
+          }
+          combinations = newCombinations;
+        }
+        
+        // Add size number combinations
+        if (sizeNumberVariants.length > 0) {
+          const newCombinations: string[] = [];
+          for (const base of combinations) {
+            for (const sizeNum of sizeNumberVariants) {
+              newCombinations.push(base ? `${base}, ${sizeNum}` : sizeNum);
+            }
+          }
+          combinations = newCombinations;
+        }
+        
+        // Add unknown combinations
+        if (unknownVariants.length > 0) {
+          const newCombinations: string[] = [];
+          for (const base of combinations) {
+            for (const unknown of unknownVariants) {
+              newCombinations.push(base ? `${base}, ${unknown}` : unknown);
+            }
+          }
+          combinations = newCombinations;
+        }
+        
+        const quantityPerVariant = Math.floor(totalQuantity / combinations.length);
+        console.log(`  Total combinations: ${combinations.length}, qty per combination: ${quantityPerVariant}`);
+        
+        for (const combo of combinations) {
+          allVariantsToCreate.push({ variantName: combo, item, quantity: quantityPerVariant });
+        }
+      } else {
+        // Single type - just split normally
+        const quantityPerVariant = Math.floor(totalQuantity / variantList.length);
+        console.log(`  Item has ${variantList.length} variants (single type), total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
+        
+        for (const variantItem of variantList) {
+          allVariantsToCreate.push({ variantName: variantItem, item, quantity: quantityPerVariant });
+        }
       }
     }
     
@@ -325,26 +409,41 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       
       // THEN: Create variant products with unique codes
       for (const { variantName, item, quantity } of allVariantsToCreate) {
-        // Detect variant attributes (color, text size, numeric size)
-        const detection = detectVariantsFromText(variantName);
+        // Split combination (may contain multiple attributes like "S, Hồng")
+        const variantParts = variantName.split(',').map(v => v.trim()).filter(Boolean);
+        
+        // Detect all attributes in this combination
+        let combinedDetection = {
+          colors: [] as Array<{value: string; confidence: number}>,
+          sizeText: [] as Array<{value: string; confidence: number}>,
+          sizeNumber: [] as Array<{value: string; confidence: number}>
+        };
+        
+        for (const part of variantParts) {
+          const detection = detectVariantsFromText(part);
+          combinedDetection.colors.push(...detection.colors);
+          combinedDetection.sizeText.push(...detection.sizeText);
+          combinedDetection.sizeNumber.push(...detection.sizeNumber);
+        }
+        
         let variantCode = '';
         
         // Build code in CORRECT order: text size + color + numeric size
-        if (detection.sizeText.length > 0) {
-          const sizeText = detection.sizeText[0].value.toUpperCase();
+        if (combinedDetection.sizeText.length > 0) {
+          const sizeText = combinedDetection.sizeText[0].value.toUpperCase();
           // For XL, use just 'X' in the code
           variantCode += sizeText === 'XL' ? 'X' : sizeText;
         }
         
-        if (detection.colors.length > 0) {
-          const colorCode = generateColorCode(detection.colors[0].value, usedCodes);
+        if (combinedDetection.colors.length > 0) {
+          const colorCode = generateColorCode(combinedDetection.colors[0].value, usedCodes);
           variantCode += colorCode;
         }
         
-        if (detection.sizeNumber.length > 0) {
-          const sizeNum = detection.sizeNumber[0].value;
+        if (combinedDetection.sizeNumber.length > 0) {
+          const sizeNum = combinedDetection.sizeNumber[0].value;
           // If root code ends with number and we only have numeric size, add 'A' prefix
-          if (/\d$/.test(rootProductCode) && detection.colors.length === 0 && detection.sizeText.length === 0) {
+          if (/\d$/.test(rootProductCode) && combinedDetection.colors.length === 0 && combinedDetection.sizeText.length === 0) {
             variantCode += `A${sizeNum}`;
           } else {
             variantCode += sizeNum;
