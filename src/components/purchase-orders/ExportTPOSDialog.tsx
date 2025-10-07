@@ -180,82 +180,81 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       .select("product_code, variant, tpos_product_id")
       .in("product_code", productCodes);
 
-    // Map existing variants by product_code
-    const existingVariantsMap = new Map<string, Set<string>>();
+    // Map ALL existing variants by product_code (to merge with new ones when uploading to TPOS)
+    const existingVariantsByCode = new Map<string, Array<{ variant: string | null; tpos_product_id: number | null }>>();
     const existingTPOSIds = new Map<string, number>();
     
     existingProducts?.forEach(p => {
-      if (!existingVariantsMap.has(p.product_code)) {
-        existingVariantsMap.set(p.product_code, new Set());
+      if (!existingVariantsByCode.has(p.product_code)) {
+        existingVariantsByCode.set(p.product_code, []);
       }
-      if (p.variant) {
-        existingVariantsMap.get(p.product_code)!.add(p.variant);
-      }
+      existingVariantsByCode.get(p.product_code)!.push({
+        variant: p.variant,
+        tpos_product_id: p.tpos_product_id
+      });
       if (p.tpos_product_id) {
         existingTPOSIds.set(p.product_code, p.tpos_product_id);
       }
     });
 
     console.log(`📋 Found ${existingProducts?.length || 0} existing products in database`);
-    existingVariantsMap.forEach((variants, code) => {
-      console.log(`  - ${code}: existing variants: ${Array.from(variants).join(', ')}`);
+    existingVariantsByCode.forEach((variants, code) => {
+      console.log(`  - ${code}: existing variants: ${variants.map(v => v.variant || '(no variant)').join(', ')}`);
     });
 
-    // Prepare items for upload - only NEW variants not in database
+    // Prepare items for upload - merge NEW variants from purchase order with EXISTING variants from database
     const itemsToUpload: TPOSProductItem[] = [];
     const variantMapping = new Map<string, { 
       items: TPOSProductItem[], 
+      allVariants: string[], // All variants to upload (existing + new)
       combinedVariant: string,
       existingTPOSId?: number 
     }>();
 
     groupedByProductCode.forEach((items, productCode) => {
-      // Get existing variants for this product code
-      const existingVariants = existingVariantsMap.get(productCode) || new Set();
+      // Get existing variants for this product code from database
+      const existingVariants = existingVariantsByCode.get(productCode) || [];
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Filter to get only NEW variants
-      const newVariantItems = items.filter(item => {
-        if (!item.variant) return !existingVariants.has(''); // No variant case
-        return !existingVariants.has(item.variant);
-      });
-
-      if (newVariantItems.length === 0) {
-        console.log(`⏭️  Skipping ${productCode}: all variants already exist in database`);
-        return; // Skip this product code - all variants already exist
-      }
-
-      console.log(`✨ ${productCode}: ${newVariantItems.length} NEW variants to upload`);
-      
-      // Use first NEW item as representative
-      const representative = { ...newVariantItems[0] };
-      
-      // Collect only NEW variants
-      const newVariants = newVariantItems
+      // Get all unique variants from purchase order items
+      const newVariants = items
         .map(i => i.variant)
         .filter((v): v is string => Boolean(v))
         .filter((v, i, arr) => arr.indexOf(v) === i); // Remove duplicates
       
-      const combinedVariant = newVariants.join(', ');
+      // Merge existing variants from database with new variants from purchase order
+      const existingVariantStrings = existingVariants
+        .map(v => v.variant)
+        .filter((v): v is string => Boolean(v));
+      
+      const allVariants = [...new Set([...existingVariantStrings, ...newVariants])];
+      const combinedVariant = allVariants.join(', ');
+
+      console.log(`✨ ${productCode}: ${existingVariantStrings.length} existing + ${newVariants.length} new = ${allVariants.length} total variants`);
+      
+      // Use first item as representative
+      const representative = { ...items[0] };
       
       // Check if product already exists on TPOS
       if (existingTPOSId) {
-        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will only add new variants`);
-        // Store for variant creation only
+        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync all variants`);
+        // Store for variant creation - include ALL variants
         if (combinedVariant) {
           variantMapping.set(productCode, {
-            items: newVariantItems,
+            items: items,
+            allVariants: allVariants,
             combinedVariant: combinedVariant,
             existingTPOSId: existingTPOSId
           });
         }
       } else {
-        // Product doesn't exist on TPOS yet - need to upload
-        console.log(`📤 ${productCode}: New product, will upload to TPOS`);
+        // Product doesn't exist on TPOS yet - need to upload with all variants
+        console.log(`📤 ${productCode}: New product, will upload to TPOS with all variants`);
         
         if (combinedVariant) {
           variantMapping.set(productCode, {
-            items: newVariantItems,
+            items: items,
+            allVariants: allVariants,
             combinedVariant: combinedVariant
           });
           // Remove variant from upload payload (will be created later)
@@ -345,8 +344,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         console.log(`💾 Saved TPOS IDs to ${allItemUpdates.length} items (including grouped items)`);
         result.savedIds = allItemUpdates.length;
 
-        // Insert NEW products to inventory (not upsert - only new variants)
-        setCurrentStep("Đang thêm sản phẩm mới vào kho hàng...");
+        // Upsert products to inventory (use upsert to handle duplicates)
+        setCurrentStep("Đang cập nhật kho hàng...");
         
         // Create a map of product_code to tpos_product_id for new products
         const productCodeToTPOSId = new Map<string, number>();
@@ -357,8 +356,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           }
         }
         
-        // Collect unique variants to insert (deduplicate by product_code + variant)
-        const uniqueVariantsToInsert = new Map<string, TPOSProductItem>();
+        // Collect unique variants to upsert (deduplicate by product_code + variant)
+        const uniqueVariantsToUpsert = new Map<string, TPOSProductItem & { tpos_product_id: number }>();
         
         for (const [productCode, variantInfo] of variantMapping) {
           const tposId = productCodeToTPOSId.get(productCode);
@@ -367,20 +366,20 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           // Deduplicate variants - only keep one item per unique (product_code, variant) combo
           for (const item of variantInfo.items) {
             const uniqueKey = `${item.product_code}|||${item.variant || ''}`;
-            if (!uniqueVariantsToInsert.has(uniqueKey)) {
-              uniqueVariantsToInsert.set(uniqueKey, { ...item, tpos_product_id: tposId });
+            if (!uniqueVariantsToUpsert.has(uniqueKey)) {
+              uniqueVariantsToUpsert.set(uniqueKey, { ...item, tpos_product_id: tposId });
             }
           }
         }
         
-        console.log(`📦 Deduplicated to ${uniqueVariantsToInsert.size} unique variants to insert`);
+        console.log(`📦 Upserting ${uniqueVariantsToUpsert.size} unique variants to inventory`);
         
-        // Insert each unique variant as a separate product entry
-        let insertedCount = 0;
-        for (const item of uniqueVariantsToInsert.values()) {
+        // Upsert each unique variant as a separate product entry
+        let upsertedCount = 0;
+        for (const item of uniqueVariantsToUpsert.values()) {
           const { error: productError } = await supabase
             .from("products")
-            .insert({
+            .upsert({
               product_code: item.product_code,
               product_name: item.product_name,
               variant: item.variant || null,
@@ -392,19 +391,22 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               stock_quantity: 0,
               unit: 'Cái',
               tpos_product_id: item.tpos_product_id
+            }, {
+              onConflict: 'product_code,variant',
+              ignoreDuplicates: false // Update if exists
             })
             .select()
             .single();
 
-          if (productError && productError.code !== '23505') { // Ignore duplicate key error
-            console.error('Error inserting product variant:', productError);
-          } else if (!productError) {
-            insertedCount++;
+          if (productError) {
+            console.error('Error upserting product variant:', productError);
+          } else {
+            upsertedCount++;
           }
         }
         
-        result.productsAddedToInventory = insertedCount;
-        console.log(`✅ Successfully inserted ${insertedCount} unique product variants to inventory`);
+        result.productsAddedToInventory = upsertedCount;
+        console.log(`✅ Successfully upserted ${upsertedCount} unique product variants to inventory`);
 
         // Auto-create variants for NEW products uploaded to TPOS
         setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
@@ -482,11 +484,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             console.log(`✅ Variants added to ${productCode}`);
             result.variantsCreated = (result.variantsCreated || 0) + 1;
 
-            // Insert new variants to products table
+            // Upsert variants to products table
             for (const item of items) {
               const { error: productError } = await supabase
                 .from("products")
-                .insert({
+                .upsert({
                   product_code: item.product_code,
                   product_name: item.product_name,
                   variant: item.variant || null,
@@ -498,12 +500,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                   stock_quantity: 0,
                   unit: 'Cái',
                   tpos_product_id: existingTPOSId
+                }, {
+                  onConflict: 'product_code,variant',
+                  ignoreDuplicates: false // Update if exists
                 })
                 .select()
                 .single();
 
-              if (productError && productError.code !== '23505') {
-                console.error('Error inserting variant:', productError);
+              if (productError) {
+                console.error('Error upserting variant:', productError);
               }
 
               // Update purchase_order_items with TPOS ID
