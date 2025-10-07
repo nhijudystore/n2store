@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Download, Loader2, CheckSquare, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   uploadToTPOS, 
   generateTPOSExcel, 
@@ -28,6 +29,7 @@ interface ExportTPOSDialogProps {
 
 export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: ExportTPOSDialogProps) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState("");
@@ -491,7 +493,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 const supplierName = firstItem?.supplier_name || firstItem?.product_name?.split(' ')[1];
                 const saveResult = await saveTPOSVariantsToInventory(tposVariants, supplierName);
                 result.variantsAddedToInventory = (result.variantsAddedToInventory || 0) + saveResult.created + saveResult.updated;
+                result.purchaseOrderItemsUpdated = (result.purchaseOrderItemsUpdated || 0) + saveResult.purchaseOrderItemsUpdated;
                 console.log(`✅ Saved ${saveResult.created + saveResult.updated} variants to inventory`);
+                console.log(`📝 Updated ${saveResult.purchaseOrderItemsUpdated} purchase_order_items with TPOS data`);
               }
             } catch (error) {
               console.error(`⚠️ Failed to fetch/save variants for ${productCode}:`, error);
@@ -543,6 +547,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               )}
               {result.variantsAddedToInventory !== undefined && result.variantsAddedToInventory > 0 && (
                 <p className="text-blue-600 dark:text-blue-400">📦 Đã lưu vào kho: {result.variantsAddedToInventory} biến thể</p>
+              )}
+              {result.purchaseOrderItemsUpdated !== undefined && result.purchaseOrderItemsUpdated > 0 && (
+                <p className="text-green-600 dark:text-green-400">📝 Đã cập nhật: {result.purchaseOrderItemsUpdated} items trong đơn đặt hàng</p>
               )}
               {result.productIds.length > 0 && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
@@ -635,6 +642,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         ),
         duration: 10000, // Hiển thị lâu hơn để user đọc kết quả
       });
+
+      // Refresh purchase orders table to show updated data
+      queryClient.invalidateQueries({ queryKey: ['purchase_orders'] });
 
       onSuccess?.();
       onOpenChange(false);
