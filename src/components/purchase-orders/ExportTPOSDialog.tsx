@@ -329,7 +329,13 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const detection = detectVariantsFromText(variantName);
         let variantCode = '';
         
-        // Build code in CORRECT order: color + numeric size + text size
+        // Build code in CORRECT order: text size + color + numeric size
+        if (detection.sizeText.length > 0) {
+          const sizeText = detection.sizeText[0].value.toUpperCase();
+          // For XL, use just 'X' in the code
+          variantCode += sizeText === 'XL' ? 'X' : sizeText;
+        }
+        
         if (detection.colors.length > 0) {
           const colorCode = generateColorCode(detection.colors[0].value, usedCodes);
           variantCode += colorCode;
@@ -337,17 +343,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         if (detection.sizeNumber.length > 0) {
           const sizeNum = detection.sizeNumber[0].value;
-          // If product code ends with number and we only have numeric size, add 'A' prefix
-          if (!detection.colors.length && !detection.sizeText.length && /\d$/.test(rootProductCode)) {
+          // If root code ends with number and we only have numeric size, add 'A' prefix
+          if (/\d$/.test(rootProductCode) && detection.colors.length === 0 && detection.sizeText.length === 0) {
             variantCode += `A${sizeNum}`;
           } else {
             variantCode += sizeNum;
           }
-        }
-        
-        if (detection.sizeText.length > 0) {
-          const sizeText = detection.sizeText[0].value.toUpperCase();
-          variantCode += sizeText;
         }
         
         // Fallback: if no detection, use the original color code generation
