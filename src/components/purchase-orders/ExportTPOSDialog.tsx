@@ -285,6 +285,44 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Multiple variants - create separate products with unique codes
       console.log(`  Splitting ${allVariantsToCreate.length} variants for ${rootProductCode}`);
       
+      // FIRST: Create base product (without variant) as required
+      const firstItem = allVariantsToCreate[0].item;
+      const { data: baseProduct } = await supabase
+        .from("products")
+        .select("product_code, stock_quantity")
+        .eq("product_code", rootProductCode)
+        .maybeSingle();
+      
+      if (baseProduct) {
+        console.log(`    Base product ${rootProductCode} already exists`);
+      } else {
+        // Create base product without variant
+        console.log(`    Creating base product: ${rootProductCode} (no variant)`);
+        const { error } = await supabase
+          .from("products")
+          .insert({
+            product_code: rootProductCode,
+            product_name: firstItem.product_name,
+            variant: null,
+            purchase_price: firstItem.unit_price || 0,
+            selling_price: firstItem.selling_price || 0,
+            supplier_name: firstItem.supplier_name || '',
+            product_images: firstItem.product_images?.length > 0 ? firstItem.product_images : null,
+            price_images: firstItem.price_images?.length > 0 ? firstItem.price_images : null,
+            stock_quantity: 0, // Base product has 0 stock, variants hold the stock
+            unit: 'Cái',
+            tpos_product_id: tposProductId
+          });
+        
+        if (!error) {
+          console.log(`    ✅ Created base product: ${rootProductCode}`);
+          createdCount++;
+        } else {
+          console.error(`    ❌ Failed to create base product ${rootProductCode}:`, error);
+        }
+      }
+      
+      // THEN: Create variant products with unique codes
       for (const { variantName, item, quantity } of allVariantsToCreate) {
         const colorCode = generateColorCode(variantName, usedCodes);
         const variantProductCode = `${rootProductCode}${colorCode}`;
