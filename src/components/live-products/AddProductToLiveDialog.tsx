@@ -259,19 +259,6 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       return;
     }
 
-    // Validate variants
-    if (data.variants.length === 0) {
-      toast.error("Vui lòng thêm ít nhất một biến thể");
-      return;
-    }
-
-    for (const variant of data.variants) {
-      if (variant.quantity < 0) {
-        toast.error("Số lượng phải lớn hơn hoặc bằng 0");
-        return;
-      }
-    }
-
     // Check for duplicate variant names
     const variantNames = data.variants.map(v => v.name.trim().toLowerCase()).filter(n => n);
     const duplicates = variantNames.filter((name, index) => variantNames.indexOf(name) !== index);

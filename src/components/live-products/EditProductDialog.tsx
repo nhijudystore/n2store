@@ -326,25 +326,6 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     // Filter out completely empty variants (no name and quantity = 0)
     const validVariants = data.variants.filter(v => v.name?.trim() || v.quantity > 0);
     
-    if (validVariants.length === 0) {
-      toast({
-        title: "Lỗi",
-        description: "Phải có ít nhất một biến thể",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    for (const variant of validVariants) {
-      if (variant.quantity < 0) {
-        toast({
-          title: "Lỗi",
-          description: "Số lượng chuẩn bị phải lớn hơn hoặc bằng 0",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
 
     // Check for duplicate variant names in form
     const variantNames = validVariants
