@@ -10,11 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, X, Copy, Calendar, Warehouse, RotateCcw } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantSelector } from "./VariantSelector";
 import { SelectProductDialog } from "@/components/products/SelectProductDialog";
+import { VariantGeneratorDialog } from "./VariantGeneratorDialog";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isVariantDialogOpen, setIsVariantDialogOpen] = useState(false);
+  const [variantGeneratorIndex, setVariantGeneratorIndex] = useState<number | null>(null);
 
   // Debounce product names for auto-generating codes
   const debouncedProductNames = useDebounce(
@@ -254,6 +257,71 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     setIsSelectProductOpen(true);
   };
 
+  const handleVariantsGenerated = (
+    index: number, 
+    variants: Array<{
+      fullCode: string;
+      variantCode: string;
+      productName: string;
+      variantText: string;
+      hasCollision: boolean;
+    }>
+  ) => {
+    const baseItem = items[index];
+    
+    // Delete original row and insert variant rows
+    const newItems = [...items];
+    newItems.splice(index, 1); // Remove original
+    
+    // Create variant rows
+    const variantItems: PurchaseOrderItem[] = variants.map(v => ({
+      product_code: v.fullCode,
+      product_name: v.productName,
+      variant: v.variantText,
+      quantity: baseItem.quantity,
+      unit_price: baseItem.unit_price,
+      selling_price: baseItem.selling_price,
+      total_price: baseItem.quantity * Number(baseItem.unit_price || 0),
+      product_images: [...baseItem.product_images],
+      price_images: [...baseItem.price_images]
+    }));
+    
+    // Insert at original position
+    newItems.splice(index, 0, ...variantItems);
+    
+    setItems(newItems);
+    
+    toast({
+      title: "Đã tạo biến thể",
+      description: `Tạo thành công ${variants.length} biến thể`
+    });
+  };
+
+  const openVariantGenerator = (index: number) => {
+    const item = items[index];
+    
+    // Validation: Check if product_code is filled
+    if (!item.product_code.trim()) {
+      toast({
+        title: "Cần điền Mã SP trước",
+        description: "Vui lòng điền Mã Sản Phẩm trước khi tạo biến thể",
+        variant: "destructive"
+      });
+      
+      // Focus on product_code input
+      setTimeout(() => {
+        const codeInputs = document.querySelectorAll(`input[placeholder="Mã SP"]`);
+        const targetInput = codeInputs[index] as HTMLInputElement;
+        targetInput?.focus();
+      }, 100);
+      
+      return;
+    }
+    
+    setVariantGeneratorIndex(index);
+    setIsVariantDialogOpen(true);
+  };
+
 
   const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
   const finalAmount = totalAmount - formData.discount_amount;
@@ -422,11 +490,22 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               />
             </TableCell>
             <TableCell>
-              <VariantSelector
-                value={item.variant}
-                onChange={(value) => updateItem(index, "variant", value)}
-                className="w-[150px]"
-              />
+              <div className="flex items-center gap-1">
+                <VariantSelector
+                  value={item.variant}
+                  onChange={(value) => updateItem(index, "variant", value)}
+                  className="flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => openVariantGenerator(index)}
+                  title="Tạo biến thể tự động"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </div>
             </TableCell>
                       <TableCell>
                         <Input
@@ -575,6 +654,18 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         onOpenChange={setIsSelectProductOpen}
         onSelect={handleSelectProduct}
       />
+
+      {variantGeneratorIndex !== null && (
+        <VariantGeneratorDialog
+          open={isVariantDialogOpen}
+          onOpenChange={setIsVariantDialogOpen}
+          currentItem={items[variantGeneratorIndex]}
+          onVariantsGenerated={(variants) => {
+            handleVariantsGenerated(variantGeneratorIndex, variants);
+            setVariantGeneratorIndex(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 }
