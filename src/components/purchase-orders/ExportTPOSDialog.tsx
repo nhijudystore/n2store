@@ -329,15 +329,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const detection = detectVariantsFromText(variantName);
         let variantCode = '';
         
-        // Build code in order: color + text size + numeric size
+        // Build code in CORRECT order: color + numeric size + text size
         if (detection.colors.length > 0) {
           const colorCode = generateColorCode(detection.colors[0].value, usedCodes);
           variantCode += colorCode;
-        }
-        
-        if (detection.sizeText.length > 0) {
-          const sizeText = detection.sizeText[0].value.toUpperCase();
-          variantCode += sizeText;
         }
         
         if (detection.sizeNumber.length > 0) {
@@ -348,6 +343,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           } else {
             variantCode += sizeNum;
           }
+        }
+        
+        if (detection.sizeText.length > 0) {
+          const sizeText = detection.sizeText[0].value.toUpperCase();
+          variantCode += sizeText;
         }
         
         // Fallback: if no detection, use the original color code generation
