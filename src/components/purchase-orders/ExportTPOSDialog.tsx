@@ -184,7 +184,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const sizeTextVariants: string[] = [];
       const sizeNumberVariants: string[] = [];
       const colorVariants: string[] = [];
-      const unknownVariants: string[] = [];
       
       for (const v of variantList) {
         const detection = detectVariantsFromText(v);
@@ -195,19 +194,19 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           sizeNumberVariants.push(v);
         } else if (detection.colors.length > 0) {
           colorVariants.push(v);
-        } else {
-          unknownVariants.push(v);
         }
       }
       
-      // Count how many attribute types we have
+      // Count how many attribute types we have (ignore unknown)
       const hasMultipleTypes = 
-        [sizeTextVariants.length > 0, sizeNumberVariants.length > 0, colorVariants.length > 0, unknownVariants.length > 0]
+        [sizeTextVariants.length > 0, sizeNumberVariants.length > 0, colorVariants.length > 0]
           .filter(Boolean).length > 1;
+      
+      console.log(`  Detected: ${sizeTextVariants.length} size text, ${colorVariants.length} colors, ${sizeNumberVariants.length} size numbers`);
       
       if (hasMultipleTypes) {
         // Create cartesian product of all attribute types
-        console.log(`  Creating combinations: ${sizeTextVariants.length} size text × ${colorVariants.length} colors × ${sizeNumberVariants.length} size numbers`);
+        console.log(`  🔄 Creating cartesian product: ${sizeTextVariants.length} size text × ${colorVariants.length} colors × ${sizeNumberVariants.length} size numbers`);
         
         // Start with base combinations
         let combinations: string[] = [''];
@@ -245,19 +244,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           combinations = newCombinations;
         }
         
-        // Add unknown combinations
-        if (unknownVariants.length > 0) {
-          const newCombinations: string[] = [];
-          for (const base of combinations) {
-            for (const unknown of unknownVariants) {
-              newCombinations.push(base ? `${base}, ${unknown}` : unknown);
-            }
-          }
-          combinations = newCombinations;
-        }
-        
         const quantityPerVariant = Math.floor(totalQuantity / combinations.length);
-        console.log(`  Total combinations: ${combinations.length}, qty per combination: ${quantityPerVariant}`);
+        console.log(`  ✅ Created ${combinations.length} combinations, ${quantityPerVariant} qty each:`, combinations);
         
         for (const combo of combinations) {
           allVariantsToCreate.push({ variantName: combo, item, quantity: quantityPerVariant });
@@ -265,7 +253,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       } else {
         // Single type - just split normally
         const quantityPerVariant = Math.floor(totalQuantity / variantList.length);
-        console.log(`  Item has ${variantList.length} variants (single type), total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
+        console.log(`  📦 Single type: ${variantList.length} variants, total qty ${totalQuantity} → ${quantityPerVariant} per variant`);
         
         for (const variantItem of variantList) {
           allVariantsToCreate.push({ variantName: variantItem, item, quantity: quantityPerVariant });
