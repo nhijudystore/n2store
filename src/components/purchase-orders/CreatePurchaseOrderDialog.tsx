@@ -23,6 +23,7 @@ import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
 import { useDebounce } from "@/hooks/use-debounce";
 import { detectVariantsFromText } from "@/lib/variant-detector";
+import { useCreateVariantProducts } from "@/hooks/use-create-variant-products";
 
 interface PurchaseOrderItem {
   product_name: string;
@@ -69,6 +70,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isVariantDialogOpen, setIsVariantDialogOpen] = useState(false);
   const [variantGeneratorIndex, setVariantGeneratorIndex] = useState<number | null>(null);
+  
+  const createVariantProducts = useCreateVariantProducts();
 
   // Debounce product names for auto-generating codes
   const debouncedProductNames = useDebounce(
@@ -258,7 +261,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   };
 
   const handleVariantsGenerated = (
-    index: number, 
+    index: number,
     variants: Array<{
       fullCode: string;
       variantCode: string;
@@ -268,53 +271,43 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     }>
   ) => {
     const baseItem = items[index];
-    
-    // Delete original row and insert variant rows
-    const newItems = [...items];
-    newItems.splice(index, 1); // Remove original
-    
-    // Create variant rows
-    const variantItems: PurchaseOrderItem[] = variants.map(v => ({
+
+    // Prepare data for database insertion
+    const productsToCreate = variants.map(v => ({
       product_code: v.fullCode,
       product_name: v.productName,
       variant: v.variantText,
-      quantity: baseItem.quantity,
-      unit_price: baseItem.unit_price,
-      selling_price: baseItem.selling_price,
-      total_price: baseItem.quantity * Number(baseItem.unit_price || 0),
+      purchase_price: Number(baseItem.unit_price) * 1000, // Convert to VND
+      selling_price: Number(baseItem.selling_price) * 1000, // Convert to VND
+      supplier_name: formData.supplier_name || undefined,
+      stock_quantity: 0, // Mới tạo chưa có trong kho
       product_images: [...baseItem.product_images],
       price_images: [...baseItem.price_images]
     }));
-    
-    // Insert at original position
-    newItems.splice(index, 0, ...variantItems);
-    
-    setItems(newItems);
-    
-    toast({
-      title: "Đã tạo biến thể",
-      description: `Tạo thành công ${variants.length} biến thể`
-    });
+
+    // Call mutation to create products in database
+    createVariantProducts.mutate(productsToCreate);
+
+    // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới)
   };
 
   const openVariantGenerator = (index: number) => {
     const item = items[index];
     
-    // Validation: Check if product_code is filled
-    if (!item.product_code.trim()) {
+    // Validation: Check all required fields
+    const missingFields = [];
+    
+    if (!item.product_name.trim()) missingFields.push("Tên sản phẩm");
+    if (!item.product_code.trim()) missingFields.push("Mã sản phẩm");
+    if (!item.unit_price || Number(item.unit_price) <= 0) missingFields.push("Giá mua");
+    if (!item.selling_price || Number(item.selling_price) <= 0) missingFields.push("Giá bán");
+    
+    if (missingFields.length > 0) {
       toast({
-        title: "Cần điền Mã SP trước",
-        description: "Vui lòng điền Mã Sản Phẩm trước khi tạo biến thể",
+        title: "Thiếu thông tin",
+        description: `Vui lòng điền: ${missingFields.join(", ")}`,
         variant: "destructive"
       });
-      
-      // Focus on product_code input
-      setTimeout(() => {
-        const codeInputs = document.querySelectorAll(`input[placeholder="Mã SP"]`);
-        const targetInput = codeInputs[index] as HTMLInputElement;
-        targetInput?.focus();
-      }, 100);
-      
       return;
     }
     
