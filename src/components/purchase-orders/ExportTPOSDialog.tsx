@@ -421,16 +421,26 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         // Build variant code in order: Size + Color + Numeric Size
         let variantCode = '';
         
-        // 1. Add size text (XL → X, others stay the same)
+        // 1. Add size text - take first letter of each word, then only first character
         if (sizeText) {
-          const sizeUpper = sizeText.toUpperCase();
-          variantCode += sizeUpper === 'XL' ? 'X' : sizeUpper;
+          const words = sizeText.split(/\s+/);
+          const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
+          variantCode += firstLetters.charAt(0);
         }
         
-        // 2. Add color code
+        // 2. Add color code - take first letter of each word
         if (colorValue) {
-          const colorCode = generateColorCode(colorValue, usedCodes);
-          variantCode += colorCode;
+          const colorWords = colorValue.split(/\s+/);
+          let colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+          
+          // Handle duplicates by adding number suffix
+          let finalColorCode = colorCode;
+          let suffix = 1;
+          while (usedCodes.has(variantCode + finalColorCode + (sizeNumber || ''))) {
+            finalColorCode = colorCode + suffix;
+            suffix++;
+          }
+          variantCode += finalColorCode;
         }
         
         // 3. Add numeric size (only if no color/size text, add 'A' prefix for numeric-ending product codes)

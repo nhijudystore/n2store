@@ -84,13 +84,25 @@ export function VariantTestTool() {
 
       // Build code: Size Text + Color + Size Number
       if (combo.parts.sizeText) {
-        const sizeUpper = combo.parts.sizeText.toUpperCase();
-        variantCode += sizeUpper === 'XL' ? 'X' : sizeUpper;
+        // Take first letter of each word, then take only the first character
+        const words = combo.parts.sizeText.split(/\s+/);
+        const firstLetters = words.map(w => w.charAt(0).toUpperCase()).join('');
+        variantCode += firstLetters.charAt(0);
       }
 
       if (combo.parts.color) {
-        const colorCode = generateColorCode(combo.parts.color, usedCodes);
-        variantCode += colorCode;
+        // Take first letter of each word in color name
+        const colorWords = combo.parts.color.split(/\s+/);
+        let colorCode = colorWords.map(w => w.charAt(0).toUpperCase()).join('');
+        
+        // Handle duplicates by adding number suffix
+        let finalColorCode = colorCode;
+        let suffix = 1;
+        while (usedCodes.has(variantCode + finalColorCode + (combo.parts.sizeNumber || ''))) {
+          finalColorCode = colorCode + suffix;
+          suffix++;
+        }
+        variantCode += finalColorCode;
       }
 
       if (combo.parts.sizeNumber) {
@@ -104,7 +116,8 @@ export function VariantTestTool() {
 
       // Fallback if no detection
       if (!variantCode && combo.text) {
-        variantCode = generateColorCode(combo.text, usedCodes);
+        const words = combo.text.split(/\s+/);
+        variantCode = words.map(w => w.charAt(0).toUpperCase()).join('');
       }
 
       usedCodes.add(variantCode);
