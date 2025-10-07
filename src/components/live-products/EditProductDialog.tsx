@@ -208,8 +208,8 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
         throw new Error("Missing phase or session ID");
       }
 
-      const productCode = data.product_code.trim();
-      const productName = data.product_name.trim();
+      const productCode = data.product_code.trim().toUpperCase();
+      const productName = data.product_name.trim().toUpperCase();
       
       // Use already uploaded image URL
       const finalImageUrl = imageUrl || undefined;
@@ -237,7 +237,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
               .update({
                 product_code: productCode,
                 product_name: productName,
-                variant: variant.name?.trim() || null,
+                variant: variant.name?.trim().toUpperCase() || null,
                 prepared_quantity: variant.quantity,
                 image_url: finalImageUrl,
               })
@@ -270,7 +270,7 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
           live_phase_id: product.live_phase_id,
           product_code: productCode,
           product_name: productName,
-          variant: variant.name?.trim() || null,
+          variant: variant.name?.trim().toUpperCase() || null,
           prepared_quantity: variant.quantity,
           sold_quantity: 0,
           image_url: finalImageUrl,
@@ -324,7 +324,13 @@ export function EditProductDialog({ open, onOpenChange, product }: EditProductDi
     }
 
     // Filter out completely empty variants (no name and quantity = 0)
-    const validVariants = data.variants.filter(v => v.name?.trim() || v.quantity > 0);
+    // BUT always keep existing variants (those with an id)
+    const validVariants = data.variants.filter(v => {
+      // Keep all existing variants (those with an id)
+      if (v.id) return true;
+      // Only filter out new variants that are completely empty
+      return v.name?.trim() || v.quantity > 0;
+    });
     
 
     // Check for duplicate variant names in form
