@@ -1434,6 +1434,7 @@ export async function fetchTPOSVariantsByProductCodes(
 
 /**
  * Save TPOS variants to products table in inventory
+ * AND update purchase_order_items with TPOS data
  */
 export async function saveTPOSVariantsToInventory(
   variants: TPOSVariantFromAPI[],
@@ -1442,12 +1443,14 @@ export async function saveTPOSVariantsToInventory(
   created: number; 
   updated: number; 
   skipped: number;
+  purchaseOrderItemsUpdated: number;
   errors: any[] 
 }> {
   const result = {
     created: 0,
     updated: 0,
     skipped: 0,
+    purchaseOrderItemsUpdated: 0,
     errors: []
   };
 
@@ -1485,10 +1488,12 @@ export async function saveTPOSVariantsToInventory(
           result.created++;
         }
       } else {
-        // UPDATE existing product
+        // UPDATE existing product with TPOS data
         const { error } = await supabase
           .from("products")
           .update({
+            product_code: variant.DefaultCode,
+            product_name: variant.NameGet,
             tpos_product_id: variant.ProductId,
             productid_bienthe: variant.Id,
             selling_price: variant.PriceVariant,
@@ -1504,6 +1509,42 @@ export async function saveTPOSVariantsToInventory(
           result.updated++;
         }
       }
+
+      // ============================================================
+      // UPDATE purchase_order_items with TPOS data
+      // ============================================================
+      try {
+        const { data: purchaseItems, error: fetchError } = await supabase
+          .from("purchase_order_items")
+          .select("id, product_code, variant")
+          .eq("tpos_product_id", variant.ProductId);
+
+        if (fetchError) {
+          console.error(`⚠️ Error fetching purchase_order_items for ProductId ${variant.ProductId}:`, fetchError);
+        } else if (purchaseItems && purchaseItems.length > 0) {
+          console.log(`📝 Updating ${purchaseItems.length} purchase_order_items for ${variant.DefaultCode}...`);
+          
+          for (const item of purchaseItems) {
+            const { error: updateError } = await supabase
+              .from("purchase_order_items")
+              .update({
+                product_code: variant.DefaultCode,
+                product_name: variant.NameGet
+              })
+              .eq("id", item.id);
+
+            if (updateError) {
+              console.error(`❌ Error updating purchase_order_item ${item.id}:`, updateError);
+            } else {
+              console.log(`  ✅ Updated purchase_order_item: ${item.id}`);
+              result.purchaseOrderItemsUpdated++;
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`⚠️ Error updating purchase_order_items for ${variant.DefaultCode}:`, error);
+      }
+
     } catch (error) {
       console.error(`❌ Error processing ${variant.DefaultCode}:`, error);
       result.errors.push({ 
@@ -1513,7 +1554,7 @@ export async function saveTPOSVariantsToInventory(
     }
   }
 
-  console.log(`[Save Variants] Summary: ${result.created} created, ${result.updated} updated, ${result.errors.length} errors`);
+  console.log(`[Save Variants] Summary: ${result.created} created, ${result.updated} updated, ${result.purchaseOrderItemsUpdated} purchase_order_items updated, ${result.errors.length} errors`);
   
   return result;
 }
