@@ -179,7 +179,33 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const baseProductCode = data.product_code.trim() || "N/A";
+      let baseProductCode = data.product_code.trim();
+      
+      // If product code is empty, generate N/A1, N/A2, N/A3...
+      if (!baseProductCode) {
+        const { data: existingNACodes, error: naError } = await supabase
+          .from("live_products")
+          .select("product_code")
+          .eq("live_phase_id", phaseId)
+          .like("product_code", "N/A%")
+          .order("product_code", { ascending: false });
+        
+        if (naError) throw naError;
+        
+        let maxNumber = 0;
+        if (existingNACodes && existingNACodes.length > 0) {
+          for (const item of existingNACodes) {
+            const match = item.product_code.match(/^N\/A(\d+)/);
+            if (match) {
+              const num = parseInt(match[1], 10);
+              if (num > maxNumber) maxNumber = num;
+            }
+          }
+        }
+        
+        baseProductCode = `N/A${maxNumber + 1}`;
+      }
+      
       const baseProductName = data.product_name.trim() || "Không có";
       
       const finalImageUrl = imageUrl || null;
