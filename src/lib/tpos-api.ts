@@ -1485,10 +1485,12 @@ export async function saveTPOSVariantsToInventory(
           result.created++;
         }
       } else {
-        // UPDATE existing product
+        // UPDATE existing product - also update product_name and product_code from TPOS
         const { error } = await supabase
           .from("products")
           .update({
+            product_code: variant.DefaultCode,  // Cập nhật mã sản phẩm từ TPOS
+            product_name: variant.NameGet,      // Cập nhật tên sản phẩm từ TPOS
             tpos_product_id: variant.ProductId,
             productid_bienthe: variant.Id,
             selling_price: variant.PriceVariant,
