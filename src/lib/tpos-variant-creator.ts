@@ -208,14 +208,51 @@ export function parseVariantToAttributes(variant: string): SelectedAttributes {
 }
 
 // =====================================================
-// STEP 3: CREATE ATTRIBUTE LINES
+// STEP 3: CREATE ATTRIBUTE LINES (MERGE WITH EXISTING)
 // =====================================================
 
-export function createAttributeLines(selectedAttributes: SelectedAttributes): TPOSAttributeLine[] {
+export function createAttributeLines(
+  selectedAttributes: SelectedAttributes, 
+  existingAttributeLines: TPOSAttributeLine[] = []
+): TPOSAttributeLine[] {
   const attributeLines: TPOSAttributeLine[] = [];
+  
+  // Helper to merge values and remove duplicates
+  const mergeValues = (
+    newValues: TPOSAttributeValue[], 
+    existingLine?: TPOSAttributeLine
+  ): TPOSAttributeValue[] => {
+    const existingValues = existingLine?.Values || [];
+    const mergedMap = new Map<number, TPOSAttributeValue>();
+    
+    // Add existing values first
+    existingValues.forEach(v => mergedMap.set(v.Id, v));
+    
+    // Add new values (won't overwrite existing)
+    newValues.forEach(v => {
+      if (!mergedMap.has(v.Id)) {
+        mergedMap.set(v.Id, v);
+      }
+    });
+    
+    return Array.from(mergedMap.values());
+  };
   
   // Size Chữ (AttributeId = 1)
   if (selectedAttributes.sizeText && selectedAttributes.sizeText.length > 0) {
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 1);
+    const newValues = selectedAttributes.sizeText.map(attr => ({
+      Id: attr.Id,
+      Name: attr.Name,
+      Code: attr.Code,
+      Sequence: attr.Sequence,
+      AttributeId: 1,
+      AttributeName: "Size Chữ",
+      PriceExtra: null,
+      NameGet: `Size Chữ: ${attr.Name}`,
+      DateCreated: null
+    }));
+    
     attributeLines.push({
       Attribute: {
         Id: 1,
@@ -224,23 +261,30 @@ export function createAttributeLines(selectedAttributes: SelectedAttributes): TP
         Sequence: 1,
         CreateVariant: true
       },
-      Values: selectedAttributes.sizeText.map(attr => ({
-        Id: attr.Id,
-        Name: attr.Name,
-        Code: attr.Code,
-        Sequence: attr.Sequence,
-        AttributeId: 1,
-        AttributeName: "Size Chữ",
-        PriceExtra: null,
-        NameGet: `Size Chữ: ${attr.Name}`,
-        DateCreated: null
-      })),
+      Values: mergeValues(newValues, existingLine),
       AttributeId: 1
     });
+  } else if (existingAttributeLines.find(line => line.AttributeId === 1)) {
+    // Keep existing line if no new values
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 1);
+    if (existingLine) attributeLines.push(existingLine);
   }
   
   // Size Số (AttributeId = 4)
   if (selectedAttributes.sizeNumber && selectedAttributes.sizeNumber.length > 0) {
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 4);
+    const newValues = selectedAttributes.sizeNumber.map(attr => ({
+      Id: attr.Id,
+      Name: attr.Name,
+      Code: attr.Code,
+      Sequence: null,
+      AttributeId: 4,
+      AttributeName: "Size Số",
+      PriceExtra: null,
+      NameGet: `Size Số: ${attr.Name}`,
+      DateCreated: null
+    }));
+    
     attributeLines.push({
       Attribute: {
         Id: 4,
@@ -249,23 +293,30 @@ export function createAttributeLines(selectedAttributes: SelectedAttributes): TP
         Sequence: 2,
         CreateVariant: true
       },
-      Values: selectedAttributes.sizeNumber.map(attr => ({
-        Id: attr.Id,
-        Name: attr.Name,
-        Code: attr.Code,
-        Sequence: null,
-        AttributeId: 4,
-        AttributeName: "Size Số",
-        PriceExtra: null,
-        NameGet: `Size Số: ${attr.Name}`,
-        DateCreated: null
-      })),
+      Values: mergeValues(newValues, existingLine),
       AttributeId: 4
     });
+  } else if (existingAttributeLines.find(line => line.AttributeId === 4)) {
+    // Keep existing line if no new values
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 4);
+    if (existingLine) attributeLines.push(existingLine);
   }
   
   // Màu (AttributeId = 3)
   if (selectedAttributes.color && selectedAttributes.color.length > 0) {
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 3);
+    const newValues = selectedAttributes.color.map(attr => ({
+      Id: attr.Id,
+      Name: attr.Name,
+      Code: attr.Code,
+      Sequence: null,
+      AttributeId: 3,
+      AttributeName: "Màu",
+      PriceExtra: null,
+      NameGet: `Màu: ${attr.Name}`,
+      DateCreated: null
+    }));
+    
     attributeLines.push({
       Attribute: {
         Id: 3,
@@ -274,19 +325,13 @@ export function createAttributeLines(selectedAttributes: SelectedAttributes): TP
         Sequence: 3,
         CreateVariant: true
       },
-      Values: selectedAttributes.color.map(attr => ({
-        Id: attr.Id,
-        Name: attr.Name,
-        Code: attr.Code,
-        Sequence: null,
-        AttributeId: 3,
-        AttributeName: "Màu",
-        PriceExtra: null,
-        NameGet: `Màu: ${attr.Name}`,
-        DateCreated: null
-      })),
+      Values: mergeValues(newValues, existingLine),
       AttributeId: 3
     });
+  } else if (existingAttributeLines.find(line => line.AttributeId === 3)) {
+    // Keep existing line if no new values
+    const existingLine = existingAttributeLines.find(line => line.AttributeId === 3);
+    if (existingLine) attributeLines.push(existingLine);
   }
   
   return attributeLines;
@@ -309,114 +354,138 @@ export function generateVariants(originalProduct: any, attributeLines: TPOSAttri
   // Create all combinations
   const combinations = cartesianProduct(...allValues);
   
-  // Create variant for each combination
-  const newVariants = combinations.map(combo => {
-    const attrArray = Array.isArray(combo) ? combo : [combo];
-    const names = attrArray.map(a => a.Name).join(', ');
-    
-    return {
-      Id: 0, // 0 = new variant
-      EAN13: null,
-      DefaultCode: null,
-      NameTemplate: originalProduct.Name,
-      NameNoSign: null,
-      ProductTmplId: originalProduct.Id,
-      UOMId: 0,
-      UOMName: null,
-      UOMPOId: 0,
-      QtyAvailable: 0,
-      VirtualAvailable: 0,
-      OutgoingQty: null,
-      IncomingQty: null,
-      NameGet: `${originalProduct.Name} (${names})`,
-      POSCategId: null,
-      Price: null,
-      Barcode: null,
-      Image: null,
-      ImageUrl: null,
-      Thumbnails: [],
-      PriceVariant: originalProduct.ListPrice,
-      SaleOK: true,
-      PurchaseOK: true,
-      DisplayAttributeValues: null,
-      LstPrice: 0,
-      Active: true,
-      ListPrice: 0,
-      PurchasePrice: null,
-      DiscountSale: null,
-      DiscountPurchase: null,
-      StandardPrice: 0,
-      Weight: 0,
-      Volume: null,
-      OldPrice: null,
-      IsDiscount: false,
-      ProductTmplEnableAll: false,
-      Version: 0,
-      Description: null,
-      LastUpdated: null,
-      Type: "product",
-      CategId: 0,
-      CostMethod: null,
-      InvoicePolicy: "order",
-      Variant_TeamId: 0,
-      Name: `${originalProduct.Name} (${names})`,
-      PropertyCostMethod: null,
-      PropertyValuation: null,
-      PurchaseMethod: "receive",
-      SaleDelay: 0,
-      Tracking: null,
-      Valuation: null,
-      AvailableInPOS: true,
-      CompanyId: null,
-      IsCombo: null,
-      NameTemplateNoSign: originalProduct.NameNoSign,
-      TaxesIds: [],
-      StockValue: null,
-      SaleValue: null,
-      PosSalesCount: null,
-      Factor: null,
-      CategName: null,
-      AmountTotal: null,
-      NameCombos: [],
-      RewardName: null,
-      Product_UOMId: null,
-      Tags: null,
-      DateCreated: null,
-      InitInventory: 0,
-      OrderTag: null,
-      StringExtraProperties: null,
-      CreatedById: null,
-      Error: null,
-      AttributeValues: attrArray.map(a => ({
-        Id: a.Id,
-        Name: a.Name,
-        Code: null,
-        Sequence: null,
-        AttributeId: a.AttributeId,
-        AttributeName: a.AttributeName,
-        PriceExtra: null,
-        NameGet: `${a.AttributeName}: ${a.Name}`,
-        DateCreated: null
-      }))
-    };
-  });
+  // Helper to check if variant already exists
+  const variantExists = (attrValues: any[]): boolean => {
+    return originalProduct.ProductVariants.some((existingVariant: any) => {
+      if (!existingVariant.AttributeValues || existingVariant.AttributeValues.length === 0) {
+        return false;
+      }
+      
+      // Check if all attribute values match
+      const existingIds = new Set(existingVariant.AttributeValues.map((av: any) => av.Id));
+      const newIds = new Set(attrValues.map((av: any) => av.Id));
+      
+      if (existingIds.size !== newIds.size) return false;
+      
+      for (const id of newIds) {
+        if (!existingIds.has(id)) return false;
+      }
+      
+      return true;
+    });
+  };
   
-  // Mark old variants as inactive
-  const oldVariants = originalProduct.ProductVariants
-    .filter((v: any) => v.Id > 0)
-    .map((oldVariant: any) => {
-      const inactiveVariant = JSON.parse(JSON.stringify(oldVariant));
-      // Remove nested objects
-      delete inactiveVariant.UOM;
-      delete inactiveVariant.Categ;
-      delete inactiveVariant.UOMPO;
-      delete inactiveVariant.POSCateg;
-      // Mark inactive
-      inactiveVariant.Active = false;
-      return inactiveVariant;
+  // Create variant for each combination (only if doesn't exist)
+  const newVariants = combinations
+    .filter(combo => {
+      const attrArray = Array.isArray(combo) ? combo : [combo];
+      return !variantExists(attrArray);
+    })
+    .map(combo => {
+      const attrArray = Array.isArray(combo) ? combo : [combo];
+      const names = attrArray.map(a => a.Name).join(', ');
+      
+      return {
+        Id: 0, // 0 = new variant
+        EAN13: null,
+        DefaultCode: null,
+        NameTemplate: originalProduct.Name,
+        NameNoSign: null,
+        ProductTmplId: originalProduct.Id,
+        UOMId: 0,
+        UOMName: null,
+        UOMPOId: 0,
+        QtyAvailable: 0,
+        VirtualAvailable: 0,
+        OutgoingQty: null,
+        IncomingQty: null,
+        NameGet: `${originalProduct.Name} (${names})`,
+        POSCategId: null,
+        Price: null,
+        Barcode: null,
+        Image: null,
+        ImageUrl: null,
+        Thumbnails: [],
+        PriceVariant: originalProduct.ListPrice,
+        SaleOK: true,
+        PurchaseOK: true,
+        DisplayAttributeValues: null,
+        LstPrice: 0,
+        Active: true,
+        ListPrice: 0,
+        PurchasePrice: null,
+        DiscountSale: null,
+        DiscountPurchase: null,
+        StandardPrice: 0,
+        Weight: 0,
+        Volume: null,
+        OldPrice: null,
+        IsDiscount: false,
+        ProductTmplEnableAll: false,
+        Version: 0,
+        Description: null,
+        LastUpdated: null,
+        Type: "product",
+        CategId: 0,
+        CostMethod: null,
+        InvoicePolicy: "order",
+        Variant_TeamId: 0,
+        Name: `${originalProduct.Name} (${names})`,
+        PropertyCostMethod: null,
+        PropertyValuation: null,
+        PurchaseMethod: "receive",
+        SaleDelay: 0,
+        Tracking: null,
+        Valuation: null,
+        AvailableInPOS: true,
+        CompanyId: null,
+        IsCombo: null,
+        NameTemplateNoSign: originalProduct.NameNoSign,
+        TaxesIds: [],
+        StockValue: null,
+        SaleValue: null,
+        PosSalesCount: null,
+        Factor: null,
+        CategName: null,
+        AmountTotal: null,
+        NameCombos: [],
+        RewardName: null,
+        Product_UOMId: null,
+        Tags: null,
+        DateCreated: null,
+        InitInventory: 0,
+        OrderTag: null,
+        StringExtraProperties: null,
+        CreatedById: null,
+        Error: null,
+        AttributeValues: attrArray.map(a => ({
+          Id: a.Id,
+          Name: a.Name,
+          Code: null,
+          Sequence: null,
+          AttributeId: a.AttributeId,
+          AttributeName: a.AttributeName,
+          PriceExtra: null,
+          NameGet: `${a.AttributeName}: ${a.Name}`,
+          DateCreated: null
+        }))
+      };
     });
   
-  return [...newVariants, ...oldVariants];
+  // Keep existing variants (ACTIVE ONLY - don't change their state)
+  const existingVariants = originalProduct.ProductVariants
+    .filter((v: any) => v.Id > 0 && v.Active !== false)
+    .map((oldVariant: any) => {
+      const cleanedVariant = JSON.parse(JSON.stringify(oldVariant));
+      // Remove nested objects
+      delete cleanedVariant.UOM;
+      delete cleanedVariant.Categ;
+      delete cleanedVariant.UOMPO;
+      delete cleanedVariant.POSCateg;
+      return cleanedVariant;
+    });
+  
+  return [...newVariants, ...existingVariants];
 }
 
 // =====================================================
@@ -510,14 +579,17 @@ export async function createTPOSVariants(
       throw new Error(`Không thể phân tích variant: ${variant}`);
     }
     
-    onProgress?.(`Đang tạo attribute lines...`);
-    const attributeLines = createAttributeLines(selectedAttributes);
+    // Extract existing AttributeLines from product
+    const existingAttributeLines: TPOSAttributeLine[] = originalProduct.AttributeLines || [];
     
-    onProgress?.(`Đang tạo variants...`);
-    const variants = generateVariants(originalProduct, attributeLines);
+    onProgress?.(`Đang merge attribute lines với dữ liệu cũ...`);
+    const mergedAttributeLines = createAttributeLines(selectedAttributes, existingAttributeLines);
+    
+    onProgress?.(`Đang tạo variants mới...`);
+    const variants = generateVariants(originalProduct, mergedAttributeLines);
     
     onProgress?.(`Đang tạo payload...`);
-    const payload = createPayload(originalProduct, attributeLines, variants);
+    const payload = createPayload(originalProduct, mergedAttributeLines, variants);
     
     onProgress?.(`Đang upload lên TPOS...`);
     const result = await postTPOSVariantPayload(payload);
