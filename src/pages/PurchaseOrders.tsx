@@ -774,11 +774,11 @@ const PurchaseOrders = () => {
 
                 {/* Bulk selection actions */}
                 {selectedOrders.length > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">
+                  <div className="sticky top-0 z-50 flex items-center justify-between gap-4 p-4 bg-background border-b shadow-md flex-wrap">
+                    <span className="text-sm font-medium whitespace-nowrap">
                       Đã chọn: <span className="text-primary">{selectedOrders.length}</span> đơn hàng
                     </span>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button 
                         onClick={clearSelection} 
                         variant="outline" 
