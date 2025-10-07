@@ -13,7 +13,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
-import { VariantDropdownSelector } from "./VariantDropdownSelector";
+import { VariantSelector } from "./VariantSelector";
 import { SelectProductDialog } from "@/components/products/SelectProductDialog";
 import { VariantGeneratorDialog } from "./VariantGeneratorDialog";
 import { format } from "date-fns";
@@ -484,15 +484,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
-                <VariantDropdownSelector
-                  baseProductCode={item.product_code}
+                <VariantSelector
                   value={item.variant}
                   onChange={(value) => updateItem(index, "variant", value)}
-                  onVariantSelect={(data) => {
-                    updateItem(index, "product_code", data.productCode);
-                    updateItem(index, "product_name", data.productName);
-                    updateItem(index, "variant", data.variant);
-                  }}
                   className="flex-1"
                 />
                 <Button
