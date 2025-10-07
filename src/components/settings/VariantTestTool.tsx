@@ -11,10 +11,11 @@ import { FlaskConical } from "lucide-react";
 
 export function VariantTestTool() {
   const [productCode, setProductCode] = useState("M800");
+  const [productName, setProductName] = useState("Áo Thun");
   const [colors, setColors] = useState("Hồng, Đỏ, Xanh Đậu");
   const [sizeText, setSizeText] = useState("S, M, L, XL");
   const [sizeNumber, setSizeNumber] = useState("");
-  const [results, setResults] = useState<Array<{ variant: string; code: string; fullCode: string }>>([]);
+  const [results, setResults] = useState<Array<{ variant: string; code: string; fullCode: string; productName: string }>>([]);
 
   const handleTest = () => {
     // Parse inputs
@@ -149,13 +150,23 @@ export function VariantTestTool() {
 
       usedCodes.add(variantCode);
       const fullCode = `${productCode}${variantCode}`;
+      
+      // Generate product name: BaseName (sizeNumber, color, sizeText)
+      const nameParts: string[] = [];
+      if (combo.parts.sizeNumber) nameParts.push(combo.parts.sizeNumber);
+      if (combo.parts.color) nameParts.push(combo.parts.color);
+      if (combo.parts.sizeText) nameParts.push(combo.parts.sizeText);
+      const fullProductName = nameParts.length > 0 
+        ? `${productName} (${nameParts.join(', ')})`
+        : productName;
 
-      console.log(`  ${fullCode} = ${productCode} + ${variantCode} (${combo.text})`);
+      console.log(`  ${fullCode} = ${productCode} + ${variantCode} (${combo.text}) -> ${fullProductName}`);
 
       return {
         variant: combo.text,
         code: variantCode,
-        fullCode
+        fullCode,
+        productName: fullProductName
       };
     });
 
@@ -182,6 +193,16 @@ export function VariantTestTool() {
               value={productCode}
               onChange={(e) => setProductCode(e.target.value)}
               placeholder="Ví dụ: M800, TEST"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="product-name">Tên Sản Phẩm Gốc</Label>
+            <Input
+              id="product-name"
+              value={productName}
+              onChange={(e) => setProductName(e.target.value)}
+              placeholder="Ví dụ: Áo Thun"
             />
           </div>
 
@@ -235,6 +256,7 @@ export function VariantTestTool() {
                     <TableHead className="w-12">#</TableHead>
                     <TableHead>Mã Sản Phẩm</TableHead>
                     <TableHead>Mã Biến Thể</TableHead>
+                    <TableHead>Tên Sản Phẩm</TableHead>
                     <TableHead>Tên Biến Thể</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -251,6 +273,9 @@ export function VariantTestTool() {
                         <code className="text-sm bg-muted px-2 py-1 rounded">
                           {result.code}
                         </code>
+                      </TableCell>
+                      <TableCell className="font-semibold">
+                        {result.productName}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {result.variant}
