@@ -287,23 +287,6 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     }
   };
 
-  const handleProductNameBlur = async () => {
-    const productName = form.getValues("product_name");
-    const productCode = form.getValues("product_code");
-    
-    if (!productName.trim() || productCode.trim()) {
-      return; // Skip if name is empty or code already exists
-    }
-
-    try {
-      const code = await generateProductCode(productName);
-      form.setValue("product_code", code);
-      toast.success(`Đã tạo mã SP: ${code}`);
-    } catch (error) {
-      console.error("Error generating product code:", error);
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -391,7 +374,6 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                     <Input 
                       placeholder="Nhập tên sản phẩm (không bắt buộc)"
                       {...field}
-                      onBlur={handleProductNameBlur}
                     />
                   </FormControl>
                   <div className="flex gap-2 flex-wrap mt-2">
