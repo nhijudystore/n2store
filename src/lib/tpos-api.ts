@@ -337,6 +337,7 @@ export interface TPOSUploadResult {
   productsAddedToInventory?: number;
   variantsCreated?: number;
   variantsFailed?: number;
+  variantsAddedToInventory?: number;
   variantErrors?: Array<{
     productName: string;
     productCode: string;
@@ -355,6 +356,16 @@ export interface TPOSUploadResult {
     errorMessage: string;
   }>;
   productIds: Array<{ itemId: string; tposId: number }>;
+}
+
+export interface TPOSVariantFromAPI {
+  Id: number;              // productid_bienthe
+  DefaultCode: string;     // Mã sản phẩm biến thể
+  NameGet: string;         // Tên sản phẩm biến thể
+  PriceVariant: number;    // Giá bán
+  QtyAvailable: number;    // Số lượng tồn kho
+  ProductId: number;       // ID sản phẩm gốc (tpos_product_id)
+  Active: boolean;
 }
 
 // =====================================================
@@ -1320,6 +1331,182 @@ export async function uploadToTPOS(
   console.log(`🔗 Matched: ${result.productIds.length} products`);
   console.log(`❌ Thất bại: ${result.failedCount}`);
   console.log("=".repeat(60));
+  
+  return result;
+}
+
+// =====================================================
+// FETCH AND SAVE TPOS VARIANTS
+// =====================================================
+
+/**
+ * Helper: Extract variant from DefaultCode
+ * Example: "M900-D-M" with base "M900" -> "D, M"
+ */
+function extractVariantFromCode(defaultCode: string, baseCode: string): string | null {
+  const upper = defaultCode.toUpperCase();
+  const base = baseCode.toUpperCase();
+  
+  // Remove base code from DefaultCode
+  if (upper.startsWith(base)) {
+    const remainder = upper.substring(base.length);
+    // Remove leading dashes/spaces and split by dash
+    const parts = remainder.replace(/^[-\s]+/, '').split('-').filter(p => p.trim().length > 0);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }
+  
+  return null;
+}
+
+/**
+ * Fetch TPOS variants by product codes
+ * Filters variants where DefaultCode contains any of the provided product codes
+ */
+export async function fetchTPOSVariantsByProductCodes(
+  productCodes: string[]
+): Promise<TPOSVariantFromAPI[]> {
+  try {
+    const token = await getActiveTPOSToken();
+    if (!token) {
+      throw new Error("TPOS Bearer Token not found");
+    }
+
+    console.log(`[TPOS Variants] Fetching variants for ${productCodes.length} product codes...`);
+    
+    const allVariants: TPOSVariantFromAPI[] = [];
+    const maxRecords = 4000;
+    const batches = Math.ceil(maxRecords / 200);
+    
+    for (let i = 0; i < batches; i++) {
+      const skip = i * 200;
+      const url = `https://tomato.tpos.vn/odata/Product/ODataService.GetViewV2?Active=true&$top=200&$skip=${skip}&$orderby=DateCreated desc&$filter=Active eq true&$count=true`;
+      
+      console.log(`[TPOS Variants] Batch ${i + 1}/${batches}: Fetching from skip=${skip}`);
+      
+      const response = await fetch(url, {
+        headers: getTPOSHeaders(token)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch TPOS variants at skip=${skip}`);
+      }
+      
+      const data = await response.json();
+      const variants = data.value || [];
+      
+      if (variants.length === 0) break;
+      
+      allVariants.push(...variants);
+      
+      // Delay to avoid rate limit
+      if (i < batches - 1) {
+        await randomDelay(300, 600);
+      }
+    }
+    
+    console.log(`[TPOS Variants] Fetched ${allVariants.length} total variants`);
+    
+    // Filter variants where DefaultCode contains any product code
+    const matchedVariants = allVariants.filter(variant => {
+      return productCodes.some(code => 
+        variant.DefaultCode.toUpperCase().includes(code.toUpperCase())
+      );
+    });
+    
+    console.log(`[TPOS Variants] Matched ${matchedVariants.length} variants containing product codes`);
+    matchedVariants.forEach(v => {
+      console.log(`  - ${v.DefaultCode}: ${v.NameGet}`);
+    });
+    
+    return matchedVariants;
+  } catch (error) {
+    console.error("[TPOS Variants] Error fetching:", error);
+    throw error;
+  }
+}
+
+/**
+ * Save TPOS variants to products table in inventory
+ */
+export async function saveTPOSVariantsToInventory(
+  variants: TPOSVariantFromAPI[],
+  supplierName?: string
+): Promise<{ 
+  created: number; 
+  updated: number; 
+  skipped: number;
+  errors: any[] 
+}> {
+  const result = {
+    created: 0,
+    updated: 0,
+    skipped: 0,
+    errors: []
+  };
+
+  console.log(`[Save Variants] Processing ${variants.length} variants...`);
+
+  for (const variant of variants) {
+    try {
+      // Check if DefaultCode already exists in products
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id, stock_quantity")
+        .eq("product_code", variant.DefaultCode)
+        .maybeSingle();
+
+      if (!existing) {
+        // INSERT new product
+        const { error } = await supabase
+          .from("products")
+          .insert({
+            product_code: variant.DefaultCode,
+            product_name: variant.NameGet,
+            selling_price: variant.PriceVariant,
+            stock_quantity: variant.QtyAvailable,
+            tpos_product_id: variant.ProductId,
+            productid_bienthe: variant.Id,
+            supplier_name: supplierName || null,
+            variant: variant.DefaultCode
+          });
+
+        if (error) {
+          console.error(`❌ Error inserting ${variant.DefaultCode}:`, error);
+          result.errors.push({ code: variant.DefaultCode, error: error.message });
+        } else {
+          console.log(`✅ Inserted: ${variant.DefaultCode}`);
+          result.created++;
+        }
+      } else {
+        // UPDATE existing product
+        const { error } = await supabase
+          .from("products")
+          .update({
+            tpos_product_id: variant.ProductId,
+            productid_bienthe: variant.Id,
+            selling_price: variant.PriceVariant,
+            stock_quantity: variant.QtyAvailable // Overwrite stock
+          })
+          .eq("id", existing.id);
+
+        if (error) {
+          console.error(`❌ Error updating ${variant.DefaultCode}:`, error);
+          result.errors.push({ code: variant.DefaultCode, error: error.message });
+        } else {
+          console.log(`✅ Updated: ${variant.DefaultCode}`);
+          result.updated++;
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error processing ${variant.DefaultCode}:`, error);
+      result.errors.push({ 
+        code: variant.DefaultCode, 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  }
+
+  console.log(`[Save Variants] Summary: ${result.created} created, ${result.updated} updated, ${result.errors.length} errors`);
   
   return result;
 }

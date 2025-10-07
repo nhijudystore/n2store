@@ -7,7 +7,13 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, Download, Loader2, CheckSquare, Square } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { uploadToTPOS, generateTPOSExcel, type TPOSProductItem } from "@/lib/tpos-api";
+import { 
+  uploadToTPOS, 
+  generateTPOSExcel, 
+  type TPOSProductItem,
+  fetchTPOSVariantsByProductCodes,
+  saveTPOSVariantsToInventory
+} from "@/lib/tpos-api";
 import { createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { formatVND } from "@/lib/currency-utils";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -414,6 +420,22 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           
           console.log(`✅ Variants created for ${representative.product_name}`);
           result.variantsCreated++;
+
+          // Fetch and save variants to inventory
+          try {
+            console.log(`📦 Fetching variants from TPOS for ${representative.product_code}...`);
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for TPOS to process
+            
+            const tposVariants = await fetchTPOSVariantsByProductCodes([representative.product_code || '']);
+            if (tposVariants.length > 0) {
+              console.log(`💾 Saving ${tposVariants.length} variants to inventory...`);
+              const saveResult = await saveTPOSVariantsToInventory(tposVariants, representative.supplier_name);
+              result.variantsAddedToInventory = (result.variantsAddedToInventory || 0) + saveResult.created + saveResult.updated;
+              console.log(`✅ Saved ${saveResult.created + saveResult.updated} variants to inventory`);
+            }
+          } catch (error) {
+            console.error(`⚠️ Failed to fetch/save variants for ${representative.product_name}:`, error);
+          }
         } catch (error) {
           console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
           result.variantsFailed++;
@@ -440,6 +462,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           try {
             console.log(`🎨 Adding variants to existing product: ${productCode} (TPOS ID: ${existingTPOSId})`);
             console.log(`   New variants: ${combinedVariant}`);
+            
+            const firstItem = items[0];
             setCurrentStep(`Đang thêm biến thể cho: ${productCode}...`);
             
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -455,6 +479,23 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             
             console.log(`✅ Variants added to ${productCode}`);
             result.variantsCreated = (result.variantsCreated || 0) + 1;
+
+            // Fetch and save variants to inventory
+            try {
+              console.log(`📦 Fetching variants from TPOS for ${productCode}...`);
+              await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for TPOS to process
+              
+              const tposVariants = await fetchTPOSVariantsByProductCodes([productCode]);
+              if (tposVariants.length > 0) {
+                console.log(`💾 Saving ${tposVariants.length} variants to inventory...`);
+                const supplierName = firstItem?.supplier_name || firstItem?.product_name?.split(' ')[1];
+                const saveResult = await saveTPOSVariantsToInventory(tposVariants, supplierName);
+                result.variantsAddedToInventory = (result.variantsAddedToInventory || 0) + saveResult.created + saveResult.updated;
+                console.log(`✅ Saved ${saveResult.created + saveResult.updated} variants to inventory`);
+              }
+            } catch (error) {
+              console.error(`⚠️ Failed to fetch/save variants for ${productCode}:`, error);
+            }
 
             // Update purchase_order_items with TPOS ID
             for (const item of items) {
@@ -499,6 +540,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
               )}
               {result.variantsFailed !== undefined && result.variantsFailed > 0 && (
                 <p className="text-yellow-600 dark:text-yellow-400">⚠️ Tạo biến thể thất bại: {result.variantsFailed} sản phẩm</p>
+              )}
+              {result.variantsAddedToInventory !== undefined && result.variantsAddedToInventory > 0 && (
+                <p className="text-blue-600 dark:text-blue-400">📦 Đã lưu vào kho: {result.variantsAddedToInventory} biến thể</p>
               )}
               {result.productIds.length > 0 && (
                 <div className="mt-2 p-2 bg-muted rounded text-xs">
