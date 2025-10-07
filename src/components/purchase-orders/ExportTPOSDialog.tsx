@@ -145,7 +145,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const createVariantProductsInInventory = async (
     rootProductCode: string,
     variants: Array<{ variant: string | null; item: TPOSProductItem }>,
-    tposProductId: number
+    tposProductId: number | null
   ): Promise<number> => {
     let createdCount = 0;
     
@@ -466,7 +466,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           setCurrentStep(message);
         });
 
-        // Log TPOS response
+      // Log TPOS response
         console.log("TPOS Upload Result:", JSON.stringify(result, null, 2));
       } else {
         console.log("⏭️  No new products to upload - will only add variants to existing products");
@@ -475,6 +475,25 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         result.successCount = 0;
       }
 
+      // Handle successful uploads even if TPOS IDs weren't matched
+      const successfullyUploadedCodes = new Set<string>();
+      
+      // Collect product codes that were successfully uploaded
+      if (itemsToUpload.length > 0 && result.successCount > 0) {
+        // Track which items were successfully uploaded (even if TPOS ID wasn't retrieved)
+        for (const item of itemsToUpload) {
+          const variantInfo = variantMapping.get(item.product_code || '');
+          if (variantInfo) {
+            // Check if this product was successfully uploaded (not in errors with this product_code)
+            const hasError = result.errors.some(e => e.productCode === item.product_code);
+            if (!hasError) {
+              successfullyUploadedCodes.add(item.product_code || '');
+              console.log(`✅ Product ${item.product_code} was successfully uploaded (even without matched TPOS ID)`);
+            }
+          }
+        }
+      }
+      
       // Save TPOS IDs to Supabase - update ALL items in the group
       if (result.productIds.length > 0) {
         setCurrentStep("Đang lưu TPOS IDs vào database...");
@@ -503,96 +522,110 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         console.log(`💾 Saved TPOS IDs to ${allItemUpdates.length} items (including grouped items)`);
         result.savedIds = allItemUpdates.length;
+      }
 
-        // Upsert products to inventory with color variant handling
-        setCurrentStep("Đang cập nhật kho hàng...");
+      // Upsert products to inventory with color variant handling
+      setCurrentStep("Đang cập nhật kho hàng...");
+      
+      // Create a map of product_code to tpos_product_id for new products
+      const productCodeToTPOSId = new Map<string, number>();
+      for (const { itemId, tposId } of result.productIds) {
+        const representative = itemsToUpload.find(i => i.id === itemId);
+        if (representative?.product_code) {
+          productCodeToTPOSId.set(representative.product_code, tposId);
+        }
+      }
+      
+      // Group variants by product_code for inventory creation
+      // Include both products with TPOS IDs AND successfully uploaded products without IDs
+      const variantsByProductCode = new Map<string, Array<{ variant: string | null; item: TPOSProductItem; tposId?: number }>>();
+      
+      for (const [productCode, variantInfo] of variantMapping) {
+        const tposId = productCodeToTPOSId.get(productCode);
+        const wasSuccessfullyUploaded = successfullyUploadedCodes.has(productCode);
         
-        // Create a map of product_code to tpos_product_id for new products
-        const productCodeToTPOSId = new Map<string, number>();
-        for (const { itemId, tposId } of result.productIds) {
-          const representative = itemsToUpload.find(i => i.id === itemId);
-          if (representative?.product_code) {
-            productCodeToTPOSId.set(representative.product_code, tposId);
-          }
+        // Include if has TPOS ID OR was successfully uploaded
+        if (!tposId && !wasSuccessfullyUploaded) {
+          console.log(`⏭️  Skipping ${productCode}: no TPOS ID and not successfully uploaded`);
+          continue;
         }
         
-        // Group variants by product_code for inventory creation
-        const variantsByProductCode = new Map<string, Array<{ variant: string | null; item: TPOSProductItem }>>();
-        
-        for (const [productCode, variantInfo] of variantMapping) {
-          const tposId = productCodeToTPOSId.get(productCode);
-          if (!tposId) continue; // Skip if no TPOS ID (not a new product)
-          
-          if (!variantsByProductCode.has(productCode)) {
-            variantsByProductCode.set(productCode, []);
-          }
-          
-          // Add all items with their variants
-          for (const item of variantInfo.items) {
-            variantsByProductCode.get(productCode)!.push({
-              variant: item.variant || null,
-              item: item
-            });
-          }
+        if (!variantsByProductCode.has(productCode)) {
+          variantsByProductCode.set(productCode, []);
         }
         
-        console.log(`📦 Creating inventory entries for ${variantsByProductCode.size} product codes`);
-        
-        // Create inventory entries using the new helper function
-        let totalCreated = 0;
-        for (const [productCode, variants] of variantsByProductCode) {
-          const tposId = productCodeToTPOSId.get(productCode);
-          if (!tposId) continue;
-          
-          const created = await createVariantProductsInInventory(productCode, variants, tposId);
-          totalCreated += created;
+        // Add all items with their variants
+        for (const item of variantInfo.items) {
+          variantsByProductCode.get(productCode)!.push({
+            variant: item.variant || null,
+            item: item,
+            tposId: tposId
+          });
         }
         
-        result.productsAddedToInventory = totalCreated;
-        console.log(`✅ Successfully created ${totalCreated} product entries in inventory`);
+        if (wasSuccessfullyUploaded && !tposId) {
+          console.log(`⚠️  Creating inventory for ${productCode} without TPOS ID (upload was successful)`);
+        }
+      }
+      
+      console.log(`📦 Creating inventory entries for ${variantsByProductCode.size} product codes`);
+      
+      // Create inventory entries using the new helper function
+      let totalCreated = 0;
+      for (const [productCode, variants] of variantsByProductCode) {
+        // Get TPOS ID from the first variant (they all should have the same tposId for a product_code)
+        const tposId = variants[0]?.tposId;
+        
+        // Create inventory entries even without TPOS ID (will save null)
+        const variantsWithoutTposId = variants.map(v => ({ variant: v.variant, item: v.item }));
+        const created = await createVariantProductsInInventory(productCode, variantsWithoutTposId, tposId || null);
+        totalCreated += created;
+      }
+      
+      result.productsAddedToInventory = totalCreated;
+      console.log(`✅ Successfully created ${totalCreated} product entries in inventory`);
 
-        // Auto-create variants for NEW products uploaded to TPOS
-        setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
-        result.variantsCreated = 0;
-        result.variantsFailed = 0;
-        result.variantErrors = [];
+      // Auto-create variants for NEW products uploaded to TPOS
+      setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
+      result.variantsCreated = 0;
+      result.variantsFailed = 0;
+      result.variantErrors = [];
 
-        for (const { itemId, tposId } of result.productIds) {
-          const representative = itemsToUpload.find(i => i.id === itemId);
-          if (!representative?.product_code) continue;
+      for (const { itemId, tposId } of result.productIds) {
+        const representative = itemsToUpload.find(i => i.id === itemId);
+        if (!representative?.product_code) continue;
+        
+        const variantInfo = variantMapping.get(representative.product_code);
+        if (!variantInfo) continue;
+        
+        const { combinedVariant } = variantInfo;
+
+        try {
+          console.log(`🎨 Creating variants for: ${representative.product_name} (TPOS ID: ${tposId})`);
+          console.log(`   Combined variants: ${combinedVariant}`);
+          setCurrentStep(`Đang tạo biến thể cho: ${representative.product_name}...`);
           
-          const variantInfo = variantMapping.get(representative.product_code);
-          if (!variantInfo) continue;
+          await new Promise(resolve => setTimeout(resolve, 1000));
           
-          const { combinedVariant } = variantInfo;
-
-          try {
-            console.log(`🎨 Creating variants for: ${representative.product_name} (TPOS ID: ${tposId})`);
-            console.log(`   Combined variants: ${combinedVariant}`);
-            setCurrentStep(`Đang tạo biến thể cho: ${representative.product_name}...`);
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            await createTPOSVariants(
-              tposId,
-              combinedVariant,
-              (msg) => {
-                console.log(`  → ${msg}`);
-                setCurrentStep(`${representative.product_name}: ${msg}`);
-              }
-            );
-            
-            console.log(`✅ Variants created for ${representative.product_name}`);
-            result.variantsCreated++;
-          } catch (error) {
-            console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
-            result.variantsFailed++;
-            result.variantErrors.push({
-              productName: representative.product_name,
-              productCode: representative.product_code || 'N/A',
-              errorMessage: error instanceof Error ? error.message : String(error)
-            });
-          }
+          await createTPOSVariants(
+            tposId,
+            combinedVariant,
+            (msg) => {
+              console.log(`  → ${msg}`);
+              setCurrentStep(`${representative.product_name}: ${msg}`);
+            }
+          );
+          
+          console.log(`✅ Variants created for ${representative.product_name}`);
+          result.variantsCreated++;
+        } catch (error) {
+          console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
+          result.variantsFailed++;
+          result.variantErrors.push({
+            productName: representative.product_name,
+            productCode: representative.product_code || 'N/A',
+            errorMessage: error instanceof Error ? error.message : String(error)
+          });
         }
       }
 
