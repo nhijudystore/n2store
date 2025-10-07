@@ -485,15 +485,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         console.log(`    Creating: ${variantProductCode} (${variantName}, size: ${sizeText}, color: ${colorValue}, sizeNum: ${sizeNumber}, code: ${variantCode}, qty: ${quantity})`);
         
-        // Generate product name with variant details format: BaseName (sizeNumber, color, sizeText)
-        const nameParts: string[] = [];
-        if (sizeNumber) nameParts.push(sizeNumber);
-        if (colorValue) nameParts.push(colorValue);
-        if (sizeText) nameParts.push(sizeText);
-        const fullProductName = nameParts.length > 0 
-          ? `${item.product_name} (${nameParts.join(', ')})`
-          : item.product_name;
-        
         // Check if product already exists
         const { data: existing } = await supabase
           .from("products")
@@ -527,7 +518,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             .from("products")
             .insert({
               product_code: variantProductCode,
-              product_name: fullProductName,
+              product_name: item.product_name,
               variant: variantName,
               purchase_price: item.unit_price || 0,
               selling_price: item.selling_price || 0,
