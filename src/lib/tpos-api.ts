@@ -1373,15 +1373,15 @@ export async function fetchTPOSVariantsByProductCodes(
 
     console.log(`[TPOS Variants] Fetching variants for ${productCodes.length} product codes...`);
     
-    const allVariants: TPOSVariantFromAPI[] = [];
-    const maxRecords = 4000;
-    const batches = Math.ceil(maxRecords / 200);
+    const matchedVariants: TPOSVariantFromAPI[] = [];
+    const foundCodes = new Set<string>();
+    let skip = 0;
+    const maxSkip = 1000; // Usually in top 200, but check up to 1000
     
-    for (let i = 0; i < batches; i++) {
-      const skip = i * 200;
+    while (foundCodes.size < productCodes.length && skip < maxSkip) {
       const url = `https://tomato.tpos.vn/odata/Product/ODataService.GetViewV2?Active=true&$top=200&$skip=${skip}&$orderby=DateCreated desc&$filter=Active eq true&$count=true`;
       
-      console.log(`[TPOS Variants] Batch ${i + 1}/${batches}: Fetching from skip=${skip}`);
+      console.log(`[TPOS Variants] Batch at skip=${skip}: Found ${foundCodes.size}/${productCodes.length} codes so far`);
       
       const response = await fetch(url, {
         headers: getTPOSHeaders(token)
@@ -1396,22 +1396,29 @@ export async function fetchTPOSVariantsByProductCodes(
       
       if (variants.length === 0) break;
       
-      allVariants.push(...variants);
+      // Check each variant against our product codes
+      for (const variant of variants) {
+        for (const code of productCodes) {
+          if (variant.DefaultCode.toUpperCase().includes(code.toUpperCase())) {
+            matchedVariants.push(variant);
+            foundCodes.add(code);
+          }
+        }
+      }
+      
+      // Stop if we found all codes
+      if (foundCodes.size === productCodes.length) {
+        console.log(`[TPOS Variants] ✅ Found all ${productCodes.length} product codes, stopping search`);
+        break;
+      }
+      
+      skip += 200;
       
       // Delay to avoid rate limit
-      if (i < batches - 1) {
+      if (skip < maxSkip) {
         await randomDelay(300, 600);
       }
     }
-    
-    console.log(`[TPOS Variants] Fetched ${allVariants.length} total variants`);
-    
-    // Filter variants where DefaultCode contains any product code
-    const matchedVariants = allVariants.filter(variant => {
-      return productCodes.some(code => 
-        variant.DefaultCode.toUpperCase().includes(code.toUpperCase())
-      );
-    });
     
     console.log(`[TPOS Variants] Matched ${matchedVariants.length} variants containing product codes`);
     matchedVariants.forEach(v => {
