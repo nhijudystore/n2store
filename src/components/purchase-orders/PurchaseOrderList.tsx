@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
-import { Pencil, Search, Filter, Calendar, Trash2, Check, ExternalLink } from "lucide-react";
+import { Pencil, Search, Filter, Calendar, Trash2, Check, ExternalLink, X, ShoppingCart, Download, FileSpreadsheet, Upload } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { format } from "date-fns";
@@ -69,6 +69,13 @@ interface PurchaseOrderListProps {
   onToggleSelect: (orderId: string) => void;
   onToggleSelectAll: () => void;
   deletedTPOSIds: Set<number>;
+  onClearSelection: () => void;
+  onBulkDelete: () => void;
+  onExportPurchaseExcel: () => void;
+  onExportExcel: () => void;
+  onExportVariantsExcel: () => void;
+  onExportToTPOS: () => void;
+  isBulkDeleting: boolean;
 }
 
 export function PurchaseOrderList({
@@ -87,7 +94,14 @@ export function PurchaseOrderList({
   selectedOrders,
   onToggleSelect,
   onToggleSelectAll,
-  deletedTPOSIds
+  deletedTPOSIds,
+  onClearSelection,
+  onBulkDelete,
+  onExportPurchaseExcel,
+  onExportExcel,
+  onExportVariantsExcel,
+  onExportToTPOS,
+  isBulkDeleting
 }: PurchaseOrderListProps) {
   const [editingOrder, setEditingOrder] = useState<PurchaseOrder | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -364,9 +378,53 @@ export function PurchaseOrderList({
         </div>
       </div>
 
+      {/* Bulk selection actions - Sticky bar */}
+      {selectedOrders.length > 0 && (
+        <div className="sticky top-0 z-50 flex items-center justify-between gap-4 p-4 bg-background border-b shadow-md mb-4 rounded-lg flex-wrap">
+          <span className="text-sm font-medium whitespace-nowrap">
+            Đã chọn: <span className="text-primary">{selectedOrders.length}</span> đơn hàng
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            <Button 
+              onClick={onClearSelection} 
+              variant="outline" 
+              size="sm"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Bỏ chọn
+            </Button>
+            <Button 
+              onClick={onBulkDelete} 
+              variant="destructive" 
+              size="sm"
+              disabled={isBulkDeleting}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Xóa đã chọn
+            </Button>
+            <Button onClick={onExportPurchaseExcel} variant="outline" size="sm">
+              <ShoppingCart className="w-4 h-4 mr-2" />
+              Xuất Excel Mua hàng
+            </Button>
+            <Button onClick={onExportExcel} variant="outline" size="sm">
+              <Download className="w-4 h-4 mr-2" />
+              Xuất Excel Thêm SP
+            </Button>
+            <Button onClick={onExportVariantsExcel} variant="outline" size="sm">
+              <FileSpreadsheet className="w-4 h-4 mr-2" />
+              Xuất Excel Biến thể
+            </Button>
+            <Button onClick={onExportToTPOS} variant="default" size="sm">
+              <Upload className="w-4 h-4 mr-2" />
+              Export & Upload TPOS
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-[72px] z-40 bg-background">
             <TableRow>
               <TableHead>Ngày đặt</TableHead>
               <TableHead>Nhà cung cấp</TableHead>
