@@ -118,10 +118,12 @@ export function VariantTestTool() {
       const count = baseCodeCount.get(baseKey) || 0;
       
       if (count > 0 && combo.parts.sizeNumber) {
-        // If duplicate, use first digit of size + count (301, 302, 303...)
-        const firstDigit = combo.parts.sizeNumber.charAt(0);
-        const suffix = String(count).padStart(2, '0');
-        variantCode += firstDigit + suffix;
+        // If duplicate, append sequential numbers (1, 12, 123, 1234...)
+        let sequentialSuffix = '';
+        for (let i = 1; i <= count; i++) {
+          sequentialSuffix += i;
+        }
+        variantCode += combo.parts.sizeNumber + sequentialSuffix;
       } else if (combo.parts.sizeNumber) {
         // First occurrence, use the actual size number
         if (/\d$/.test(productCode) && !combo.parts.color && !combo.parts.sizeText) {
