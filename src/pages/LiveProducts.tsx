@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -144,9 +144,16 @@ const calculateIsOversell = (
 };
 
 export default function LiveProducts() {
-  const [selectedSession, setSelectedSession] = useState<string>("");
-  const [selectedPhase, setSelectedPhase] = useState<string>("");
-  const [activeTab, setActiveTab] = useState<string>("products");
+  // Initialize states from localStorage
+  const [selectedSession, setSelectedSession] = useState<string>(() => {
+    return localStorage.getItem('liveProducts_selectedSession') || "";
+  });
+  const [selectedPhase, setSelectedPhase] = useState<string>(() => {
+    return localStorage.getItem('liveProducts_selectedPhase') || "";
+  });
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return localStorage.getItem('liveProducts_activeTab') || "products";
+  });
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -202,6 +209,19 @@ export default function LiveProducts() {
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
   
   const queryClient = useQueryClient();
+
+  // Persist state changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('liveProducts_selectedSession', selectedSession);
+  }, [selectedSession]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_selectedPhase', selectedPhase);
+  }, [selectedPhase]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_activeTab', activeTab);
+  }, [activeTab]);
 
   // Helper function to get color based on copy status
   const getCopyStatusColor = (copyCount: number, soldQuantity: number) => {
