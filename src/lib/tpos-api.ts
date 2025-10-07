@@ -1512,33 +1512,41 @@ export async function saveTPOSVariantsToInventory(
 
       // ============================================================
       // UPDATE purchase_order_items with TPOS data
+      // Find items where product_code is included in DefaultCode
       // ============================================================
       try {
-        // Query by product_code instead since ProductId may not exist in API response
-        const { data: purchaseItems, error: fetchError } = await supabase
+        // First get all purchase_order_items to check if their product_code is contained in DefaultCode
+        const { data: allItems, error: fetchError } = await supabase
           .from("purchase_order_items")
           .select("id, product_code, variant, tpos_product_id")
-          .or(`product_code.eq.${variant.DefaultCode},tpos_product_id.eq.${variant.Id}`);
+          .not("product_code", "is", null);
 
         if (fetchError) {
-          console.error(`⚠️ Error fetching purchase_order_items for ${variant.DefaultCode}:`, fetchError);
-        } else if (purchaseItems && purchaseItems.length > 0) {
-          console.log(`📝 Updating ${purchaseItems.length} purchase_order_items for ${variant.DefaultCode}...`);
-          
-          for (const item of purchaseItems) {
-            const { error: updateError } = await supabase
-              .from("purchase_order_items")
-              .update({
-                product_code: variant.DefaultCode,
-                product_name: variant.NameGet
-              })
-              .eq("id", item.id);
+          console.error(`⚠️ Error fetching purchase_order_items:`, fetchError);
+        } else if (allItems && allItems.length > 0) {
+          // Filter items where product_code is included in DefaultCode
+          const matchedItems = allItems.filter(item => 
+            variant.DefaultCode.toUpperCase().includes(item.product_code?.toUpperCase() || '')
+          );
 
-            if (updateError) {
-              console.error(`❌ Error updating purchase_order_item ${item.id}:`, updateError);
-            } else {
-              console.log(`  ✅ Updated purchase_order_item: ${item.id}`);
-              result.purchaseOrderItemsUpdated++;
+          if (matchedItems.length > 0) {
+            console.log(`📝 Found ${matchedItems.length} purchase_order_items matching ${variant.DefaultCode}...`);
+          
+            for (const item of matchedItems) {
+              const { error: updateError } = await supabase
+                .from("purchase_order_items")
+                .update({
+                  product_code: variant.DefaultCode,
+                  product_name: variant.NameGet
+                })
+                .eq("id", item.id);
+
+              if (updateError) {
+                console.error(`❌ Error updating purchase_order_item ${item.id}:`, updateError);
+              } else {
+                console.log(`  ✅ Updated purchase_order_item: ${item.id} (${item.product_code} → ${variant.DefaultCode})`);
+                result.purchaseOrderItemsUpdated++;
+              }
             }
           }
         }
