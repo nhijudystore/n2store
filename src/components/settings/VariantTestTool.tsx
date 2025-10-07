@@ -117,10 +117,11 @@ export function VariantTestTool() {
       const baseKey = `${productCode}${baseCode}`;
       const count = baseCodeCount.get(baseKey) || 0;
       
-      if (count > 0) {
-        // If duplicate, use 0 + count (01, 02, 03...)
+      if (count > 0 && combo.parts.sizeNumber) {
+        // If duplicate, use first digit of size + count (301, 302, 303...)
+        const firstDigit = combo.parts.sizeNumber.charAt(0);
         const suffix = String(count).padStart(2, '0');
-        variantCode += suffix;
+        variantCode += firstDigit + suffix;
       } else if (combo.parts.sizeNumber) {
         // First occurrence, use the actual size number
         if (/\d$/.test(productCode) && !combo.parts.color && !combo.parts.sizeText) {

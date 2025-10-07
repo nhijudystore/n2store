@@ -454,10 +454,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const existingSameCodes = Array.from(usedCodes).filter(code => code.startsWith(baseKey));
         
         // 3. Add numeric size or duplicate suffix
-        if (existingSameCodes.length > 0) {
-          // If duplicate, use 0 + count (01, 02, 03...)
+        if (existingSameCodes.length > 0 && sizeNumber) {
+          // If duplicate, use first digit of size + count (301, 302, 303...)
+          const firstDigit = sizeNumber.charAt(0);
           const suffix = String(existingSameCodes.length).padStart(2, '0');
-          variantCode += suffix;
+          variantCode += firstDigit + suffix;
         } else if (sizeNumber) {
           // First occurrence, use the actual size number
           if (/\d$/.test(rootProductCode) && !colorValue && !sizeText) {
