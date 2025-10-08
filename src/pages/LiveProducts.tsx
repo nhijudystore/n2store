@@ -17,6 +17,7 @@ import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
+import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { 
   Plus, 
   Calendar,
@@ -1400,206 +1401,22 @@ export default function LiveProducts() {
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
-              {ordersWithProducts.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Đồng bộ mã TPOS Order</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-3 items-end">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Khoảng thời gian</label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-[280px] justify-start text-left font-normal"
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {tposSyncDateRange?.from ? (
-                                tposSyncDateRange.to ? (
-                                  <>
-                                    {format(tposSyncDateRange.from, "dd/MM/yyyy", { locale: vi })} -{" "}
-                                    {format(tposSyncDateRange.to, "dd/MM/yyyy", { locale: vi })}
-                                  </>
-                                ) : (
-                                  format(tposSyncDateRange.from, "dd/MM/yyyy", { locale: vi })
-                                )
-                              ) : (
-                                <span>Chọn ngày</span>
-                              )}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="range"
-                              selected={tposSyncDateRange}
-                              onSelect={setTposSyncDateRange}
-                              numberOfMonths={2}
-                              initialFocus
-                              className="pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Số lượng đơn hàng</label>
-                        <Select value={tposTopValue} onValueChange={setTposTopValue}>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="20">20 đơn</SelectItem>
-                            <SelectItem value="50">50 đơn</SelectItem>
-                            <SelectItem value="200">200 đơn</SelectItem>
-                            <SelectItem value="1000">1000 đơn</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <Button
-                        onClick={handleSyncTposOrders}
-                        disabled={isSyncingTpos}
-                      >
-                        {isSyncingTpos ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Đang đồng bộ...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="mr-2 h-4 w-4" />
-                            Thêm mã TPOS
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    {tposSyncResult && (
-                      <Alert className="mt-4">
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertTitle>Kết quả</AlertTitle>
-                        <AlertDescription>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span>Đã cập nhật:</span>
-                              <Badge>{tposSyncResult.matched}</Badge>
-                            </div>
-                            {tposSyncResult.notFound > 0 && (
-                              <div className="flex justify-between">
-                                <span>Không tìm thấy:</span>
-                                <Badge variant="outline">{tposSyncResult.notFound}</Badge>
-                              </div>
-                            )}
-                            {tposSyncResult.errors > 0 && (
-                              <div className="flex justify-between">
-                                <span>Lỗi:</span>
-                                <Badge variant="destructive">{tposSyncResult.errors}</Badge>
-                              </div>
-                            )}
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Upload TPOS Orders Card */}
-              {ordersWithProducts.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Upload Orders lên TPOS</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Chọn và upload các đơn hàng lên hệ thống TPOS
-                    </p>
-                    <Button onClick={() => setIsUploadTPOSOpen(true)}>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Upload TPOS
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Sync Product IDs Card */}
-              {ordersWithProducts.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Đồng bộ mã biến thể (Product ID)</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-3 items-end">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Số lượng records</label>
-                        <Select value={maxRecordsToFetch} onValueChange={setMaxRecordsToFetch}>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="1000">1,000 records</SelectItem>
-                            <SelectItem value="2000">2,000 records</SelectItem>
-                            <SelectItem value="3000">3,000 records</SelectItem>
-                            <SelectItem value="4000">4,000 records (mặc định)</SelectItem>
-                            <SelectItem value="5000">5,000 records</SelectItem>
-                            <SelectItem value="10000">10,000 records</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      <Button
-                        onClick={handleSyncProductIds}
-                        disabled={isSyncingProductIds}
-                      >
-                        {isSyncingProductIds ? (
-                          <>
-                            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                            Đang đồng bộ...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="mr-2 h-4 w-4" />
-                            Đồng bộ mã biến thể
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                    
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      Đồng bộ <strong>productid_bienthe</strong> cho các sản phẩm trong kho chưa có mã (bỏ qua N/A)
-                    </div>
-                    
-                    {productIdSyncResult && (
-                      <Alert className="mt-4">
-                        <CheckCircle className="h-4 w-4" />
-                        <AlertTitle>Kết quả</AlertTitle>
-                        <AlertDescription>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span>Đã cập nhật:</span>
-                              <Badge>{productIdSyncResult.matched}</Badge>
-                            </div>
-                            {productIdSyncResult.notFound > 0 && (
-                              <div className="flex justify-between">
-                                <span>Không tìm thấy:</span>
-                                <Badge variant="outline">{productIdSyncResult.notFound}</Badge>
-                              </div>
-                            )}
-                            {productIdSyncResult.errors > 0 && (
-                              <div className="flex justify-between">
-                                <span>Lỗi:</span>
-                                <Badge variant="destructive">{productIdSyncResult.errors}</Badge>
-                              </div>
-                            )}
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
+              <TPOSActionsCollapsible
+                hasOrders={ordersWithProducts.length > 0}
+                tposSyncDateRange={tposSyncDateRange}
+                setTposSyncDateRange={setTposSyncDateRange}
+                tposTopValue={tposTopValue}
+                setTposTopValue={setTposTopValue}
+                handleSyncTposOrders={handleSyncTposOrders}
+                isSyncingTpos={isSyncingTpos}
+                tposSyncResult={tposSyncResult}
+                setIsUploadTPOSOpen={setIsUploadTPOSOpen}
+                maxRecordsToFetch={maxRecordsToFetch}
+                setMaxRecordsToFetch={setMaxRecordsToFetch}
+                handleSyncProductIds={handleSyncProductIds}
+                isSyncingProductIds={isSyncingProductIds}
+                productIdSyncResult={productIdSyncResult}
+              />
               
               {ordersWithProducts.length === 0 ? (
                 <Card>
