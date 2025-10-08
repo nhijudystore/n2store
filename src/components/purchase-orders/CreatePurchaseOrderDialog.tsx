@@ -189,6 +189,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               .from("products")
               .update({
                 variant: mergedVariants || null,
+                product_name: representativeItem.product_name.trim().toUpperCase(),
                 product_images: representativeItem.product_images || existingBase.product_images,
                 price_images: representativeItem.price_images || existingBase.price_images
               })
@@ -200,7 +201,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               .from("products")
               .insert({
                 product_code: baseCode,
-                product_name: baseCode,
+                product_name: representativeItem.product_name.trim().toUpperCase(),
                 variant: allVariants || null,
                 base_product_code: null,
                 purchase_price: representativeItem.unit_price,
