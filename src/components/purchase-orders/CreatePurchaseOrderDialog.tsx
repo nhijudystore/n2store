@@ -26,16 +26,21 @@ import { detectVariantsFromText } from "@/lib/variant-detector";
 import { useCreateVariantProducts } from "@/hooks/use-create-variant-products";
 
 interface PurchaseOrderItem {
-  product_name: string;
-  variant: string;
-  product_code: string;
-  base_product_code?: string;
+  product_id: string | null;
   quantity: number;
-  unit_price: number | string;
-  selling_price: number | string;
-  total_price: number;
-  product_images: string[];
-  price_images: string[];
+  notes: string;
+  position?: number;
+  
+  // Temporary fields for UI only (not saved to DB)
+  _tempProductName: string;
+  _tempVariant: string;
+  _tempProductCode: string;
+  _tempBaseProductCode?: string;
+  _tempUnitPrice: number | string;
+  _tempSellingPrice: number | string;
+  _tempTotalPrice: number;
+  _tempProductImages: string[];
+  _tempPriceImages: string[];
 }
 
 interface CreatePurchaseOrderDialogProps {
@@ -63,7 +68,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   });
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
-    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }
+    { 
+      product_id: null,
+      quantity: 1,
+      notes: "",
+      _tempProductName: "",
+      _tempVariant: "",
+      _tempProductCode: "",
+      _tempUnitPrice: "",
+      _tempSellingPrice: "",
+      _tempTotalPrice: 0,
+      _tempProductImages: [],
+      _tempPriceImages: []
+    }
   ]);
 
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
@@ -76,20 +93,21 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
   // Debounce product names for auto-generating codes
   const debouncedProductNames = useDebounce(
-    items.map(i => i.product_name).join('|'),
+    items.map(i => i._tempProductName).join('|'),
     500
   );
 
   // Auto-generate product code when product name changes (with debounce)
   useEffect(() => {
     items.forEach(async (item, index) => {
-      if (item.product_name.trim() && !item.product_code.trim()) {
+      if (item._tempProductName.trim() && !item._tempProductCode.trim()) {
         try {
-          const code = await generateProductCodeFromMax(item.product_name, items);
+          const tempItems = items.map(i => ({ product_name: i._tempProductName, product_code: i._tempProductCode }));
+          const code = await generateProductCodeFromMax(item._tempProductName, tempItems);
           setItems(prev => {
             const newItems = [...prev];
-            if (newItems[index] && !newItems[index].product_code.trim()) {
-              newItems[index] = { ...newItems[index], product_code: code };
+            if (newItems[index] && !newItems[index]._tempProductCode.trim()) {
+              newItems[index] = { ...newItems[index], _tempProductCode: code };
             }
             return newItems;
           });
@@ -107,10 +125,72 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         throw new Error("Vui lòng nhập tên nhà cung cấp");
       }
 
-      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0) * 1000;
+      const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0) * 1000;
       const discountAmount = formData.discount_amount * 1000;
       const finalAmount = totalAmount - discountAmount;
 
+      // Step 1: Create/update products and collect product_ids
+      const productIds: string[] = [];
+      
+      for (const item of items) {
+        if (!item._tempProductCode.trim()) continue;
+        
+        const baseCode = extractBaseProductCode(item._tempProductCode) || item._tempProductCode;
+        
+        // Check if product exists
+        const { data: existingProduct } = await supabase
+          .from("products")
+          .select("id, variant")
+          .eq("product_code", baseCode)
+          .is("base_product_code", null)
+          .maybeSingle();
+        
+        if (existingProduct) {
+          // Update existing product
+          const existingVariants = existingProduct.variant ? existingProduct.variant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
+          const newVariants = item._tempVariant ? item._tempVariant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
+          const mergedVariants = [...new Set([...existingVariants, ...newVariants])].sort().join(', ');
+          
+          await supabase
+            .from("products")
+            .update({
+              variant: mergedVariants || null,
+              product_name: item._tempProductName.trim().toUpperCase(),
+              purchase_price: Number(item._tempUnitPrice || 0) * 1000,
+              selling_price: Number(item._tempSellingPrice || 0) * 1000,
+              product_images: item._tempProductImages,
+              price_images: item._tempPriceImages
+            })
+            .eq("id", existingProduct.id);
+          
+          productIds.push(existingProduct.id);
+        } else {
+          // Create new product
+          const { data: newProduct } = await supabase
+            .from("products")
+            .insert({
+              product_code: baseCode,
+              product_name: item._tempProductName.trim().toUpperCase(),
+              variant: item._tempVariant.trim().toUpperCase() || null,
+              base_product_code: null,
+              purchase_price: Number(item._tempUnitPrice || 0) * 1000,
+              selling_price: Number(item._tempSellingPrice || 0) * 1000,
+              supplier_name: formData.supplier_name.trim().toUpperCase(),
+              stock_quantity: 0,
+              unit: "Cái",
+              product_images: item._tempProductImages || [],
+              price_images: item._tempPriceImages || []
+            })
+            .select("id")
+            .single();
+          
+          if (newProduct) {
+            productIds.push(newProduct.id);
+          }
+        }
+      }
+
+      // Step 2: Create purchase_order
       const { data: order, error: orderError } = await supabase
         .from("purchase_orders")
         .insert({
@@ -127,21 +207,15 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
       if (orderError) throw orderError;
 
+      // Step 3: Create purchase_order_items with product_id
       const orderItems = items
-        .filter(item => item.product_name.trim())
+        .filter((item, index) => item._tempProductName.trim() && productIds[index])
         .map((item, index) => ({
           purchase_order_id: order.id,
-          product_name: item.product_name.trim().toUpperCase(),
-          variant: item.variant.trim().toUpperCase(),
-          product_code: item.product_code.trim().toUpperCase(),
-          base_product_code: extractBaseProductCode(item.product_code),
+          product_id: productIds[index],
           quantity: item.quantity,
-          unit_price: Number(item.unit_price || 0) * 1000,
-          selling_price: Number(item.selling_price || 0) * 1000,
-          total_price: item.total_price * 1000,
-          product_images: item.product_images,
-          price_images: item.price_images,
-          position: index + 1
+          position: index + 1,
+          notes: item.notes.trim().toUpperCase() || null
         }));
 
       if (orderItems.length > 0) {
@@ -150,70 +224,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           .insert(orderItems);
 
         if (itemsError) throw itemsError;
-
-        // Auto-create base products in inventory
-        const groupedByBaseCode = orderItems.reduce((acc, item) => {
-          const baseCode = item.base_product_code || item.product_code;
-          if (!acc[baseCode]) {
-            acc[baseCode] = [];
-          }
-          acc[baseCode].push(item);
-          return acc;
-        }, {} as Record<string, typeof orderItems>);
-
-        for (const [baseCode, groupItems] of Object.entries(groupedByBaseCode)) {
-          const representativeItem = groupItems[0];
-          
-          // Collect all variants from the group (remove duplicates and empty strings)
-          const allVariants = [...new Set(
-            groupItems
-              .map(item => item.variant)
-              .filter(v => v && v.trim() !== '')
-          )].sort().join(', ');
-
-          // Check if base product already exists
-          const { data: existingBase } = await supabase
-            .from("products")
-            .select("*")
-            .eq("product_code", baseCode)
-            .is("base_product_code", null)
-            .maybeSingle();
-
-          if (existingBase) {
-            // Base product exists - merge variants
-            const existingVariants = existingBase.variant ? existingBase.variant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
-            const newVariants = allVariants ? allVariants.split(',').map(v => v.trim()).filter(Boolean) : [];
-            const mergedVariants = [...new Set([...existingVariants, ...newVariants])].sort().join(', ');
-            
-            await supabase
-              .from("products")
-              .update({
-                variant: mergedVariants || null,
-                product_name: representativeItem.product_name.trim().toUpperCase(),
-                product_images: representativeItem.product_images || existingBase.product_images,
-                price_images: representativeItem.price_images || existingBase.price_images
-              })
-              .eq("product_code", baseCode)
-              .is("base_product_code", null);
-          } else {
-            // Base product doesn't exist - create new
-            await supabase
-              .from("products")
-              .insert({
-                product_code: baseCode,
-                product_name: representativeItem.product_name.trim().toUpperCase(),
-                variant: allVariants || null,
-                base_product_code: null,
-                purchase_price: representativeItem.unit_price,
-                selling_price: representativeItem.selling_price,
-                supplier_name: formData.supplier_name.trim().toUpperCase(),
-                stock_quantity: 0,
-                unit: "Cái",
-                product_images: representativeItem.product_images || [],
-                price_images: representativeItem.price_images || []
-              });
-          }
-        }
       }
 
       return order;
@@ -246,7 +256,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       discount_amount: 0
     });
     setItems([
-      { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }
+      { 
+        product_id: null,
+        quantity: 1,
+        notes: "",
+        _tempProductName: "",
+        _tempVariant: "",
+        _tempProductCode: "",
+        _tempUnitPrice: "",
+        _tempSellingPrice: "",
+        _tempTotalPrice: 0,
+        _tempProductImages: [],
+        _tempPriceImages: []
+      }
     ]);
   };
 
@@ -254,29 +276,42 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (field === "quantity" || field === "unit_price") {
-      newItems[index].total_price = newItems[index].quantity * Number(newItems[index].unit_price || 0);
+    if (field === "quantity" || field === "_tempUnitPrice") {
+      newItems[index]._tempTotalPrice = newItems[index].quantity * Number(newItems[index]._tempUnitPrice || 0);
     }
     
     setItems(newItems);
   };
 
   const addItem = () => {
-    setItems([...items, { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }]);
+    setItems([...items, { 
+      product_id: null,
+      quantity: 1,
+      notes: "",
+      _tempProductName: "",
+      _tempVariant: "",
+      _tempProductCode: "",
+      _tempUnitPrice: "",
+      _tempSellingPrice: "",
+      _tempTotalPrice: 0,
+      _tempProductImages: [],
+      _tempPriceImages: []
+    }]);
   };
 
   const copyItem = (index: number) => {
     const itemToCopy = { ...items[index] };
-    // Deep copy the product_images and price_images arrays
-    itemToCopy.product_images = [...itemToCopy.product_images];
-    itemToCopy.price_images = [...itemToCopy.price_images];
+    itemToCopy.product_id = null; // Clear product_id for new item
+    // Deep copy the image arrays
+    itemToCopy._tempProductImages = [...itemToCopy._tempProductImages];
+    itemToCopy._tempPriceImages = [...itemToCopy._tempPriceImages];
     
     // Auto-increment product code if it exists
-    if (itemToCopy.product_code.trim()) {
-      const existingCodes = items.map(item => item.product_code);
-      const newCode = incrementProductCode(itemToCopy.product_code, existingCodes);
+    if (itemToCopy._tempProductCode.trim()) {
+      const existingCodes = items.map(item => item._tempProductCode);
+      const newCode = incrementProductCode(itemToCopy._tempProductCode, existingCodes);
       if (newCode) {
-        itemToCopy.product_code = newCode;
+        itemToCopy._tempProductCode = newCode;
         toast({
           title: "Đã sao chép và tăng mã SP",
           description: `Mã mới: ${newCode}`,
@@ -294,7 +329,19 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       setItems(items.filter((_, i) => i !== index));
     } else {
       // Reset the last item to empty state instead of removing
-      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [] }]);
+      setItems([{ 
+        product_id: null,
+        quantity: 1,
+        notes: "",
+        _tempProductName: "",
+        _tempVariant: "",
+        _tempProductCode: "",
+        _tempUnitPrice: "",
+        _tempSellingPrice: "",
+        _tempTotalPrice: 0,
+        _tempProductImages: [],
+        _tempPriceImages: []
+      }]);
     }
   };
 
@@ -303,14 +350,15 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       const newItems = [...items];
       newItems[currentItemIndex] = {
         ...newItems[currentItemIndex],
-        product_name: product.product_name,
-        product_code: product.product_code,
-        variant: product.variant || "",
-        unit_price: product.purchase_price / 1000,
-        selling_price: product.selling_price / 1000,
-        product_images: product.product_images || [],
-        price_images: product.price_images || [],
-        total_price: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
+        product_id: product.id,
+        _tempProductName: product.product_name,
+        _tempProductCode: product.product_code,
+        _tempVariant: product.variant || "",
+        _tempUnitPrice: product.purchase_price / 1000,
+        _tempSellingPrice: product.selling_price / 1000,
+        _tempProductImages: product.product_images || [],
+        _tempPriceImages: product.price_images || [],
+        _tempTotalPrice: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
       };
       setItems(newItems);
       
@@ -348,28 +396,28 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
     // Prepare base product data
     const baseProductData = {
-      product_code: baseItem.product_code.trim().toUpperCase(),
-      product_name: baseItem.product_name.trim().toUpperCase(),
+      product_code: baseItem._tempProductCode.trim().toUpperCase(),
+      product_name: baseItem._tempProductName.trim().toUpperCase(),
       variant: mergedVariant || null,
-      purchase_price: Number(baseItem.unit_price) * 1000,
-      selling_price: Number(baseItem.selling_price) * 1000,
+      purchase_price: Number(baseItem._tempUnitPrice) * 1000,
+      selling_price: Number(baseItem._tempSellingPrice) * 1000,
       supplier_name: formData.supplier_name || undefined,
       stock_quantity: 0,
-      product_images: [...baseItem.product_images],
-      price_images: [...baseItem.price_images]
+      product_images: [...baseItem._tempProductImages],
+      price_images: [...baseItem._tempPriceImages]
     };
 
     // Prepare child variants data
     const childVariantsData = variants.map(v => ({
       product_code: v.fullCode,
-      base_product_code: baseItem.product_code.trim().toUpperCase(),
+      base_product_code: baseItem._tempProductCode.trim().toUpperCase(),
       product_name: v.productName,
       variant: v.variantText,
-      purchase_price: Number(baseItem.unit_price) * 1000,
-      selling_price: Number(baseItem.selling_price) * 1000,
+      purchase_price: Number(baseItem._tempUnitPrice) * 1000,
+      selling_price: Number(baseItem._tempSellingPrice) * 1000,
       supplier_name: formData.supplier_name || undefined,
-      product_images: baseItem.product_images,
-      price_images: baseItem.price_images
+      product_images: baseItem._tempProductImages,
+      price_images: baseItem._tempPriceImages
     }));
 
     // Call mutation to upsert base product and create child variants
@@ -387,11 +435,11 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     // Validation: Check all required fields
     const missingFields = [];
     
-    if (!item.product_name.trim()) missingFields.push("Tên sản phẩm");
-    if (!item.product_code.trim()) missingFields.push("Mã sản phẩm");
-    if (!item.unit_price || Number(item.unit_price) <= 0) missingFields.push("Giá mua");
-    if (!item.selling_price || Number(item.selling_price) <= 0) missingFields.push("Giá bán");
-    if (!item.product_images || item.product_images.length === 0) missingFields.push("Hình ảnh sản phẩm");
+    if (!item._tempProductName.trim()) missingFields.push("Tên sản phẩm");
+    if (!item._tempProductCode.trim()) missingFields.push("Mã sản phẩm");
+    if (!item._tempUnitPrice || Number(item._tempUnitPrice) <= 0) missingFields.push("Giá mua");
+    if (!item._tempSellingPrice || Number(item._tempSellingPrice) <= 0) missingFields.push("Giá bán");
+    if (!item._tempProductImages || item._tempProductImages.length === 0) missingFields.push("Hình ảnh sản phẩm");
     
     if (missingFields.length > 0) {
       toast({
@@ -407,7 +455,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   };
 
 
-  const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+  const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0);
   const finalAmount = totalAmount - formData.discount_amount;
 
   return (
@@ -512,7 +560,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1].product_name ? items.length : items.length - 1)}
+                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1]._tempProductName ? items.length : items.length - 1)}
               >
                 <Warehouse className="h-4 w-4 mr-2" />
                 Chọn từ Kho SP
@@ -545,18 +593,18 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                       <TableCell>
                         <Textarea
                           placeholder="Nhập tên sản phẩm"
-                          value={item.product_name}
-                          onChange={(e) => updateItem(index, "product_name", e.target.value)}
+                          value={item._tempProductName}
+                          onChange={(e) => updateItem(index, "_tempProductName", e.target.value)}
                           onBlur={() => {
                             // Auto-detect variants on blur
-                            const result = detectVariantsFromText(item.product_name);
+                            const result = detectVariantsFromText(item._tempProductName);
                             if (result.colors.length > 0 || result.sizeText.length > 0) {
                               const detectedVariant = [
                                 ...result.colors.map(c => c.value),
                                 ...result.sizeText.map(s => s.value)
                               ].join(" ");
-                              if (detectedVariant && !item.variant) {
-                                updateItem(index, "variant", detectedVariant);
+                              if (detectedVariant && !item._tempVariant) {
+                                updateItem(index, "_tempVariant", detectedVariant);
                               }
                             }
                           }}
@@ -567,8 +615,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             <TableCell>
               <Input
                 placeholder="Mã SP"
-                value={item.product_code}
-                onChange={(e) => updateItem(index, "product_code", e.target.value)}
+                value={item._tempProductCode}
+                onChange={(e) => updateItem(index, "_tempProductCode", e.target.value)}
                 className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
                 maxLength={10}
               />
@@ -587,8 +635,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           type="text"
                           inputMode="numeric"
                           placeholder=""
-                          value={item.unit_price === 0 || item.unit_price === "" ? "" : item.unit_price}
-                          onChange={(e) => updateItem(index, "unit_price", parseNumberInput(e.target.value))}
+                          value={item._tempUnitPrice === 0 || item._tempUnitPrice === "" ? "" : item._tempUnitPrice}
+                          onChange={(e) => updateItem(index, "_tempUnitPrice", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
@@ -597,38 +645,38 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           type="text"
                           inputMode="numeric"
                           placeholder=""
-                          value={item.selling_price === 0 || item.selling_price === "" ? "" : item.selling_price}
-                          onChange={(e) => updateItem(index, "selling_price", parseNumberInput(e.target.value))}
+                          value={item._tempSellingPrice === 0 || item._tempSellingPrice === "" ? "" : item._tempSellingPrice}
+                          onChange={(e) => updateItem(index, "_tempSellingPrice", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatVND(item.total_price * 1000)}
+                        {formatVND(item._tempTotalPrice * 1000)}
                       </TableCell>
                       <TableCell>
                         <ImageUploadCell
-                          images={item.product_images}
-                          onImagesChange={(images) => updateItem(index, "product_images", images)}
+                          images={item._tempProductImages}
+                          onImagesChange={(images) => updateItem(index, "_tempProductImages", images)}
                           itemIndex={index}
                         />
                       </TableCell>
                       <TableCell>
                         <ImageUploadCell
-                          images={item.price_images}
-                          onImagesChange={(images) => updateItem(index, "price_images", images)}
+                          images={item._tempPriceImages}
+                          onImagesChange={(images) => updateItem(index, "_tempPriceImages", images)}
                           itemIndex={index}
                         />
                       </TableCell>
             <TableCell>
               <div className="flex items-center gap-1">
                 <VariantDropdownSelector
-                  baseProductCode={item.product_code}
-                  value={item.variant}
-                  onChange={(value) => updateItem(index, "variant", value)}
+                  baseProductCode={item._tempProductCode}
+                  value={item._tempVariant}
+                  onChange={(value) => updateItem(index, "_tempVariant", value)}
                   onVariantSelect={(data) => {
-                    updateItem(index, "product_code", data.productCode);
-                    updateItem(index, "product_name", data.productName);
-                    updateItem(index, "variant", data.variant);
+                    updateItem(index, "_tempProductCode", data.productCode);
+                    updateItem(index, "_tempProductName", data.productName);
+                    updateItem(index, "_tempVariant", data.variant);
                   }}
                   className="flex-1"
                 />
@@ -749,7 +797,10 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         <VariantGeneratorDialog
           open={isVariantDialogOpen}
           onOpenChange={setIsVariantDialogOpen}
-          currentItem={items[variantGeneratorIndex]}
+          currentItem={{
+            product_code: items[variantGeneratorIndex]._tempProductCode,
+            product_name: items[variantGeneratorIndex]._tempProductName
+          }}
           onVariantsGenerated={(variants) => {
             handleVariantsGenerated(variantGeneratorIndex, variants);
             setVariantGeneratorIndex(null);

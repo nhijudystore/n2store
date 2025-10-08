@@ -489,69 +489,49 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
-          base_product_code: string | null
           created_at: string
-          description: string | null
           id: string
           notes: string | null
           position: number
-          price_images: string[] | null
-          product_code: string | null
-          product_images: string[] | null
-          product_name: string
+          product_id: string
           purchase_order_id: string
           quantity: number
-          selling_price: number | null
-          total_price: number | null
           tpos_deleted: boolean | null
           tpos_deleted_at: string | null
           tpos_product_id: number | null
-          unit_price: number | null
-          variant: string | null
         }
         Insert: {
-          base_product_code?: string | null
           created_at?: string
-          description?: string | null
           id?: string
           notes?: string | null
           position?: number
-          price_images?: string[] | null
-          product_code?: string | null
-          product_images?: string[] | null
-          product_name: string
+          product_id: string
           purchase_order_id: string
           quantity?: number
-          selling_price?: number | null
-          total_price?: number | null
           tpos_deleted?: boolean | null
           tpos_deleted_at?: string | null
           tpos_product_id?: number | null
-          unit_price?: number | null
-          variant?: string | null
         }
         Update: {
-          base_product_code?: string | null
           created_at?: string
-          description?: string | null
           id?: string
           notes?: string | null
           position?: number
-          price_images?: string[] | null
-          product_code?: string | null
-          product_images?: string[] | null
-          product_name?: string
+          product_id?: string
           purchase_order_id?: string
           quantity?: number
-          selling_price?: number | null
-          total_price?: number | null
           tpos_deleted?: boolean | null
           tpos_deleted_at?: string | null
           tpos_product_id?: number | null
-          unit_price?: number | null
-          variant?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
             columns: ["purchase_order_id"]

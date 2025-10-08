@@ -195,9 +195,9 @@ export async function getMaxNumberFromPurchaseOrderItems(
   category: 'N' | 'P'
 ): Promise<number> {
   try {
-    // Query for ALL codes in this category from purchase order items
+    // Query for ALL codes in this category from products table
     const { data, error } = await supabase
-      .from("purchase_order_items")
+      .from("products")
       .select("product_code")
       .like("product_code", `${category}%`);
     
@@ -221,7 +221,7 @@ export async function getMaxNumberFromPurchaseOrderItems(
     
     return maxNumber;
   } catch (error) {
-    console.error("Error getting max number from purchase order items:", error);
+    console.error("Error getting max number from products:", error);
     return 0;
   }
 }
