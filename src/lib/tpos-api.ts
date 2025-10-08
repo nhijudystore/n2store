@@ -1139,8 +1139,24 @@ export async function uploadToTPOS(
             Description: item.variant || null,
           };
           
-          // Remove @odata.context nếu có
-          delete updatePayload["@odata.context"];
+          // ✅ Remove các trường READ-ONLY của TPOS (GetViewV2 trả về view model, không phải update model)
+          const readOnlyFields = [
+            '@odata.context',
+            'VariantActiveCount',
+            'QtyAvailable', 
+            'VirtualAvailable',
+            'NameGet',
+            'CategCompleteName',
+            'UOMName',
+            'UOMPOName',
+            'EnableAll',
+            'DateCreated',
+            'CompanyName',
+            'CreatedByName',
+            'ImageUrl',
+          ];
+          
+          readOnlyFields.forEach(field => delete updatePayload[field]);
           
           console.log(`📝 [${currentStep}/${items.length}] Updating product ${existingProductId} with DefaultCode="${defaultCode}"`);
           
