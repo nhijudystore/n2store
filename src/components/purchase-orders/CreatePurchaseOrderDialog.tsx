@@ -272,9 +272,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   ) => {
     const baseItem = items[index];
 
-    // Extract unique variant names and merge them
-    const uniqueVariants = [...new Set(variants.map(v => v.variantText))];
-    const mergedVariant = uniqueVariants.sort().join(', ');
+    // Extract all individual variant parts from all child variants and deduplicate
+    const allVariantParts = variants.flatMap(v => 
+      v.variantText.split(',').map(s => s.trim()).filter(Boolean)
+    );
+    const uniqueParts = [...new Set(allVariantParts)];
+    const mergedVariant = uniqueParts.sort().join(', ');
 
     // Prepare base product data
     const baseProductData = {
