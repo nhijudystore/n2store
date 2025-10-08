@@ -1090,6 +1090,13 @@ export async function uploadToTPOS(
 
       console.log(`✅ [${currentStep}/${items.length}] Excel uploaded: ${item.product_name}`);
       
+      // Check if TPOS response is empty (product already exists)
+      const responseValue = uploadResult.data?.value || uploadResult.data || [];
+      if (Array.isArray(responseValue) && responseValue.length === 0) {
+        const code = item.base_product_code || item.product_code;
+        console.log(`ℹ️ TPOS response rỗng - Product có thể đã tồn tại: ${code}`);
+      }
+      
       uploadedItems.push({ item, index: i });
       result.successCount++;
       
@@ -1182,9 +1189,50 @@ export async function uploadToTPOS(
       }
     });
 
+    // For products that already existed (empty response), search by code
     console.log(`\n🔗 Đang match ${uploadedItems.length} products...`);
-    console.log(`   QUAN TRỌNG: Chỉ match trong ${tposProductIds.size} products mới nhất`);
-    console.log(`   Match rule: DefaultCode (TPOS) === product_code (local)`);
+    console.log(`   Step 1: Match trong ${tposProductIds.size} products mới nhất`);
+    
+    const missingCodes: string[] = [];
+    for (const { item } of uploadedItems) {
+      const codeToMatch = item.base_product_code || item.product_code;
+      if (codeToMatch && !tposProductMap.has(codeToMatch.trim())) {
+        missingCodes.push(codeToMatch.trim());
+      }
+    }
+    
+    // Search for missing products by DefaultCode
+    if (missingCodes.length > 0) {
+      console.log(`   Step 2: Tìm ${missingCodes.length} products còn thiếu bằng DefaultCode...`);
+      
+      try {
+        const codeFilter = missingCodes.map(code => `DefaultCode eq '${code}'`).join(' or ');
+        const searchUrl = `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=${encodeURIComponent(codeFilter)}&$select=Id,DefaultCode,Name,CreatedByName`;
+        
+        const searchResponse = await fetch(searchUrl, {
+          headers: getTPOSHeaders(token),
+        });
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          const foundProducts = searchData.value || searchData || [];
+          
+          console.log(`   ✅ Tìm thấy ${foundProducts.length}/${missingCodes.length} products đã tồn tại`);
+          
+          foundProducts.forEach((p: any) => {
+            if (p.DefaultCode) {
+              console.log(`      - ${p.DefaultCode} (Id: ${p.Id}, CreatedBy: ${p.CreatedByName})`);
+              tposProductMap.set(p.DefaultCode.trim(), p);
+              tposProductIds.add(p.Id);
+            }
+          });
+        }
+      } catch (searchError) {
+        console.error("   ⚠️ Error searching for existing products:", searchError);
+      }
+    }
+    
+    console.log(`\n   Match rule: DefaultCode (TPOS) === product_code (local)`);
     console.log(`   Save rule: Id (TPOS) → tpos_product_id (DB)`);
     
   for (const { item, index } of uploadedItems) {
