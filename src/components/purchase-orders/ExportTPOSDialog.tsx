@@ -812,22 +812,9 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         }
       }
       
-      console.log(`📦 Creating inventory entries for ${variantsByProductCode.size} product codes`);
-      
-      // Create inventory entries using the new helper function
-      let totalCreated = 0;
-      for (const [productCode, variants] of variantsByProductCode) {
-        // Get TPOS ID from the first variant (they all should have the same tposId for a product_code)
-        const tposId = variants[0]?.tposId;
-        
-        // Create inventory entries even without TPOS ID (will save null)
-        const variantsWithoutTposId = variants.map(v => ({ variant: v.variant, item: v.item }));
-        const created = await createVariantProductsInInventory(productCode, variantsWithoutTposId, tposId || null);
-        totalCreated += created;
-      }
-      
-      result.productsAddedToInventory = totalCreated;
-      console.log(`✅ Successfully created ${totalCreated} product entries in inventory`);
+      // Bỏ phần tự động thêm sản phẩm vào kho
+      result.productsAddedToInventory = 0;
+      console.log(`⏭️  Skipped creating inventory entries (disabled)`);
 
       // Auto-create variants for NEW products uploaded to TPOS
       setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
@@ -904,14 +891,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             console.log(`✅ Variants added to ${productCode}`);
             result.variantsCreated = (result.variantsCreated || 0) + 1;
 
-            // Create inventory entries for variants using the helper function
-            const variantsToCreate = items.map(item => ({
-              variant: item.variant || null,
-              item: item
-            }));
-            
-            const created = await createVariantProductsInInventory(productCode, variantsToCreate, existingTPOSId);
-            
             // Update purchase_order_items with TPOS ID
             for (const item of items) {
               await supabase
@@ -919,8 +898,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 .update({ tpos_product_id: existingTPOSId })
                 .eq("id", item.id);
             }
-
-            result.productsAddedToInventory = (result.productsAddedToInventory || 0) + created;
           } catch (error) {
             console.error(`❌ Failed to add variants for ${productCode}:`, error);
             result.variantsFailed = (result.variantsFailed || 0) + 1;
