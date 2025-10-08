@@ -24,17 +24,32 @@ import { detectVariantsFromText } from "@/lib/variant-detector";
 
 interface PurchaseOrderItem {
   id?: string;
-  product_name: string;
-  product_code: string;
-  variant: string;
+  product_id: string | null;
   quantity: number;
-  unit_price: number | string;
-  selling_price: number | string;
-  total_price: number;
   notes: string;
-  product_images: string[];
-  price_images: string[];
   position?: number;
+  
+  // Product data from JOIN
+  product?: {
+    id: string;
+    product_code: string;
+    product_name: string;
+    variant: string | null;
+    purchase_price: number;
+    selling_price: number;
+    product_images: string[] | null;
+    price_images: string[] | null;
+  };
+  
+  // Temporary UI fields
+  _tempProductName: string;
+  _tempProductCode: string;
+  _tempVariant: string;
+  _tempUnitPrice: number | string;
+  _tempSellingPrice: number | string;
+  _tempTotalPrice: number;
+  _tempProductImages: string[];
+  _tempPriceImages: string[];
 }
 
 interface PurchaseOrder {
@@ -76,7 +91,19 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
   const [items, setItems] = useState<PurchaseOrderItem[]>([
-    { product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [], notes: "" }
+    { 
+      product_id: null,
+      quantity: 1,
+      notes: "",
+      _tempProductName: "",
+      _tempProductCode: "",
+      _tempVariant: "",
+      _tempUnitPrice: "",
+      _tempSellingPrice: "",
+      _tempTotalPrice: 0,
+      _tempProductImages: [],
+      _tempPriceImages: []
+    }
   ]);
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
@@ -84,20 +111,21 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
   // Debounce product names for auto-generating codes
   const debouncedProductNames = useDebounce(
-    items.map(i => i.product_name).join('|'),
+    items.map(i => i._tempProductName).join('|'),
     500
   );
 
   // Auto-generate product code when product name changes (with debounce)
   useEffect(() => {
     items.forEach(async (item, index) => {
-      if (item.product_name.trim() && !item.product_code.trim()) {
+      if (item._tempProductName.trim() && !item._tempProductCode.trim()) {
         try {
-          const code = await generateProductCodeFromMax(item.product_name, items);
+          const tempItems = items.map(i => ({ product_name: i._tempProductName, product_code: i._tempProductCode }));
+          const code = await generateProductCodeFromMax(item._tempProductName, tempItems);
           setItems(prev => {
             const newItems = [...prev];
-            if (newItems[index] && !newItems[index].product_code.trim()) {
-              newItems[index] = { ...newItems[index], product_code: code };
+            if (newItems[index] && !newItems[index]._tempProductCode.trim()) {
+              newItems[index] = { ...newItems[index], _tempProductCode: code };
             }
             return newItems;
           });
@@ -108,14 +136,17 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     });
   }, [debouncedProductNames]);
 
-  // Fetch existing items when order changes
+  // Fetch existing items when order changes (with JOIN to products)
   const { data: existingItems } = useQuery({
     queryKey: ["purchaseOrderItems", order?.id],
     queryFn: async () => {
       if (!order?.id) return [];
       const { data, error } = await supabase
         .from("purchase_order_items")
-        .select("*")
+        .select(`
+          *,
+          product:products(*)
+        `)
         .eq("purchase_order_id", order.id)
         .order("position", { ascending: true });
       
@@ -143,30 +174,34 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     if (existingItems && existingItems.length > 0) {
       setItems(existingItems.map(item => ({
         id: item.id,
-        product_name: item.product_name || "",
-        product_code: item.product_code || "",
-        variant: item.variant || "",
+        product_id: item.product_id,
+        product: item.product,
         quantity: item.quantity || 1,
-        unit_price: Number(item.unit_price) / 1000 || 0,
-        selling_price: Number(item.selling_price) / 1000 || 0,
-        total_price: Number(item.total_price) / 1000 || 0,
         notes: item.notes || "",
-        product_images: item.product_images || [],
-        price_images: item.price_images || [],
+        position: item.position,
+        _tempProductName: item.product?.product_name || "",
+        _tempProductCode: item.product?.product_code || "",
+        _tempVariant: item.product?.variant || "",
+        _tempUnitPrice: item.product ? Number(item.product.purchase_price) / 1000 : 0,
+        _tempSellingPrice: item.product ? Number(item.product.selling_price) / 1000 : 0,
+        _tempTotalPrice: item.product ? (item.quantity * Number(item.product.purchase_price) / 1000) : 0,
+        _tempProductImages: item.product?.product_images || [],
+        _tempPriceImages: item.product?.price_images || [],
       })));
     } else if (open && existingItems) {
       // If no existing items, add one empty row
       setItems([{
-        product_name: "",
-        product_code: "",
-        variant: "",
+        product_id: null,
         quantity: 1,
-        unit_price: "",
-        selling_price: "",
-        total_price: 0,
         notes: "",
-        product_images: [],
-        price_images: [],
+        _tempProductName: "",
+        _tempProductCode: "",
+        _tempVariant: "",
+        _tempUnitPrice: "",
+        _tempSellingPrice: "",
+        _tempTotalPrice: 0,
+        _tempProductImages: [],
+        _tempPriceImages: [],
       }]);
     }
   }, [existingItems, open]);
@@ -180,16 +215,17 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     setInvoiceAmount(0);
     setDiscountAmount(0);
     setItems([{
-      product_name: "",
-      product_code: "",
-      variant: "",
+      product_id: null,
       quantity: 1,
-      unit_price: "",
-      selling_price: "",
-      total_price: 0,
       notes: "",
-      product_images: [],
-      price_images: [],
+      _tempProductName: "",
+      _tempProductCode: "",
+      _tempVariant: "",
+      _tempUnitPrice: "",
+      _tempSellingPrice: "",
+      _tempTotalPrice: 0,
+      _tempProductImages: [],
+      _tempPriceImages: [],
     }]);
   };
 
@@ -197,10 +233,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    if (field === 'quantity' || field === 'unit_price') {
+    if (field === 'quantity' || field === '_tempUnitPrice') {
       const qty = field === 'quantity' ? value : newItems[index].quantity;
-      const price = field === 'unit_price' ? value : newItems[index].unit_price;
-      newItems[index].total_price = qty * Number(price || 0);
+      const price = field === '_tempUnitPrice' ? value : newItems[index]._tempUnitPrice;
+      newItems[index]._tempTotalPrice = qty * Number(price || 0);
     }
     
     setItems(newItems);
@@ -208,32 +244,34 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
   const addItem = () => {
     setItems([...items, {
-      product_name: "",
-      product_code: "",
-      variant: "",
+      product_id: null,
       quantity: 1,
-      unit_price: "",
-      selling_price: "",
-      total_price: 0,
       notes: "",
-      product_images: [],
-      price_images: [],
+      _tempProductName: "",
+      _tempProductCode: "",
+      _tempVariant: "",
+      _tempUnitPrice: "",
+      _tempSellingPrice: "",
+      _tempTotalPrice: 0,
+      _tempProductImages: [],
+      _tempPriceImages: [],
     }]);
   };
 
   const copyItem = (index: number) => {
     const itemToCopy = { ...items[index] };
     delete itemToCopy.id; // Remove id so it will be inserted as new
-    // Deep copy the product_images and price_images arrays
-    itemToCopy.product_images = [...itemToCopy.product_images];
-    itemToCopy.price_images = [...itemToCopy.price_images];
+    itemToCopy.product_id = null; // Clear product_id for new item
+    // Deep copy the image arrays
+    itemToCopy._tempProductImages = [...itemToCopy._tempProductImages];
+    itemToCopy._tempPriceImages = [...itemToCopy._tempPriceImages];
     
     // Auto-increment product code if it exists
-    if (itemToCopy.product_code.trim()) {
-      const existingCodes = items.map(item => item.product_code);
-      const newCode = incrementProductCode(itemToCopy.product_code, existingCodes);
+    if (itemToCopy._tempProductCode.trim()) {
+      const existingCodes = items.map(item => item._tempProductCode);
+      const newCode = incrementProductCode(itemToCopy._tempProductCode, existingCodes);
       if (newCode) {
-        itemToCopy.product_code = newCode;
+        itemToCopy._tempProductCode = newCode;
         toast({
           title: "Đã sao chép và tăng mã SP",
           description: `Mã mới: ${newCode}`,
@@ -251,7 +289,19 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       setItems(items.filter((_, i) => i !== index));
     } else {
       // Reset the last item to empty state instead of removing
-      setItems([{ product_name: "", variant: "", product_code: "", quantity: 1, unit_price: "", selling_price: "", total_price: 0, product_images: [], price_images: [], notes: "" }]);
+      setItems([{ 
+        product_id: null,
+        quantity: 1,
+        notes: "",
+        _tempProductName: "",
+        _tempProductCode: "",
+        _tempVariant: "",
+        _tempUnitPrice: "",
+        _tempSellingPrice: "",
+        _tempTotalPrice: 0,
+        _tempProductImages: [],
+        _tempPriceImages: []
+      }]);
     }
   };
 
@@ -260,14 +310,15 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       const newItems = [...items];
       newItems[currentItemIndex] = {
         ...newItems[currentItemIndex],
-        product_name: product.product_name,
-        product_code: product.product_code,
-        variant: product.variant || "",
-        unit_price: product.purchase_price / 1000,
-        selling_price: product.selling_price / 1000,
-        product_images: product.product_images || [],
-        price_images: product.price_images || [],
-        total_price: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
+        product_id: product.id,
+        _tempProductName: product.product_name,
+        _tempProductCode: product.product_code,
+        _tempVariant: product.variant || "",
+        _tempUnitPrice: product.purchase_price / 1000,
+        _tempSellingPrice: product.selling_price / 1000,
+        _tempProductImages: product.product_images || [],
+        _tempPriceImages: product.price_images || [],
+        _tempTotalPrice: newItems[currentItemIndex].quantity * (product.purchase_price / 1000)
       };
       setItems(newItems);
       
@@ -291,10 +342,67 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         throw new Error("Vui lòng nhập tên nhà cung cấp");
       }
 
-      const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0) * 1000;
+      const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0) * 1000;
       const finalAmount = totalAmount - (discountAmount * 1000);
 
-      // Update purchase order
+      // Step 1: Create/update products first
+      const productIds: (string | null)[] = [];
+      
+      for (const item of items) {
+        if (!item._tempProductCode.trim()) {
+          productIds.push(null);
+          continue;
+        }
+        
+        if (item.product_id) {
+          // Update existing product
+          await supabase
+            .from("products")
+            .update({
+              product_name: item._tempProductName.trim().toUpperCase(),
+              purchase_price: Number(item._tempUnitPrice || 0) * 1000,
+              selling_price: Number(item._tempSellingPrice || 0) * 1000,
+              variant: item._tempVariant.trim().toUpperCase() || null,
+              product_images: item._tempProductImages,
+              price_images: item._tempPriceImages
+            })
+            .eq("id", item.product_id);
+          
+          productIds.push(item.product_id);
+        } else {
+          // Check if product exists by code
+          const { data: existingProduct } = await supabase
+            .from("products")
+            .select("id")
+            .eq("product_code", item._tempProductCode.trim().toUpperCase())
+            .maybeSingle();
+          
+          if (existingProduct) {
+            productIds.push(existingProduct.id);
+          } else {
+            // Create new product
+            const { data: newProduct } = await supabase
+              .from("products")
+              .insert({
+                product_code: item._tempProductCode.trim().toUpperCase(),
+                product_name: item._tempProductName.trim().toUpperCase(),
+                variant: item._tempVariant.trim().toUpperCase() || null,
+                purchase_price: Number(item._tempUnitPrice || 0) * 1000,
+                selling_price: Number(item._tempSellingPrice || 0) * 1000,
+                supplier_name: supplierName.trim().toUpperCase(),
+                stock_quantity: 0,
+                product_images: item._tempProductImages || [],
+                price_images: item._tempPriceImages || []
+              })
+              .select("id")
+              .single();
+            
+            productIds.push(newProduct?.id || null);
+          }
+        }
+      }
+
+      // Step 2: Update purchase order
       const { error: orderError } = await supabase
         .from("purchase_orders")
         .update({
@@ -311,7 +419,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
       if (orderError) throw orderError;
 
-      // Get IDs of items to delete (items that existed but are no longer in the list)
+      // Step 3: Get IDs of items to delete
       const existingItemIds = existingItems?.map(item => item.id) || [];
       const currentItemIds = items.filter(item => item.id).map(item => item.id);
       const deletedItemIds = existingItemIds.filter(id => !currentItemIds.includes(id));
@@ -326,36 +434,19 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         if (deleteError) throw deleteError;
       }
 
-      // Get max position for new items
-      const { data: maxPosData } = await supabase
-        .from("purchase_order_items")
-        .select("position")
-        .eq("purchase_order_id", order.id)
-        .order("position", { ascending: false })
-        .limit(1);
-      
-      const maxPosition = maxPosData?.[0]?.position || 0;
-      let nextPosition = maxPosition + 1;
-
-      // Update existing items and insert new items
+      // Step 4: Update existing items and insert new items
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         const itemData = {
           purchase_order_id: order.id,
-          product_name: item.product_name.trim().toUpperCase(),
-          product_code: item.product_code.trim().toUpperCase() || null,
-          variant: item.variant.trim().toUpperCase() || null,
+          product_id: productIds[i],
           quantity: item.quantity,
-          unit_price: Number(item.unit_price || 0) * 1000,
-          selling_price: Number(item.selling_price || 0) * 1000,
-          total_price: item.total_price * 1000,
           notes: item.notes.trim().toUpperCase() || null,
-          product_images: item.product_images.length > 0 ? item.product_images : null,
-          price_images: item.price_images.length > 0 ? item.price_images : null,
+          position: item.position || (i + 1)
         };
 
         if (item.id) {
-          // Update existing item - preserve position
+          // Update existing item
           const { error: updateError } = await supabase
             .from("purchase_order_items")
             .update(itemData)
@@ -363,13 +454,12 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
 
           if (updateError) throw updateError;
         } else {
-          // Insert new item - assign next position
+          // Insert new item
           const { error: insertError } = await supabase
             .from("purchase_order_items")
-            .insert({ ...itemData, position: nextPosition });
+            .insert(itemData);
 
           if (insertError) throw insertError;
-          nextPosition++;
         }
       }
 
@@ -384,7 +474,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           if (po.id === order.id) {
             // Calculate new totals (multiply by 1000 to match database VND units)
             const totalAmount = items.reduce((sum, item) => {
-              return sum + (Number(item.quantity) * Number(item.unit_price) * 1000);
+              return sum + (Number(item.quantity) * Number(item._tempUnitPrice) * 1000);
             }, 0);
             const finalAmount = totalAmount - (Number(discountAmount) * 1000);
             
@@ -408,9 +498,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               items: sortedItems.map(item => ({
                 ...item,
                 purchase_order_id: order.id,
-                unit_price: Number(item.unit_price) * 1000,
-                selling_price: Number(item.selling_price) * 1000,
-                total_price: Number(item.quantity) * Number(item.unit_price) * 1000
+                product: item.product,
+                _tempUnitPrice: Number(item._tempUnitPrice) * 1000,
+                _tempSellingPrice: Number(item._tempSellingPrice) * 1000,
+                _tempTotalPrice: Number(item.quantity) * Number(item._tempUnitPrice) * 1000
               }))
             };
           }
@@ -441,7 +532,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     updateOrderMutation.mutate();
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + item.total_price, 0);
+  const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0);
   const finalAmount = totalAmount - discountAmount;
 
   return (
@@ -546,7 +637,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1].product_name ? items.length : items.length - 1)}
+                onClick={() => openSelectProduct(items.length > 0 && items[items.length - 1]._tempProductName ? items.length : items.length - 1)}
               >
                 <Warehouse className="h-4 w-4 mr-2" />
                 Chọn từ Kho SP
@@ -579,18 +670,18 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                       <TableCell>
                         <Textarea
                           placeholder="Nhập tên sản phẩm"
-                          value={item.product_name}
-                          onChange={(e) => updateItem(index, "product_name", e.target.value)}
+                          value={item._tempProductName}
+                          onChange={(e) => updateItem(index, "_tempProductName", e.target.value)}
                           onBlur={() => {
                             // Auto-detect variants on blur
-                            const result = detectVariantsFromText(item.product_name);
+                            const result = detectVariantsFromText(item._tempProductName);
                             if (result.colors.length > 0 || result.sizeText.length > 0) {
                               const detectedVariant = [
                                 ...result.colors.map(c => c.value),
                                 ...result.sizeText.map(s => s.value)
                               ].join(" ");
-                              if (detectedVariant && !item.variant) {
-                                updateItem(index, "variant", detectedVariant);
+                              if (detectedVariant && !item._tempVariant) {
+                                updateItem(index, "_tempVariant", detectedVariant);
                               }
                             }
                           }}
@@ -601,16 +692,16 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                       <TableCell>
                         <Input
                           placeholder="Mã SP"
-                          value={item.product_code}
-                          onChange={(e) => updateItem(index, "product_code", e.target.value)}
+                          value={item._tempProductCode}
+                          onChange={(e) => updateItem(index, "_tempProductCode", e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
                           maxLength={10}
                         />
                       </TableCell>
                       <TableCell>
                         <VariantSelector
-                          value={item.variant}
-                          onChange={(value) => updateItem(index, "variant", value)}
+                          value={item._tempVariant}
+                          onChange={(value) => updateItem(index, "_tempVariant", value)}
                           className="w-[150px]"
                         />
                       </TableCell>
@@ -628,8 +719,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           type="text"
                           inputMode="numeric"
                           placeholder=""
-                          value={item.unit_price === 0 || item.unit_price === "" ? "" : item.unit_price}
-                          onChange={(e) => updateItem(index, "unit_price", parseNumberInput(e.target.value))}
+                          value={item._tempUnitPrice === 0 || item._tempUnitPrice === "" ? "" : item._tempUnitPrice}
+                          onChange={(e) => updateItem(index, "_tempUnitPrice", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
@@ -638,25 +729,25 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           type="text"
                           inputMode="numeric"
                           placeholder=""
-                          value={item.selling_price === 0 || item.selling_price === "" ? "" : item.selling_price}
-                          onChange={(e) => updateItem(index, "selling_price", parseNumberInput(e.target.value))}
+                          value={item._tempSellingPrice === 0 || item._tempSellingPrice === "" ? "" : item._tempSellingPrice}
+                          onChange={(e) => updateItem(index, "_tempSellingPrice", parseNumberInput(e.target.value))}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 text-right w-[90px] text-sm"
                         />
                       </TableCell>
                       <TableCell className="text-right font-medium">
-                        {formatVND(item.total_price * 1000)}
+                        {formatVND(item._tempTotalPrice * 1000)}
                       </TableCell>
                       <TableCell>
                         <ImageUploadCell
-                          images={item.product_images}
-                          onImagesChange={(images) => updateItem(index, "product_images", images)}
+                          images={item._tempProductImages}
+                          onImagesChange={(images) => updateItem(index, "_tempProductImages", images)}
                           itemIndex={index}
                         />
                       </TableCell>
                       <TableCell>
                         <ImageUploadCell
-                          images={item.price_images}
-                          onImagesChange={(images) => updateItem(index, "price_images", images)}
+                          images={item._tempPriceImages}
+                          onImagesChange={(images) => updateItem(index, "_tempPriceImages", images)}
                           itemIndex={index}
                         />
                       </TableCell>

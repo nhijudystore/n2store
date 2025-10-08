@@ -26,12 +26,14 @@ interface PurchaseOrder {
 
 interface PurchaseOrderItem {
   id: string;
-  product_name: string;
+  product_id: string;
   quantity: number;
-  unit_price: number;
-  total_price: number;
   notes: string | null;
-  product_images: string[] | null;
+  product: {
+    product_name: string;
+    purchase_price: number;
+    product_images: string[] | null;
+  };
 }
 
 interface PurchaseOrderDetailDialogProps {
@@ -43,15 +45,22 @@ interface PurchaseOrderDetailDialogProps {
 export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: PurchaseOrderDetailDialogProps) {
   if (!order) return null;
 
-  // Fetch purchase order items
+  // Fetch purchase order items with product JOIN
   const { data: orderItems = [], isLoading: itemsLoading } = useQuery({
     queryKey: ['purchaseOrderItems', order.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('purchase_order_items')
-        .select('*')
+        .select(`
+          *,
+          product:products(
+            product_name,
+            purchase_price,
+            product_images
+          )
+        `)
         .eq('purchase_order_id', order.id)
-        .order('created_at', { ascending: true });
+        .order('position', { ascending: true });
       
       if (error) throw error;
       return data as PurchaseOrderItem[];
@@ -61,7 +70,10 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
 
   // Calculate totals from items for verification
   const itemsTotalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0);
-  const itemsTotalAmount = orderItems.reduce((sum, item) => sum + (item.total_price || 0), 0);
+  const itemsTotalAmount = orderItems.reduce((sum, item) => {
+    const price = item.product?.purchase_price || 0;
+    return sum + (item.quantity * price);
+  }, 0);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -162,20 +174,20 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                      {orderItems.map((item) => (
                        <TableRow key={item.id}>
                          <TableCell>
-                           {item.product_images && item.product_images.length > 0 ? (
+                           {item.product?.product_images && item.product.product_images.length > 0 ? (
                              <div className="flex flex-wrap gap-1">
-                               {item.product_images.slice(0, 2).map((imageUrl, index) => (
+                               {item.product.product_images.slice(0, 2).map((imageUrl, index) => (
                                  <img
                                    key={index}
                                    src={imageUrl}
-                                   alt={`${item.product_name} ${index + 1}`}
+                                   alt={`${item.product?.product_name} ${index + 1}`}
                                    className="w-10 h-10 object-cover rounded border cursor-pointer hover:opacity-75 transition-opacity"
                                    onClick={() => window.open(imageUrl, '_blank')}
                                  />
                                ))}
-                               {item.product_images.length > 2 && (
+                               {item.product.product_images.length > 2 && (
                                  <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center text-xs text-muted-foreground">
-                                   +{item.product_images.length - 2}
+                                   +{item.product.product_images.length - 2}
                                  </div>
                                )}
                              </div>
@@ -185,7 +197,7 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                          </TableCell>
                          <TableCell>
                            <div className="space-y-1">
-                             <div className="font-medium">{item.product_name}</div>
+                             <div className="font-medium">{item.product?.product_name || "N/A"}</div>
                              {item.notes && (
                                <div className="text-xs text-muted-foreground italic">
                                  Ghi chú: {item.notes}
@@ -197,10 +209,10 @@ export function PurchaseOrderDetailDialog({ order, open, onOpenChange }: Purchas
                            {item.quantity}
                          </TableCell>
                          <TableCell className="text-right">
-                           {formatVND(item.unit_price || 0)}
+                           {formatVND(item.product?.purchase_price || 0)}
                          </TableCell>
                          <TableCell className="text-right font-medium">
-                           {formatVND(item.total_price || 0)}
+                           {formatVND((item.product?.purchase_price || 0) * item.quantity)}
                          </TableCell>
                        </TableRow>
                      ))}
