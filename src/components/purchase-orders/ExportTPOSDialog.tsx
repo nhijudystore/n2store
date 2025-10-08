@@ -1223,7 +1223,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                         aria-label="Chọn tất cả"
                       />
                     </TableHead>
-                    <TableHead>Mã SP</TableHead>
+                    <TableHead>Mã SP gốc</TableHead>
                     <TableHead>Tên sản phẩm</TableHead>
                     <TableHead>Biến thể</TableHead>
                     <TableHead className="text-right">Giá bán</TableHead>
@@ -1245,7 +1245,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                         />
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {item.product_code || "AUTO"}
+                        {item.base_product_code || item.product_code || "AUTO"}
                       </TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
                       <TableCell>
