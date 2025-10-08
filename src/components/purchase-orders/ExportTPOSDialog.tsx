@@ -664,6 +664,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         });
         // Remove variant from upload payload (will be created later)
         representative.variant = null;
+        // Use base_product_code for TPOS upload
+        representative.product_code = productCode;
         
         itemsToUpload.push(representative);
       }
