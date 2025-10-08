@@ -184,15 +184,11 @@ export function VariantGeneratorDialog({
                       <Checkbox
                         id={`size-${item.Id}`}
                         checked={selectedSizeText.includes(item.Name)}
-                        onCheckedChange={(checked) => {
-                          toggleSelection('sizeText', item.Name);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={() => toggleSelection('sizeText', item.Name)}
                       />
                       <Label 
                         htmlFor={`size-${item.Id}`} 
                         className="cursor-pointer flex-1 font-normal"
-                        onClick={() => toggleSelection('sizeText', item.Name)}
                       >
                         {item.Name}
                       </Label>
@@ -224,15 +220,11 @@ export function VariantGeneratorDialog({
                       <Checkbox
                         id={`color-${item.Id}`}
                         checked={selectedColors.includes(item.Name)}
-                        onCheckedChange={(checked) => {
-                          toggleSelection('color', item.Name);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={() => toggleSelection('color', item.Name)}
                       />
                       <Label 
                         htmlFor={`color-${item.Id}`} 
                         className="cursor-pointer flex-1 font-normal"
-                        onClick={() => toggleSelection('color', item.Name)}
                       >
                         {item.Name}
                       </Label>
@@ -264,15 +256,11 @@ export function VariantGeneratorDialog({
                       <Checkbox
                         id={`num-${item.Id}`}
                         checked={selectedSizeNumber.includes(item.Name)}
-                        onCheckedChange={(checked) => {
-                          toggleSelection('sizeNumber', item.Name);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
+                        onCheckedChange={() => toggleSelection('sizeNumber', item.Name)}
                       />
                       <Label 
                         htmlFor={`num-${item.Id}`} 
                         className="cursor-pointer flex-1 font-normal"
-                        onClick={() => toggleSelection('sizeNumber', item.Name)}
                       >
                         {item.Name}
                       </Label>
