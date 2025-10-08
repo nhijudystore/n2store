@@ -14,8 +14,18 @@ interface BaseProductData {
   price_images: string[];
 }
 
+interface ChildVariantData {
+  product_code: string;
+  product_name: string;
+  variant: string;
+  purchase_price: number;
+  selling_price: number;
+  supplier_name?: string;
+}
+
 interface CreateVariantInput {
   baseProduct: BaseProductData;
+  childVariants: ChildVariantData[];
 }
 
 // Helper function to merge and deduplicate variants
@@ -36,34 +46,33 @@ export function useCreateVariantProducts() {
 
   return useMutation({
     mutationFn: async (input: CreateVariantInput) => {
-      const { baseProduct } = input;
+      const { baseProduct, childVariants } = input;
 
-      // Check if base product exists
-      const { data: existing } = await supabase
+      // 1. Handle Base Product
+      const { data: existingBase } = await supabase
         .from("products")
         .select("*")
         .eq("product_code", baseProduct.product_code)
         .maybeSingle();
 
-      if (existing) {
+      let baseAction: 'created' | 'updated';
+      if (existingBase) {
         // UPDATE only product_images and variant
-        const mergedVariant = mergeVariants(existing.variant, baseProduct.variant);
+        const mergedVariant = mergeVariants(existingBase.variant, baseProduct.variant);
         
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("products")
           .update({
             product_images: baseProduct.product_images,
             variant: mergedVariant
           })
-          .eq("product_code", baseProduct.product_code)
-          .select()
-          .single();
+          .eq("product_code", baseProduct.product_code);
 
         if (error) throw error;
-        return { action: 'updated' as const, product: data };
+        baseAction = 'updated';
       } else {
         // INSERT with full data
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("products")
           .insert({
             product_code: baseProduct.product_code,
@@ -76,19 +85,68 @@ export function useCreateVariantProducts() {
             unit: "Cái",
             product_images: baseProduct.product_images,
             price_images: baseProduct.price_images
-          })
-          .select()
-          .single();
+          });
 
         if (error) throw error;
-        return { action: 'created' as const, product: data };
+        baseAction = 'created';
       }
+
+      // 2. Handle Child Variants
+      const childCodes = childVariants.map(c => c.product_code);
+      const { data: existingChildren } = await supabase
+        .from("products")
+        .select("product_code")
+        .in("product_code", childCodes);
+
+      const existingChildCodes = new Set(existingChildren?.map(c => c.product_code) || []);
+      
+      // Filter out existing child variants (SKIP them)
+      const newChildren = childVariants.filter(c => !existingChildCodes.has(c.product_code));
+
+      let childrenCreated = 0;
+      if (newChildren.length > 0) {
+        const { error } = await supabase
+          .from("products")
+          .insert(
+            newChildren.map(c => ({
+              product_code: c.product_code,
+              product_name: c.product_name,
+              variant: c.variant,
+              purchase_price: c.purchase_price,
+              selling_price: c.selling_price,
+              supplier_name: c.supplier_name || null,
+              stock_quantity: 0,
+              unit: "Cái",
+              product_images: [], // No images for child variants
+              price_images: []
+            }))
+          );
+
+        if (error) throw error;
+        childrenCreated = newChildren.length;
+      }
+
+      return { 
+        baseAction, 
+        baseProduct: baseProduct.product_code,
+        childrenCreated,
+        childrenSkipped: childVariants.length - childrenCreated
+      };
     },
-    onSuccess: ({ action, product }) => {
-      const actionText = action === 'created' ? 'tạo' : 'cập nhật';
+    onSuccess: ({ baseAction, baseProduct, childrenCreated, childrenSkipped }) => {
+      const baseActionText = baseAction === 'created' ? 'tạo' : 'cập nhật';
+      const messages = [`Đã ${baseActionText} sản phẩm gốc: ${baseProduct}`];
+      
+      if (childrenCreated > 0) {
+        messages.push(`Đã tạo ${childrenCreated} biến thể con`);
+      }
+      if (childrenSkipped > 0) {
+        messages.push(`Bỏ qua ${childrenSkipped} biến thể đã tồn tại`);
+      }
+
       toast({
-        title: `Đã ${actionText} sản phẩm gốc`,
-        description: `${product.product_code} - ${product.product_name}`
+        title: "Tạo biến thể thành công",
+        description: messages.join(' • ')
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["products-select"] });

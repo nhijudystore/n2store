@@ -289,8 +289,21 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       price_images: [...baseItem.price_images]
     };
 
-    // Call mutation to upsert base product only
-    createVariantProducts.mutate({ baseProduct: baseProductData });
+    // Prepare child variants data
+    const childVariantsData = variants.map(v => ({
+      product_code: v.fullCode,
+      product_name: v.productName,
+      variant: v.variantText,
+      purchase_price: Number(baseItem.unit_price) * 1000,
+      selling_price: Number(baseItem.selling_price) * 1000,
+      supplier_name: formData.supplier_name || undefined
+    }));
+
+    // Call mutation to upsert base product and create child variants
+    createVariantProducts.mutate({ 
+      baseProduct: baseProductData,
+      childVariants: childVariantsData
+    });
 
     // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới)
   };
