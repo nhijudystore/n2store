@@ -31,19 +31,7 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
     return baseClass;
   };
 
-  const getConfirmationDisplay = () => {
-    if (!isConfirmed) {
-      return (
-        <Button 
-          size={isMobile ? "default" : "sm"}
-          onClick={() => onConfirm(item.id)}
-          className={isMobile ? "w-full min-h-[48px] text-base" : "min-h-[44px]"}
-        >
-          Xác nhận
-        </Button>
-      );
-    }
-
+  const getDiscrepancyDisplay = () => {
     const diff = item.received_quantity - item.quantity;
     
     if (diff < 0) {
@@ -112,8 +100,19 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
           />
         </div>
 
+        <div className="space-y-2">
+          {getDiscrepancyDisplay()}
+        </div>
+        
         <div>
-          {getConfirmationDisplay()}
+          <Button 
+            size="default"
+            variant={isConfirmed ? "secondary" : "default"}
+            onClick={() => onConfirm(item.id)}
+            className="w-full min-h-[48px] text-base"
+          >
+            {isConfirmed ? "Hủy xác nhận" : "Xác nhận"}
+          </Button>
         </div>
       </div>
     );
@@ -122,34 +121,34 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
   // Desktop Table Row Layout
   return (
     <tr className={getRowClassName()}>
-      <td className="p-3 text-center">
+      <td className="p-2 text-center w-12">
         <span className="text-sm text-muted-foreground">{index + 1}</span>
       </td>
-      <td className="p-3">
-        <div className="flex items-center gap-3">
+      <td className="p-2 min-w-[200px]">
+        <div className="flex items-center gap-2">
           {item.product_images && item.product_images.length > 0 ? (
             <img 
               src={item.product_images[0]} 
               alt={item.product_name}
-              className="w-12 h-12 object-cover rounded border flex-shrink-0"
+              className="w-10 h-10 object-cover rounded border flex-shrink-0"
             />
           ) : (
-            <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 bg-muted rounded border flex items-center justify-center flex-shrink-0">
               <span className="text-xs text-muted-foreground">No img</span>
             </div>
           )}
-          <div>
-            <div className="font-medium text-sm">{item.product_name}</div>
+          <div className="flex-1 min-w-0">
+            <div className="font-medium text-sm truncate">{item.product_name}</div>
             {item.variant && (
-              <div className="text-xs text-muted-foreground">{item.variant}</div>
+              <div className="text-xs text-muted-foreground truncate">{item.variant}</div>
             )}
           </div>
         </div>
       </td>
-      <td className="p-3 text-center">
+      <td className="p-2 text-center w-20">
         <span className="font-medium">{item.quantity}</span>
       </td>
-      <td className="p-3 text-center">
+      <td className="p-2 text-center w-28">
         <Input
           type="number"
           min="0"
@@ -159,15 +158,15 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
           disabled={isConfirmed}
         />
       </td>
-      <td className="p-3 text-center">
-        {getConfirmationDisplay()}
+      <td className="p-2 text-center w-32">
+        {getDiscrepancyDisplay()}
       </td>
-      <td className="p-3 text-center">
+      <td className="p-2 text-center w-32">
         <Button 
           size="sm"
           variant={isConfirmed ? "secondary" : "default"}
           onClick={() => onConfirm(item.id)}
-          className="min-h-[40px]"
+          className="whitespace-nowrap"
         >
           {isConfirmed ? "Hủy xác nhận" : "Xác nhận"}
         </Button>

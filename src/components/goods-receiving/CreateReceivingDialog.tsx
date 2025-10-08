@@ -257,31 +257,33 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
               ))}
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>STT</TableHead>
-                  <TableHead>Sản phẩm</TableHead>
-                  <TableHead className="text-right">SL đặt</TableHead>
-                  <TableHead className="text-right">SL nhận</TableHead>
-                  <TableHead className="text-right">Chênh lệch</TableHead>
-                  <TableHead className="text-center">Xác nhận</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, index) => (
-                  <ReceivingItemRow
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    isConfirmed={confirmedItems.has(item.id)}
-                    onQuantityChange={handleQuantityChange}
-                    onConfirm={handleConfirm}
-                    isMobile={isMobile}
-                  />
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-center w-12">STT</TableHead>
+                    <TableHead className="min-w-[200px]">Sản phẩm</TableHead>
+                    <TableHead className="text-center w-20">SL đặt</TableHead>
+                    <TableHead className="text-center w-28">SL nhận</TableHead>
+                    <TableHead className="text-center w-32">Chênh lệch</TableHead>
+                    <TableHead className="text-center w-32">Xác nhận</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item, index) => (
+                    <ReceivingItemRow
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      isConfirmed={confirmedItems.has(item.id)}
+                      onQuantityChange={handleQuantityChange}
+                      onConfirm={handleConfirm}
+                      isMobile={isMobile}
+                    />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
 
           {/* Notes */}
