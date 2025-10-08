@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sparkles, AlertTriangle } from "lucide-react";
+import { Sparkles, AlertTriangle, Search } from "lucide-react";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 import { TPOS_ATTRIBUTES } from "@/lib/tpos-attributes";
 
@@ -36,6 +36,9 @@ export function VariantGeneratorDialog({
   const [selectedSizeText, setSelectedSizeText] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizeNumber, setSelectedSizeNumber] = useState<string[]>([]);
+  const [sizeTextFilter, setSizeTextFilter] = useState("");
+  const [colorFilter, setColorFilter] = useState("");
+  const [sizeNumberFilter, setSizeNumberFilter] = useState("");
   const [previewResults, setPreviewResults] = useState<Array<{
     fullCode: string;
     variantCode: string;
@@ -100,20 +103,39 @@ export function VariantGeneratorDialog({
     if (previewResults.length > 0) {
       onVariantsGenerated(previewResults);
       onOpenChange(false);
-      // Reset selections
+      // Reset selections and filters
       setSelectedSizeText([]);
       setSelectedColors([]);
       setSelectedSizeNumber([]);
+      setSizeTextFilter("");
+      setColorFilter("");
+      setSizeNumberFilter("");
     }
   };
 
   const handleCancel = () => {
     onOpenChange(false);
-    // Reset selections
+    // Reset selections and filters
     setSelectedSizeText([]);
     setSelectedColors([]);
     setSelectedSizeNumber([]);
+    setSizeTextFilter("");
+    setColorFilter("");
+    setSizeNumberFilter("");
   };
+
+  // Filter functions
+  const filteredSizeText = TPOS_ATTRIBUTES.sizeText.filter(item =>
+    item.Name.toLowerCase().includes(sizeTextFilter.toLowerCase())
+  );
+  
+  const filteredColors = TPOS_ATTRIBUTES.color.filter(item =>
+    item.Name.toLowerCase().includes(colorFilter.toLowerCase())
+  );
+  
+  const filteredSizeNumber = TPOS_ATTRIBUTES.sizeNumber.filter(item =>
+    item.Name.toLowerCase().includes(sizeNumberFilter.toLowerCase())
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -141,11 +163,20 @@ export function VariantGeneratorDialog({
           {/* Selection Columns */}
           <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
             {/* Size Text */}
-            <div className="space-y-2 flex flex-col">
+            <div className="space-y-2 flex flex-col h-full">
               <Label>Size Chữ ({selectedSizeText.length})</Label>
-              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm size chữ..."
+                  value={sizeTextFilter}
+                  onChange={(e) => setSizeTextFilter(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
                 <div className="space-y-2">
-                  {TPOS_ATTRIBUTES.sizeText.map((item) => (
+                  {filteredSizeText.map((item) => (
                     <div 
                       key={item.Id} 
                       className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
@@ -166,11 +197,20 @@ export function VariantGeneratorDialog({
             </div>
 
             {/* Color */}
-            <div className="space-y-2 flex flex-col">
+            <div className="space-y-2 flex flex-col h-full">
               <Label>Màu Sắc ({selectedColors.length})</Label>
-              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm màu sắc..."
+                  value={colorFilter}
+                  onChange={(e) => setColorFilter(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
                 <div className="space-y-2">
-                  {TPOS_ATTRIBUTES.color.map((item) => (
+                  {filteredColors.map((item) => (
                     <div 
                       key={item.Id} 
                       className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
@@ -191,11 +231,20 @@ export function VariantGeneratorDialog({
             </div>
 
             {/* Size Number */}
-            <div className="space-y-2 flex flex-col">
+            <div className="space-y-2 flex flex-col h-full">
               <Label>Size Số ({selectedSizeNumber.length})</Label>
-              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm size số..."
+                  value={sizeNumberFilter}
+                  onChange={(e) => setSizeNumberFilter(e.target.value)}
+                  className="h-9 pl-9"
+                />
+              </div>
+              <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
                 <div className="space-y-2">
-                  {TPOS_ATTRIBUTES.sizeNumber.map((item) => (
+                  {filteredSizeNumber.map((item) => (
                     <div 
                       key={item.Id} 
                       className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
