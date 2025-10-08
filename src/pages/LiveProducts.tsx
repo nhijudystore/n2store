@@ -1523,15 +1523,15 @@ export default function LiveProducts() {
                             p.orders.some(order => order.is_oversell)
                           );
                           
-                           return aggregatedProducts.map((product, index) => {
-                            // Determine background color priority: oversell > customer_status > alternating rows
-                            let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
-                            
-                            if (orders[0]?.customer_status === 'bom_hang') {
-                              bgColorClass = 'bg-red-50 dark:bg-red-950/20';
-                            } else if (orders[0]?.customer_status === 'thieu_thong_tin') {
-                              bgColorClass = 'bg-gray-100 dark:bg-gray-800';
-                            }
+                            return aggregatedProducts.map((product, index) => {
+                             // Determine background color priority: oversell > customer_status > alternating rows
+                             let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
+                             
+                             if (product.orders[0]?.customer_status === 'bom_hang') {
+                               bgColorClass = 'bg-red-50 dark:bg-red-950/20';
+                             } else if (product.orders[0]?.customer_status === 'thieu_thong_tin') {
+                               bgColorClass = 'bg-gray-100 dark:bg-gray-800';
+                             }
                             
                             // Oversell takes highest priority
                             if (hasOversell) {
@@ -1562,9 +1562,9 @@ export default function LiveProducts() {
                               <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
                                 hasOversell 
                                   ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700'
-                                  : orders[0]?.customer_status === 'bom_hang'
+                                  : product.orders[0]?.customer_status === 'bom_hang'
                                   ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
-                                  : orders[0]?.customer_status === 'thieu_thong_tin'
+                                  : product.orders[0]?.customer_status === 'thieu_thong_tin'
                                   ? 'bg-gray-500 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700'
                                   : 'bg-primary text-primary-foreground'
                               }`}>
@@ -1572,16 +1572,16 @@ export default function LiveProducts() {
                               </Badge>
                             </div>
                             
-                            {orders[0]?.customer_status && orders[0].customer_status !== 'normal' && (
+                            {product.orders[0]?.customer_status && product.orders[0].customer_status !== 'normal' && (
                               <Badge 
                                 variant="outline" 
                                 className={`text-xs ${
-                                  orders[0].customer_status === 'bom_hang' 
+                                  product.orders[0].customer_status === 'bom_hang' 
                                     ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950/50' 
                                     : 'border-gray-400 text-gray-600 bg-gray-100 dark:bg-gray-800'
                                 }`}
                               >
-                                {orders[0].customer_status === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
+                                {product.orders[0].customer_status === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
                               </Badge>
                             )}
                           </div>
