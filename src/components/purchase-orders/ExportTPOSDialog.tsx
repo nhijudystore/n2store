@@ -52,53 +52,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     return filteredItems.filter(item => selectedIds.has(item.id));
   }, [filteredItems, selectedIds]);
 
-  // Group items by base_product_code for display
-  const groupedDisplayItems = useMemo(() => {
-    const grouped = new Map<string, TPOSProductItem[]>();
-    const ungrouped: TPOSProductItem[] = [];
-
-    filteredItems.forEach(item => {
-      if (item.base_product_code) {
-        const existing = grouped.get(item.base_product_code);
-        if (existing) {
-          existing.push(item);
-        } else {
-          grouped.set(item.base_product_code, [item]);
-        }
-      } else {
-        ungrouped.push(item);
-      }
-    });
-
-    const result: (TPOSProductItem & { childIds?: string[] })[] = [];
-
-    // Add grouped items (one row per base_product_code)
-    grouped.forEach((groupItems, baseCode) => {
-      const childIds = groupItems.map(i => i.id);
-      const variants = Array.from(new Set(groupItems.map(i => i.variant).filter(Boolean))).join(" / ");
-      const firstItem = groupItems[0];
-      
-      // Check if all items have the same tpos_product_id
-      const tposIds = new Set(groupItems.map(i => i.tpos_product_id).filter(Boolean));
-      const tpos_product_id = tposIds.size === 1 ? groupItems[0].tpos_product_id : null;
-
-      result.push({
-        ...firstItem,
-        id: `group-${baseCode}`, // Special ID for grouped row
-        product_code: baseCode,
-        product_name: firstItem.product_name,
-        variant: variants || null,
-        tpos_product_id,
-        childIds, // Store child IDs for selection handling
-      });
-    });
-
-    // Add ungrouped items
-    result.push(...ungrouped);
-
-    return result;
-  }, [filteredItems]);
-
   const itemsWithImages = items.filter(
     (item) => item.product_images && item.product_images.length > 0
   );
@@ -108,26 +61,14 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const itemsUploadedToTPOS = items.filter(item => item.tpos_product_id);
   const itemsNotUploadedToTPOS = items.filter(item => !item.tpos_product_id);
 
-  // Toggle single item or group
-  const toggleItem = (id: string, childIds?: string[]) => {
+  // Toggle single item
+  const toggleItem = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      
-      // If this is a grouped item, toggle all children
-      if (childIds && childIds.length > 0) {
-        const allSelected = childIds.every(childId => next.has(childId));
-        if (allSelected) {
-          childIds.forEach(childId => next.delete(childId));
-        } else {
-          childIds.forEach(childId => next.add(childId));
-        }
+      if (next.has(id)) {
+        next.delete(id);
       } else {
-        // Normal single item toggle
-        if (next.has(id)) {
-          next.delete(id);
-        } else {
-          next.add(id);
-        }
+        next.add(id);
       }
       return next;
     });
@@ -1291,57 +1232,50 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {groupedDisplayItems.map((item) => {
-                    const isGrouped = item.childIds && item.childIds.length > 0;
-                    const isSelected = isGrouped 
-                      ? item.childIds!.every(childId => selectedIds.has(childId))
-                      : selectedIds.has(item.id);
-                    
-                    return (
-                      <TableRow 
-                        key={item.id}
-                        className={isSelected ? "bg-muted/50" : ""}
-                      >
-                        <TableCell>
-                          <Checkbox
-                            checked={isSelected}
-                            onCheckedChange={() => toggleItem(item.id, item.childIds)}
-                            aria-label={`Chọn ${item.product_name}`}
-                          />
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {item.product_code || "AUTO"}
-                        </TableCell>
-                        <TableCell className="font-medium">{item.product_name}</TableCell>
-                        <TableCell>
-                          {item.variant && (
-                            <Badge variant="secondary">{item.variant}</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatVND(item.selling_price || 0)}
-                        </TableCell>
-                        <TableCell>
-                          {item.product_images && item.product_images.length > 0 ? (
-                            <Badge variant="default" className="bg-green-600">
-                              ✓ {item.product_images.length}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Không có</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {item.tpos_product_id ? (
-                            <Badge variant="default" className="bg-green-600">
-                              ✓ ID: {item.tpos_product_id}
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary">Chưa upload</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
+                  {filteredItems.map((item) => (
+                    <TableRow 
+                      key={item.id}
+                      className={selectedIds.has(item.id) ? "bg-muted/50" : ""}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(item.id)}
+                          onCheckedChange={() => toggleItem(item.id)}
+                          aria-label={`Chọn ${item.product_name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {item.product_code || "AUTO"}
+                      </TableCell>
+                      <TableCell className="font-medium">{item.product_name}</TableCell>
+                      <TableCell>
+                        {item.variant && (
+                          <Badge variant="secondary">{item.variant}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatVND(item.selling_price || 0)}
+                      </TableCell>
+                      <TableCell>
+                        {item.product_images && item.product_images.length > 0 ? (
+                          <Badge variant="default" className="bg-green-600">
+                            ✓ {item.product_images.length}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Không có</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.tpos_product_id ? (
+                          <Badge variant="default" className="bg-green-600">
+                            ✓ ID: {item.tpos_product_id}
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">Chưa upload</Badge>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </div>
