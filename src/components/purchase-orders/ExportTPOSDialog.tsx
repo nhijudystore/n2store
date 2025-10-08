@@ -47,10 +47,56 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     }
   }, [items, imageFilter]);
 
+  // Group items by base_product_code
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, {
+      baseProductCode: string;
+      variants: string[];
+      items: TPOSProductItem[];
+      baseItem: TPOSProductItem;
+      allSelected: boolean;
+    }>();
+
+    for (const item of filteredItems) {
+      const baseCode = item.base_product_code || item.product_code?.match(/^[A-Z]+\d+/)?.[0] || item.product_code || 'AUTO';
+      
+      if (!groups.has(baseCode)) {
+        groups.set(baseCode, {
+          baseProductCode: baseCode,
+          variants: [],
+          items: [],
+          baseItem: item,
+          allSelected: false
+        });
+      }
+
+      const group = groups.get(baseCode)!;
+      group.items.push(item);
+      
+      // Collect unique variants
+      if (item.variant && !group.variants.includes(item.variant)) {
+        group.variants.push(item.variant);
+      }
+
+      // Use item with base_product_code as baseItem, or first item with images
+      if (item.base_product_code === baseCode || 
+          (item.product_images && item.product_images.length > 0 && !group.baseItem.product_images)) {
+        group.baseItem = item;
+      }
+    }
+
+    // Check if all items in each group are selected
+    groups.forEach(group => {
+      group.allSelected = group.items.every(item => selectedIds.has(item.id));
+    });
+
+    return Array.from(groups.values());
+  }, [filteredItems, selectedIds]);
+
   // Get selected items
   const selectedItems = useMemo(() => {
-    return filteredItems.filter(item => selectedIds.has(item.id));
-  }, [filteredItems, selectedIds]);
+    return items.filter(item => selectedIds.has(item.id));
+  }, [items, selectedIds]);
 
   const itemsWithImages = items.filter(
     (item) => item.product_images && item.product_images.length > 0
@@ -61,14 +107,16 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const itemsUploadedToTPOS = items.filter(item => item.tpos_product_id);
   const itemsNotUploadedToTPOS = items.filter(item => !item.tpos_product_id);
 
-  // Toggle single item
-  const toggleItem = (id: string) => {
+  // Toggle group (all items in the group)
+  const toggleGroup = (group: typeof groupedItems[0]) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      if (group.allSelected) {
+        // Deselect all items in group
+        group.items.forEach(item => next.delete(item.id));
       } else {
-        next.add(id);
+        // Select all items in group
+        group.items.forEach(item => next.add(item.id));
       }
       return next;
     });
@@ -76,25 +124,24 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
   // Toggle all filtered items
   const toggleAll = () => {
-    if (selectedItems.length === filteredItems.length) {
-      // Deselect all filtered items
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        filteredItems.forEach(item => next.delete(item.id));
-        return next;
-      });
-    } else {
-      // Select all filtered items
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        filteredItems.forEach(item => next.add(item.id));
-        return next;
-      });
-    }
+    const allFilteredIds = filteredItems.map(item => item.id);
+    const allSelected = allFilteredIds.every(id => selectedIds.has(id));
+    
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        // Deselect all filtered items
+        allFilteredIds.forEach(id => next.delete(id));
+      } else {
+        // Select all filtered items
+        allFilteredIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
   };
 
-  const isAllSelected = selectedItems.length === filteredItems.length && filteredItems.length > 0;
-  const isSomeSelected = selectedItems.length > 0 && selectedItems.length < filteredItems.length;
+  const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.id));
+  const isSomeSelected = selectedItems.length > 0 && !isAllSelected;
 
   const handleDownloadExcel = () => {
     if (selectedItems.length === 0) {
@@ -1209,7 +1256,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           <div className="border rounded-lg">
             <div className="p-3 bg-muted border-b">
               <h3 className="font-semibold">
-                Danh sách sản phẩm ({filteredItems.length} sản phẩm)
+                Danh sách sản phẩm ({groupedItems.length} nhóm, {filteredItems.length} sản phẩm)
               </h3>
             </div>
             <div className="max-h-[400px] overflow-y-auto">
@@ -1232,43 +1279,51 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredItems.map((item) => (
+                  {groupedItems.map((group) => (
                     <TableRow 
-                      key={item.id}
-                      className={selectedIds.has(item.id) ? "bg-muted/50" : ""}
+                      key={group.baseProductCode}
+                      className={group.allSelected ? "bg-muted/50" : ""}
                     >
                       <TableCell>
                         <Checkbox
-                          checked={selectedIds.has(item.id)}
-                          onCheckedChange={() => toggleItem(item.id)}
-                          aria-label={`Chọn ${item.product_name}`}
+                          checked={group.allSelected}
+                          onCheckedChange={() => toggleGroup(group)}
+                          aria-label={`Chọn ${group.baseProductCode}`}
                         />
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {item.base_product_code || item.product_code?.match(/^[A-Z]+\d+/)?.[0] || item.product_code || "AUTO"}
+                        {group.baseProductCode}
                       </TableCell>
-                      <TableCell className="font-medium">{item.product_name}</TableCell>
+                      <TableCell className="font-medium">{group.baseProductCode}</TableCell>
                       <TableCell>
-                        {item.variant && (
-                          <Badge variant="secondary">{item.variant}</Badge>
+                        {group.variants.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {group.variants.map((variant, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {variant}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">Không có</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        {formatVND(item.selling_price || 0)}
+                        {formatVND(group.baseItem.selling_price || 0)}
                       </TableCell>
                       <TableCell>
-                        {item.product_images && item.product_images.length > 0 ? (
+                        {group.baseItem.product_images && group.baseItem.product_images.length > 0 ? (
                           <Badge variant="default" className="bg-green-600">
-                            ✓ {item.product_images.length}
+                            ✓ {group.baseItem.product_images.length}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">Không có</Badge>
                         )}
                       </TableCell>
                       <TableCell>
-                        {item.tpos_product_id ? (
+                        {group.baseItem.tpos_product_id ? (
                           <Badge variant="default" className="bg-green-600">
-                            ✓ ID: {item.tpos_product_id}
+                            ✓ ID: {group.baseItem.tpos_product_id}
                           </Badge>
                         ) : (
                           <Badge variant="secondary">Chưa upload</Badge>
