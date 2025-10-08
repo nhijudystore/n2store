@@ -294,14 +294,16 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       price_images: [...baseItem.price_images]
     };
 
-    // Prepare child variants data
+    // Prepare child variants data - copy images from base product
     const childVariantsData = variants.map(v => ({
       product_code: v.fullCode,
       product_name: v.productName,
       variant: v.variantText,
       purchase_price: Number(baseItem.unit_price) * 1000,
       selling_price: Number(baseItem.selling_price) * 1000,
-      supplier_name: formData.supplier_name || undefined
+      supplier_name: formData.supplier_name || undefined,
+      product_images: [...baseItem.product_images],
+      price_images: [...baseItem.price_images]
     }));
 
     // Call mutation to upsert base product and create child variants
