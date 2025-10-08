@@ -1115,6 +1115,7 @@ export async function uploadToTPOS(
           console.log(`📝 [${currentStep}/${items.length}] Updating product ${existingProductId} with DefaultCode="${defaultCode}"`);
           
           const updatePayload = {
+            Id: existingProductId,
             Name: item.product_name,
             ListPrice: item.selling_price || 0,
             StandardPrice: item.unit_price || 0,
@@ -1122,9 +1123,9 @@ export async function uploadToTPOS(
           };
           
           const updateResponse = await fetch(
-            `${TPOS_CONFIG.API_BASE}(${existingProductId})`,
+            `${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`,
             {
-              method: 'PUT',
+              method: 'POST',
               headers: getTPOSHeaders(token),
               body: JSON.stringify(updatePayload),
             }
