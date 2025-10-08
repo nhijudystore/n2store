@@ -226,6 +226,72 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     }
   };
 
+  const handleSimpleUploadToTPOS = async () => {
+    if (selectedItems.length === 0) {
+      toast({
+        title: "Chưa chọn sản phẩm",
+        description: "Vui lòng chọn ít nhất một sản phẩm",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setProgress(0);
+    setCurrentStep("Đang chuẩn bị upload...");
+
+    try {
+      console.log(`🚀 SIMPLE UPLOAD: Starting with ${selectedItems.length} items`);
+      
+      const result = await uploadToTPOS(selectedItems, (step, total, message) => {
+        setProgress((step / total) * 100);
+        setCurrentStep(message);
+      });
+
+      // Save TPOS IDs to database
+      if (result.productIds.length > 0) {
+        setCurrentStep("Đang lưu TPOS IDs...");
+        for (const { itemId, tposId } of result.productIds) {
+          await supabase
+            .from("purchase_order_items")
+            .update({ tpos_product_id: tposId })
+            .eq("id", itemId);
+        }
+        console.log(`💾 Saved ${result.productIds.length} TPOS IDs to database`);
+      }
+
+      setProgress(100);
+      setCurrentStep("Hoàn thành!");
+
+      toast({
+        title: "✅ Upload thành công",
+        description: `${result.successCount}/${selectedItems.length} sản phẩm${result.failedCount > 0 ? ` (${result.failedCount} thất bại)` : ''}`,
+      });
+
+      if (result.errors.length > 0) {
+        console.error("Upload errors:", result.errors);
+      }
+
+      onSuccess?.();
+      setTimeout(() => {
+        setIsUploading(false);
+        setProgress(0);
+        setCurrentStep("");
+      }, 1000);
+
+    } catch (error) {
+      console.error('Simple upload error:', error);
+      toast({
+        title: "❌ Lỗi upload",
+        description: "Có lỗi khi upload lên TPOS",
+        variant: "destructive",
+      });
+      setIsUploading(false);
+      setProgress(0);
+      setCurrentStep("");
+    }
+  };
+
   /**
    * Create product entries in inventory
    * - If multiple variants (comma-separated): split into separate products with unique codes
@@ -1172,21 +1238,21 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
             disabled={isUploading || selectedItems.length === 0}
           >
             <Download className="h-4 w-4 mr-2" />
-            Chỉ tải Excel ({selectedItems.length})
+            Export Excel ({selectedItems.length})
           </Button>
           <Button
-            onClick={handleUploadToTPOS}
+            onClick={handleSimpleUploadToTPOS}
             disabled={isUploading || selectedItems.length === 0}
           >
             {isUploading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Đang upload...
+                Đang upload... {progress > 0 && `${Math.round(progress)}%`}
               </>
             ) : (
               <>
                 <Upload className="h-4 w-4 mr-2" />
-                Upload lên TPOS ({selectedItems.length})
+                Upload TPOS đơn giản ({selectedItems.length})
               </>
             )}
           </Button>
