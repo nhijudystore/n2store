@@ -1335,7 +1335,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                       <TableCell className="font-mono text-xs">
                         {group.baseProductCode}
                       </TableCell>
-                      <TableCell className="font-medium">{group.baseProductCode}</TableCell>
+                      <TableCell className="font-medium">{group.baseItem.product_name}</TableCell>
                       <TableCell>
                         {group.variants.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
