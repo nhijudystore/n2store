@@ -1078,13 +1078,6 @@ export default function LiveProducts() {
       {/* Stats and Content */}
       {selectedPhase && (
         <>
-          <LiveSessionStats 
-            sessionId={selectedSession}
-            phaseId={selectedPhase}
-            products={liveProducts}
-            orders={liveOrders}
-          />
-
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div ref={tabsRef} className="flex items-center justify-between">
               <TabsList>
