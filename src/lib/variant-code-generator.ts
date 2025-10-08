@@ -131,9 +131,32 @@ export function generateProductName(
   { sizeNumber, color, sizeText }: VariantParts
 ): string {
   const nameParts: string[] = [];
-  if (color) nameParts.push(color);
-  if (sizeText) nameParts.push(sizeText);
-  if (sizeNumber) nameParts.push(sizeNumber);
+  
+  // Logic theo yêu cầu:
+  // 1. Màu + Size số (không có Size chữ) → (Size số, Màu)
+  // 2. Màu + Size chữ (không có Size số) → (Màu, Size chữ)
+  // 3. Màu + Size chữ + Size số → (Size số, Màu, Size chữ)
+  // 4. Size chữ + Size số (không có Màu) → (Size số, Size chữ)
+  // 5. Chỉ 1 thuộc tính → (thuộc tính đó)
+  
+  if (color && sizeNumber && sizeText) {
+    // Case 3: Cả 3 thuộc tính → (Size số, Màu, Size chữ)
+    nameParts.push(sizeNumber, color, sizeText);
+  } else if (color && sizeNumber) {
+    // Case 1: Màu + Size số → (Size số, Màu)
+    nameParts.push(sizeNumber, color);
+  } else if (color && sizeText) {
+    // Case 2: Màu + Size chữ → (Màu, Size chữ)
+    nameParts.push(color, sizeText);
+  } else if (sizeNumber && sizeText) {
+    // Case 4: Size chữ + Size số → (Size số, Size chữ)
+    nameParts.push(sizeNumber, sizeText);
+  } else {
+    // Case 5: Chỉ 1 thuộc tính
+    if (color) nameParts.push(color);
+    if (sizeText) nameParts.push(sizeText);
+    if (sizeNumber) nameParts.push(sizeNumber);
+  }
   
   return nameParts.length > 0 
     ? `${baseName} (${nameParts.join(', ')})`
@@ -162,17 +185,19 @@ export function generateVariantCode(
 ): CodeInfo {
   let variantCode = '';
 
-  // Size chữ: chỉ lấy chữ cái đầu tiên
-  if (combo.parts.sizeText) {
-    variantCode += generateSizeCode(combo.parts.sizeText);
-  }
-
-  // Màu: chữ cái đầu của mỗi từ
+  // THỨ TỰ MỚI: Màu → Size chữ → Size số
+  
+  // 1. Màu: chữ cái đầu của mỗi từ (Đen → D, Xanh Đậu → XD)
   if (combo.parts.color) {
     variantCode += generateColorCode(combo.parts.color);
   }
 
-  // Size số: giữ nguyên
+  // 2. Size chữ: chỉ lấy chữ cái đầu tiên (M → M, XL → X)
+  if (combo.parts.sizeText) {
+    variantCode += generateSizeCode(combo.parts.sizeText);
+  }
+
+  // 3. Size số: giữ nguyên (27, 28, 29)
   // Special case: Nếu chỉ có size số (không có size chữ và màu) 
   // VÀ productCode kết thúc bằng số → thêm "A" trước size số
   if (combo.parts.sizeNumber) {
