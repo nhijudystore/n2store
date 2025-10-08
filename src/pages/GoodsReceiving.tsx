@@ -28,7 +28,15 @@ export default function GoodsReceiving() {
         .from('purchase_orders')
         .select(`
           *,
-          items:purchase_order_items(*)
+          items:purchase_order_items(
+            *,
+            product:products(
+              product_code,
+              product_name,
+              variant,
+              product_images
+            )
+          )
         `)
         .order('created_at', { ascending: false });
 
