@@ -709,7 +709,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Get variants and product name from inventory (base product in products table)
       const baseProduct = baseProductVariants.find(pv => pv.product_code === productCode);
       const variantString = group.variants.length > 0 ? group.variants[0] : ''; // Single variant string from base product
-      const productName = baseProduct?.product_name || group.baseItem.product_name; // Use name from inventory or fallback
+      const productName = baseProduct?.product_name; // Use name from inventory only
       
       console.log(`📦 ${productCode}: Name from inventory: ${productName}, Variant: ${variantString || '(none)'}`);
 
