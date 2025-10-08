@@ -1245,7 +1245,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                         />
                       </TableCell>
                       <TableCell className="font-mono text-xs">
-                        {item.base_product_code || item.product_code || "AUTO"}
+                        {item.base_product_code || item.product_code?.match(/^[A-Z]+\d+/)?.[0] || item.product_code || "AUTO"}
                       </TableCell>
                       <TableCell className="font-medium">{item.product_name}</TableCell>
                       <TableCell>
