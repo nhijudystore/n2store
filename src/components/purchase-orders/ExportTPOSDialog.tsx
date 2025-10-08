@@ -688,55 +688,53 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       console.log(`  - ${code}: existing variants in products table: ${variants.map(v => v.variant || '(no variant)').join(', ')}`);
     });
 
-    // Prepare items for upload - use variants from purchase_order_items only
+    // Prepare items for upload - use variants from inventory (baseProductVariants)
     const itemsToUpload: TPOSProductItem[] = [];
     const variantMapping = new Map<string, { 
       items: TPOSProductItem[], 
-      allVariants: string[], // Variants from purchase_order_items to upload to TPOS
+      allVariants: string[], // Variants from inventory to upload to TPOS
       variantString: string,
       existingTPOSId?: number 
     }>();
 
-    groupedByProductCode.forEach((items, productCode) => {
+    // Get selected groups from groupedItems (which has variants from inventory)
+    const selectedGroups = groupedItems.filter(group => 
+      group.items.some(item => selectedIds.has(item.id))
+    );
+
+    selectedGroups.forEach((group) => {
+      const productCode = group.baseProductCode;
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Get variants from purchase_order_items only
-      let allVariants = items
-        .map(i => i.variant)
-        .filter((v): v is string => Boolean(v))
-        .flatMap(v => v.split(/[,，]/).map(s => s.trim()))
-        .filter(v => v.length > 0);
+      // Get variants from inventory (already loaded in groupedItems)
+      const variantString = group.variants.length > 0 ? group.variants[0] : ''; // Single variant string from base product
       
-      // Remove duplicates
-      allVariants = [...new Set(allVariants)];
-      
-      console.log(`📦 ${productCode}: Found ${allVariants.length} unique variants from purchase order`);
-      
-      const variantString = allVariants.join(', ');
+      console.log(`📦 ${productCode}: Variant from inventory: ${variantString || '(none)'}`);
 
-      if (allVariants.length === 0) {
-        console.log(`⚠️ ${productCode}: No variants found, skipping variant upload`);
+      if (!variantString) {
+        console.log(`⚠️ ${productCode}: No variants found in inventory, skipping variant upload`);
         // Still upload the product itself if needed
         if (!existingTPOSId) {
-          const representative = { ...items[0] };
+          const representative = { ...group.baseItem };
           representative.variant = null;
+          representative.product_code = productCode;
           itemsToUpload.push(representative);
         }
         return;
       }
 
-      console.log(`📦 ${productCode}: Will upload ${allVariants.length} variants: ${allVariants.join(', ')}`);
+      console.log(`📦 ${productCode}: Will upload with variants: ${variantString}`);
       
-      // Use first item as representative
-      const representative = { ...items[0] };
+      // Use base item as representative
+      const representative = { ...group.baseItem };
       
       // Check if product already exists on TPOS
       if (existingTPOSId) {
         console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync variants`);
         // Store for variant creation
         variantMapping.set(productCode, {
-          items: items,
-          allVariants: allVariants,
+          items: group.items,
+          allVariants: [variantString], // Keep as single string
           variantString: variantString,
           existingTPOSId: existingTPOSId
         });
@@ -745,8 +743,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         console.log(`📤 ${productCode}: New product, will upload to TPOS with variants`);
         
         variantMapping.set(productCode, {
-          items: items,
-          allVariants: allVariants,
+          items: group.items,
+          allVariants: [variantString], // Keep as single string
           variantString: variantString
         });
         // Remove variant from upload payload (will be created later)
