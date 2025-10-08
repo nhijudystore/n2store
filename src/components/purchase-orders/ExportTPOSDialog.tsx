@@ -625,43 +625,34 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       console.log(`  - ${code}: existing variants in products table: ${variants.map(v => v.variant || '(no variant)').join(', ')}`);
     });
 
-    // Prepare items for upload - use ALL variants from products table for each product_code
+    // Prepare items for upload - use variants from purchase_order_items only
     const itemsToUpload: TPOSProductItem[] = [];
     const variantMapping = new Map<string, { 
       items: TPOSProductItem[], 
-      allVariants: string[], // ALL variants from products table to upload to TPOS
-      combinedVariant: string,
+      allVariants: string[], // Variants from purchase_order_items to upload to TPOS
+      variantString: string,
       existingTPOSId?: number 
     }>();
 
     groupedByProductCode.forEach((items, productCode) => {
-      // Get ALL existing variants for this product_code from products table
-      const existingVariants = existingVariantsByCode.get(productCode) || [];
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Get variants from products table
-      let allVariantsFromProducts = existingVariants
-        .map(v => v.variant)
-        .filter((v): v is string => Boolean(v))
-        .flatMap(v => v.split(/[,，]/).map(s => s.trim())) // Split by comma (English and Chinese)
-        .filter(v => v.length > 0); // Remove empty strings
-      
-      // Get variants from purchase_order_items
-      let allVariantsFromPurchaseOrder = items
+      // Get variants from purchase_order_items only
+      let allVariants = items
         .map(i => i.variant)
         .filter((v): v is string => Boolean(v))
         .flatMap(v => v.split(/[,，]/).map(s => s.trim()))
         .filter(v => v.length > 0);
       
-      // Merge variants from both sources and remove duplicates
-      let allVariants = [...new Set([...allVariantsFromProducts, ...allVariantsFromPurchaseOrder])];
+      // Remove duplicates
+      allVariants = [...new Set(allVariants)];
       
-      console.log(`📦 ${productCode}: Merged ${allVariantsFromProducts.length} variants from products + ${allVariantsFromPurchaseOrder.length} from purchase order = ${allVariants.length} unique variants`);
+      console.log(`📦 ${productCode}: Found ${allVariants.length} unique variants from purchase order`);
       
-      const combinedVariant = allVariants.join(', ');
+      const variantString = allVariants.join(', ');
 
       if (allVariants.length === 0) {
-        console.log(`⚠️ ${productCode}: No variants found anywhere, skipping variant upload`);
+        console.log(`⚠️ ${productCode}: No variants found, skipping variant upload`);
         // Still upload the product itself if needed
         if (!existingTPOSId) {
           const representative = { ...items[0] };
@@ -671,29 +662,29 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         return;
       }
 
-      console.log(`📦 ${productCode}: Will upload ${allVariants.length} unique variants: ${allVariants.join(', ')}`);
+      console.log(`📦 ${productCode}: Will upload ${allVariants.length} variants: ${allVariants.join(', ')}`);
       
       // Use first item as representative
       const representative = { ...items[0] };
       
       // Check if product already exists on TPOS
       if (existingTPOSId) {
-        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync all variants`);
+        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync variants`);
         // Store for variant creation
         variantMapping.set(productCode, {
           items: items,
           allVariants: allVariants,
-          combinedVariant: combinedVariant,
+          variantString: variantString,
           existingTPOSId: existingTPOSId
         });
       } else {
-        // Product doesn't exist on TPOS yet - need to upload with all variants
+        // Product doesn't exist on TPOS yet - need to upload with variants
         console.log(`📤 ${productCode}: New product, will upload to TPOS with variants`);
         
         variantMapping.set(productCode, {
           items: items,
           allVariants: allVariants,
-          combinedVariant: combinedVariant
+          variantString: variantString
         });
         // Remove variant from upload payload (will be created later)
         representative.variant = null;
@@ -875,18 +866,18 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         const variantInfo = variantMapping.get(representative.product_code);
         if (!variantInfo) continue;
         
-        const { combinedVariant } = variantInfo;
+        const { variantString } = variantInfo;
 
         try {
           console.log(`🎨 Creating variants for: ${representative.product_name} (TPOS ID: ${tposId})`);
-          console.log(`   Combined variants: ${combinedVariant}`);
+          console.log(`   Variants: ${variantString}`);
           setCurrentStep(`Đang tạo biến thể cho: ${representative.product_name}...`);
           
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           await createTPOSVariants(
             tposId,
-            combinedVariant,
+            variantString,
             (msg) => {
               console.log(`  → ${msg}`);
               setCurrentStep(`${representative.product_name}: ${msg}`);
@@ -915,19 +906,19 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         console.log(`🔗 Adding variants to ${existingTPOSProducts.length} existing TPOS products`);
 
         for (const [productCode, variantInfo] of existingTPOSProducts) {
-          const { existingTPOSId, combinedVariant, items } = variantInfo;
+          const { existingTPOSId, variantString, items } = variantInfo;
           if (!existingTPOSId) continue;
 
           try {
             console.log(`🎨 Adding variants to existing product: ${productCode} (TPOS ID: ${existingTPOSId})`);
-            console.log(`   New variants: ${combinedVariant}`);
+            console.log(`   Variants: ${variantString}`);
             setCurrentStep(`Đang thêm biến thể cho: ${productCode}...`);
             
             await new Promise(resolve => setTimeout(resolve, 1000));
             
             await createTPOSVariants(
               existingTPOSId,
-              combinedVariant,
+              variantString,
               (msg) => {
                 console.log(`  → ${msg}`);
                 setCurrentStep(`${productCode}: ${msg}`);
