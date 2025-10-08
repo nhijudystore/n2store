@@ -58,20 +58,21 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     return Array.from(codes);
   }, [filteredItems]);
 
-  // Query variants from products table for all base product codes
-  const { data: productVariants = [] } = useQuery({
-    queryKey: ["product-variants-bulk", baseProductCodes],
+  // Query base products to get their variant field
+  const { data: baseProductVariants = [] } = useQuery({
+    queryKey: ["base-product-variants", baseProductCodes],
     queryFn: async () => {
       if (baseProductCodes.length === 0) return [];
       
       const { data, error } = await supabase
         .from("products")
-        .select("product_code, base_product_code, variant")
-        .or(baseProductCodes.map(code => `product_code.eq.${code},base_product_code.eq.${code}`).join(','))
+        .select("product_code, variant")
+        .in("product_code", baseProductCodes)
+        .is("base_product_code", null)
         .not("variant", "is", null);
       
       if (error) {
-        console.error("Error fetching product variants:", error);
+        console.error("Error fetching base product variants:", error);
         return [];
       }
       
@@ -113,15 +114,15 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       }
     }
 
-    // Add variants from products table (from database/inventory)
+    // Add variant from base product (single variant string from inventory)
     groups.forEach(group => {
-      const variantsFromDB = productVariants
-        .filter(pv => pv.product_code === group.baseProductCode || pv.base_product_code === group.baseProductCode)
-        .map(pv => pv.variant)
-        .filter((v): v is string => Boolean(v));
-      
-      // Get unique variants
-      group.variants = [...new Set(variantsFromDB)];
+      const baseProduct = baseProductVariants.find(pv => pv.product_code === group.baseProductCode);
+      if (baseProduct?.variant) {
+        // Store as single string, not split into array
+        group.variants = [baseProduct.variant];
+      } else {
+        group.variants = [];
+      }
     });
 
     // Check if all items in each group are selected
@@ -130,7 +131,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     });
 
     return Array.from(groups.values());
-  }, [filteredItems, selectedIds, productVariants]);
+  }, [filteredItems, selectedIds, baseProductVariants]);
 
   // Get selected items
   const selectedItems = useMemo(() => {
