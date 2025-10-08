@@ -135,44 +135,33 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       for (const item of items) {
         if (!item._tempProductCode.trim()) continue;
         
-        const baseCode = extractBaseProductCode(item._tempProductCode) || item._tempProductCode;
+        // CASE 1: Sản phẩm đã chọn từ kho
+        if (item.product_id) {
+          productIds.push(item.product_id);
+          continue; // Bỏ qua, không làm gì thêm
+        }
         
-        // Check if product exists
+        // CASE 2: Sản phẩm nhập tay mới
+        const productCode = item._tempProductCode.trim().toUpperCase();
+        
+        // Kiểm tra xem mã sản phẩm CHÍNH XÁC đã tồn tại chưa
         const { data: existingProduct } = await supabase
           .from("products")
-          .select("id, variant")
-          .eq("product_code", baseCode)
-          .is("base_product_code", null)
+          .select("id")
+          .eq("product_code", productCode)
           .maybeSingle();
         
         if (existingProduct) {
-          // Update existing product
-          const existingVariants = existingProduct.variant ? existingProduct.variant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
-          const newVariants = item._tempVariant ? item._tempVariant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
-          const mergedVariants = [...new Set([...existingVariants, ...newVariants])].sort().join(', ');
-          
-          await supabase
-            .from("products")
-            .update({
-              variant: mergedVariants || null,
-              product_name: item._tempProductName.trim().toUpperCase(),
-              purchase_price: Number(item._tempUnitPrice || 0) * 1000,
-              selling_price: Number(item._tempSellingPrice || 0) * 1000,
-              product_images: item._tempProductImages,
-              price_images: item._tempPriceImages
-            })
-            .eq("id", existingProduct.id);
-          
+          // Đã có → Lấy ID
           productIds.push(existingProduct.id);
         } else {
-          // Create new product
+          // Chưa có → Tạo mới BASE PRODUCT
           const { data: newProduct } = await supabase
             .from("products")
             .insert({
-              product_code: baseCode,
+              product_code: productCode,
               product_name: item._tempProductName.trim().toUpperCase(),
-              variant: item._tempVariant.trim().toUpperCase() || null,
-              base_product_code: baseCode,
+              variant: item._tempVariant?.trim().toUpperCase() || null,
               purchase_price: Number(item._tempUnitPrice || 0) * 1000,
               selling_price: Number(item._tempSellingPrice || 0) * 1000,
               supplier_name: formData.supplier_name.trim().toUpperCase(),
@@ -793,7 +782,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         onSelect={handleSelectProduct}
       />
 
-      {variantGeneratorIndex !== null && items[variantGeneratorIndex] && (
+      {variantGeneratorIndex !== null && (
         <VariantGeneratorDialog
           open={isVariantDialogOpen}
           onOpenChange={setIsVariantDialogOpen}
@@ -802,7 +791,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             product_name: items[variantGeneratorIndex]._tempProductName
           }}
           onVariantsGenerated={(variants) => {
-            handleVariantsGenerated(variantGeneratorIndex!, variants);
+            handleVariantsGenerated(variantGeneratorIndex, variants);
             setVariantGeneratorIndex(null);
           }}
         />
