@@ -17,6 +17,7 @@ import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
 import { uploadToTPOS, TPOSProductItem } from "@/lib/tpos-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VariantTestTool } from "@/components/settings/VariantTestTool";
+import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -75,6 +76,7 @@ const Settings = () => {
   const [isUploadingSingle, setIsUploadingSingle] = useState(false);
   const [singleUploadResult, setSingleUploadResult] = useState<any>(null);
   const [isSingleResultOpen, setIsSingleResultOpen] = useState(false);
+  const [isSimpleUploadOpen, setIsSimpleUploadOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -618,9 +620,21 @@ const Settings = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Cài đặt</h1>
-        <p className="text-muted-foreground mt-2">Quản lý các cài đặt hệ thống</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Cài đặt</h1>
+          <p className="text-muted-foreground mt-2">Quản lý các cài đặt hệ thống</p>
+        </div>
+        <SimpleProductUploadDialog 
+          open={isSimpleUploadOpen}
+          onOpenChange={setIsSimpleUploadOpen}
+          trigger={
+            <Button variant="default" size="lg">
+              <Upload className="mr-2 h-4 w-4" />
+              Upload sản phẩm đơn giản
+            </Button>
+          }
+        />
       </div>
 
       <Card>
