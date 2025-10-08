@@ -266,23 +266,25 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     
     // Now create each variant as a separate product
     if (allVariantsToCreate.length === 1 && !allVariantsToCreate[0].variantName) {
-      // Single product without variant
+      // Single product without variant - this is the base product
       const { item, quantity } = allVariantsToCreate[0];
       console.log(`  Creating single product: ${rootProductCode} (qty: ${quantity})`);
       
       // Check if exists
       const { data: existing } = await supabase
         .from("products")
-        .select("product_code, stock_quantity")
+        .select("product_code, stock_quantity, product_images")
         .eq("product_code", rootProductCode)
         .maybeSingle();
       
       if (existing) {
-        // Update stock
+        // Base product exists - update with images and TPOS ID only
+        console.log(`  ✅ Base product ${rootProductCode} already exists, updating images...`);
         const { error } = await supabase
           .from("products")
           .update({
-            stock_quantity: (existing.stock_quantity || 0) + quantity,
+            product_images: item.product_images?.length > 0 ? item.product_images : existing.product_images,
+            price_images: item.price_images?.length > 0 ? item.price_images : null,
             purchase_price: item.unit_price || 0,
             selling_price: item.selling_price || 0,
             tpos_product_id: tposProductId
@@ -291,7 +293,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         if (!error) createdCount++;
       } else {
-        // Insert new
+        // Insert new base product
         const { error } = await supabase
           .from("products")
           .insert({
@@ -311,11 +313,11 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         if (!error) createdCount++;
       }
     } else if (allVariantsToCreate.length === 1) {
-      // Single variant
+      // Single variant - skip if exists, create if not
       const { variantName, item, quantity } = allVariantsToCreate[0];
       console.log(`  Creating single variant: ${rootProductCode} (${variantName}, qty: ${quantity})`);
       
-      // Check if exists
+      // Check if variant exists
       const { data: existing } = await supabase
         .from("products")
         .select("product_code, stock_quantity")
@@ -323,20 +325,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         .maybeSingle();
       
       if (existing) {
-        // Update stock
-        const { error } = await supabase
-          .from("products")
-          .update({
-            stock_quantity: (existing.stock_quantity || 0) + quantity,
-            purchase_price: item.unit_price || 0,
-            selling_price: item.selling_price || 0,
-            tpos_product_id: tposProductId
-          })
-          .eq("product_code", rootProductCode);
-        
-        if (!error) createdCount++;
+        // Variant exists - skip (keep existing one)
+        console.log(`  ⏭️  Skipped: ${rootProductCode} (${variantName}) - already exists`);
       } else {
-        // Insert new
+        // Insert new variant
         const { error } = await supabase
           .from("products")
           .insert({
@@ -359,19 +351,34 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       // Multiple variants - create separate products with unique codes
       console.log(`  Splitting ${allVariantsToCreate.length} variants for ${rootProductCode}`);
       
-      // FIRST: Create base product (without variant) as required
+      // FIRST: Always create/update base product (without variant) - REQUIRED
       const firstItem = allVariantsToCreate[0].item;
       const { data: baseProduct } = await supabase
         .from("products")
-        .select("product_code, stock_quantity")
+        .select("product_code, stock_quantity, product_images")
         .eq("product_code", rootProductCode)
         .maybeSingle();
       
       if (baseProduct) {
-        console.log(`    Base product ${rootProductCode} already exists`);
+        console.log(`    Base product ${rootProductCode} already exists, updating with images...`);
+        // Update base product with images and TPOS ID
+        const { error } = await supabase
+          .from("products")
+          .update({
+            product_images: firstItem.product_images?.length > 0 ? firstItem.product_images : baseProduct.product_images,
+            price_images: firstItem.price_images?.length > 0 ? firstItem.price_images : null,
+            tpos_product_id: tposProductId,
+            purchase_price: firstItem.unit_price || 0,
+            selling_price: firstItem.selling_price || 0
+          })
+          .eq("product_code", rootProductCode);
+        
+        if (!error) {
+          console.log(`    ✅ Updated base product: ${rootProductCode}`);
+        }
       } else {
         // Create base product without variant
-        console.log(`    Creating base product: ${rootProductCode} (no variant)`);
+        console.log(`    Creating base product: ${rootProductCode} (no variant, with images)`);
         const { error } = await supabase
           .from("products")
           .insert({
@@ -477,7 +484,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         
         console.log(`    Creating: ${variantProductCode} (${variantName} -> ${fullProductName}, qty: ${quantity})`);
         
-        // Check if product already exists
+        // Check if variant product already exists
         const { data: existing } = await supabase
           .from("products")
           .select("product_code, stock_quantity")
@@ -485,49 +492,33 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           .maybeSingle();
         
         if (existing) {
-          // Update existing product - add to stock quantity
-          const { error } = await supabase
-            .from("products")
-            .update({
-              stock_quantity: (existing.stock_quantity || 0) + quantity,
-              purchase_price: item.unit_price || 0,
-              selling_price: item.selling_price || 0,
-              product_images: item.product_images?.length > 0 ? item.product_images : null,
-              price_images: item.price_images?.length > 0 ? item.price_images : null,
-              tpos_product_id: tposProductId
-            })
-            .eq("product_code", variantProductCode);
-          
-          if (!error) {
-            createdCount++;
-            console.log(`    ✅ Updated: ${variantProductCode} (${variantName}, added qty: ${quantity})`);
-          } else {
-            console.error(`    ❌ Failed to update ${variantProductCode}:`, error);
-          }
+          // Variant already exists - skip (keep existing one, don't duplicate)
+          console.log(`    ⏭️  Skipped: ${variantProductCode} (${variantName}) - already exists`);
+          continue;
+        }
+        
+        // Insert new variant product
+        const { error } = await supabase
+          .from("products")
+          .insert({
+            product_code: variantProductCode,
+            product_name: fullProductName,
+            variant: variantName,
+            purchase_price: item.unit_price || 0,
+            selling_price: item.selling_price || 0,
+            supplier_name: item.supplier_name || '',
+            product_images: item.product_images?.length > 0 ? item.product_images : null,
+            price_images: item.price_images?.length > 0 ? item.price_images : null,
+            stock_quantity: quantity,
+            unit: 'Cái',
+            tpos_product_id: tposProductId
+          });
+        
+        if (!error) {
+          createdCount++;
+          console.log(`    ✅ Created: ${variantProductCode} (${variantName}, qty: ${quantity})`);
         } else {
-          // Insert new product
-          const { error } = await supabase
-            .from("products")
-            .insert({
-              product_code: variantProductCode,
-              product_name: fullProductName,
-              variant: variantName,
-              purchase_price: item.unit_price || 0,
-              selling_price: item.selling_price || 0,
-              supplier_name: item.supplier_name || '',
-              product_images: item.product_images?.length > 0 ? item.product_images : null,
-              price_images: item.price_images?.length > 0 ? item.price_images : null,
-              stock_quantity: quantity,
-              unit: 'Cái',
-              tpos_product_id: tposProductId
-            });
-          
-          if (!error) {
-            createdCount++;
-            console.log(`    ✅ Created: ${variantProductCode} (${variantName}, qty: ${quantity})`);
-          } else {
-            console.error(`    ❌ Failed to create ${variantProductCode}:`, error);
-          }
+          console.error(`    ❌ Failed to create ${variantProductCode}:`, error);
         }
       }
     }
