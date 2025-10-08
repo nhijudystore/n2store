@@ -486,6 +486,7 @@ export type Database = {
       }
       purchase_order_items: {
         Row: {
+          base_product_code: string | null
           created_at: string
           description: string | null
           id: string
@@ -506,6 +507,7 @@ export type Database = {
           variant: string | null
         }
         Insert: {
+          base_product_code?: string | null
           created_at?: string
           description?: string | null
           id?: string
@@ -526,6 +528,7 @@ export type Database = {
           variant?: string | null
         }
         Update: {
+          base_product_code?: string | null
           created_at?: string
           description?: string | null
           id?: string

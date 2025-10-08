@@ -6,6 +6,26 @@ const CATEGORY_N_KEYWORDS = ["QUAN", "AO", "DAM", "SET", "JUM", "AOKHOAC"];
 const CATEGORY_P_KEYWORDS = ["TUI", "MATKINH", "MYPHAM", "BANGDO", "GIAYDEP", "PHUKIEN"];
 
 /**
+ * Extract base product code from a variant code
+ * @param productCode - Product code (e.g., 'N123VX', 'M800XXD30', 'P42')
+ * @returns Base product code (e.g., 'N123', 'M800', 'P42')
+ */
+export function extractBaseProductCode(productCode: string): string {
+  if (!productCode) return '';
+  
+  // Match pattern: One or more letters followed by one or more digits
+  // Examples: N123VX → N123, M800XXD30 → M800, P42CD → P42, N123 → N123
+  const match = productCode.match(/^([A-Z]+\d+)/i);
+  
+  if (match) {
+    return match[1].toUpperCase();
+  }
+  
+  // If pattern doesn't match, return the original code
+  return productCode.toUpperCase();
+}
+
+/**
  * Detect product category based on product name
  * @param productName - Product name to analyze
  * @returns 'N' for clothing, 'P' for accessories

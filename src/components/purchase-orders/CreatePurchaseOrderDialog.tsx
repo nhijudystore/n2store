@@ -20,7 +20,7 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
-import { generateProductCodeFromMax, incrementProductCode } from "@/lib/product-code-generator";
+import { generateProductCodeFromMax, incrementProductCode, extractBaseProductCode } from "@/lib/product-code-generator";
 import { useDebounce } from "@/hooks/use-debounce";
 import { detectVariantsFromText } from "@/lib/variant-detector";
 import { useCreateVariantProducts } from "@/hooks/use-create-variant-products";
@@ -29,6 +29,7 @@ interface PurchaseOrderItem {
   product_name: string;
   variant: string;
   product_code: string;
+  base_product_code?: string;
   quantity: number;
   unit_price: number | string;
   selling_price: number | string;
@@ -133,6 +134,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           product_name: item.product_name.trim().toUpperCase(),
           variant: item.variant.trim().toUpperCase(),
           product_code: item.product_code.trim().toUpperCase(),
+          base_product_code: extractBaseProductCode(item.product_code),
           quantity: item.quantity,
           unit_price: Number(item.unit_price || 0) * 1000,
           selling_price: Number(item.selling_price || 0) * 1000,
