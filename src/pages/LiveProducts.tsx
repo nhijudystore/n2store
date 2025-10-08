@@ -100,12 +100,14 @@ interface LiveOrder {
   is_oversell?: boolean;
   uploaded_at?: string | null;
   upload_status?: string | null;
+  customer_status?: string;
 }
 
 interface OrderWithProduct extends LiveOrder {
   product_code: string;
   product_name: string;
   product_images?: string[];
+  customer_status?: string;
 }
 
 // Helper function to calculate oversell status dynamically
@@ -674,7 +676,10 @@ export default function LiveProducts() {
       product_id: aggregatedProduct.live_product_id,
       product_name: aggregatedProduct.product_name,
       quantity: aggregatedProduct.total_quantity,
-      orders: aggregatedProduct.orders,
+      orders: aggregatedProduct.orders.map((o: OrderWithProduct) => ({
+        ...o,
+        customer_status: o.customer_status || 'normal',
+      })),
     });
     setIsEditOrderItemOpen(true);
   };
@@ -1527,7 +1532,13 @@ export default function LiveProducts() {
                                   ? 'border-b-2 border-border/60' 
                                   : 'border-b border-border/20'
                               } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''} ${
-                                hasOversell ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900' : ''
+                                hasOversell ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900' : ''
+                              } ${
+                                orders[0]?.customer_status === 'bom_hang' 
+                                  ? 'bg-red-50 dark:bg-red-950/20' 
+                                  : orders[0]?.customer_status === 'thieu_thong_tin'
+                                  ? 'bg-gray-100 dark:bg-gray-800'
+                                  : ''
                               }`}
                             >
                     {index === 0 && (
@@ -1536,17 +1547,32 @@ export default function LiveProducts() {
                           rowSpan={aggregatedProducts.length} 
                           className="font-medium align-middle border-r border-l text-center"
                         >
-                          <div className="flex items-center justify-center gap-2">
-                            {hasOversell && (
-                              <AlertTriangle className="h-5 w-5 text-red-500" />
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <div className="flex items-center gap-2">
+                              {hasOversell && (
+                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                              )}
+                              <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
+                                hasOversell 
+                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700' 
+                                  : 'bg-primary text-primary-foreground'
+                              }`}>
+                                {orderCode}
+                              </Badge>
+                            </div>
+                            
+                            {orders[0]?.customer_status && orders[0].customer_status !== 'normal' && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${
+                                  orders[0].customer_status === 'bom_hang' 
+                                    ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950/50' 
+                                    : 'border-gray-400 text-gray-600 bg-gray-100 dark:bg-gray-800'
+                                }`}
+                              >
+                                {orders[0].customer_status === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
+                              </Badge>
                             )}
-                            <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
-                              hasOversell 
-                                ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800' 
-                                : 'bg-primary text-primary-foreground'
-                            }`}>
-                              {orderCode}
-                            </Badge>
                           </div>
                         </TableCell>
                         

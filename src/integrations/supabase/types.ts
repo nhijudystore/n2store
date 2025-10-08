@@ -171,6 +171,7 @@ export type Database = {
         Row: {
           code_tpos_order_id: string | null
           created_at: string
+          customer_status: string | null
           id: string
           is_oversell: boolean | null
           live_phase_id: string | null
@@ -186,6 +187,7 @@ export type Database = {
         Insert: {
           code_tpos_order_id?: string | null
           created_at?: string
+          customer_status?: string | null
           id?: string
           is_oversell?: boolean | null
           live_phase_id?: string | null
@@ -201,6 +203,7 @@ export type Database = {
         Update: {
           code_tpos_order_id?: string | null
           created_at?: string
+          customer_status?: string | null
           id?: string
           is_oversell?: boolean | null
           live_phase_id?: string | null

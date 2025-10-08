@@ -32,10 +32,18 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 const formSchema = z.object({
   quantity: z.coerce.number().min(0, "Số lượng không được âm"),
+  customer_status: z.enum(['normal', 'bom_hang', 'thieu_thong_tin']).default('normal'),
 });
 
 interface EditOrderItemDialogProps {
@@ -58,6 +66,7 @@ interface EditOrderItemDialogProps {
       live_session_id: string;
       live_phase_id?: string;
       sold_quantity?: number;
+      customer_status?: string;
     }>;
   } | null;
   phaseId: string;
@@ -77,13 +86,18 @@ export function EditOrderItemDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       quantity: 1,
+      customer_status: 'normal',
     },
   });
 
   useEffect(() => {
     if (orderItem) {
+      const customerStatus = orderItem.orders?.[0]?.customer_status || 'normal';
       form.reset({
         quantity: orderItem.quantity,
+        customer_status: ['normal', 'bom_hang', 'thieu_thong_tin'].includes(customerStatus) 
+          ? customerStatus as 'normal' | 'bom_hang' | 'thieu_thong_tin'
+          : 'normal',
       });
     }
   }, [orderItem, form]);
@@ -105,10 +119,13 @@ export function EditOrderItemDialog({
         const firstOrder = orders[0];
         const ordersToDelete = orders.slice(1).map(o => o.id);
 
-        // Update the first order with new total quantity
+        // Update the first order with new total quantity and customer status
         const { error: updateError } = await supabase
           .from("live_orders")
-          .update({ quantity: newTotalQty })
+          .update({ 
+            quantity: newTotalQty,
+            customer_status: values.customer_status 
+          })
           .eq("id", firstOrder.id);
 
         if (updateError) throw updateError;
@@ -145,10 +162,13 @@ export function EditOrderItemDialog({
         // Single order item - update quantity directly
         const quantityDiff = values.quantity - orderItem.quantity;
 
-        // Update order quantity
+        // Update order quantity and customer status
         const { error: orderError } = await supabase
           .from("live_orders")
-          .update({ quantity: values.quantity })
+          .update({ 
+            quantity: values.quantity,
+            customer_status: values.customer_status 
+          })
           .eq("id", orderItem.id);
 
         if (orderError) throw orderError;
@@ -340,6 +360,35 @@ export function EditOrderItemDialog({
                         {...field}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="customer_status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Trạng thái khách hàng</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Chọn trạng thái" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="normal">
+                          Bình thường
+                        </SelectItem>
+                        <SelectItem value="bom_hang">
+                          <span className="text-red-600 font-semibold">Bom hàng</span>
+                        </SelectItem>
+                        <SelectItem value="thieu_thong_tin">
+                          <span className="text-gray-500 font-semibold">Thiếu thông tin</span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
