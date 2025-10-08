@@ -1111,16 +1111,38 @@ export async function uploadToTPOS(
           existingProductId = existingProduct.Id;
           console.log(`✓ Found existing product: Id=${existingProductId}, DefaultCode="${existingProduct.DefaultCode}"`);
           
-          // ===== UPDATE: Sử dụng PUT API =====
-          console.log(`📝 [${currentStep}/${items.length}] Updating product ${existingProductId} with DefaultCode="${defaultCode}"`);
+          // ===== UPDATE: Fetch full product detail rồi merge =====
+          console.log(`📝 [${currentStep}/${items.length}] Fetching full product detail for update...`);
           
+          const detailResponse = await fetch(
+            `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=Id eq ${existingProductId}`,
+            { headers: getTPOSHeaders(token) }
+          );
+          
+          if (!detailResponse.ok) {
+            throw new Error(`Failed to fetch product detail: ${detailResponse.status}`);
+          }
+          
+          const detailData = await detailResponse.json();
+          const fullProduct = detailData.value?.[0];
+          
+          if (!fullProduct) {
+            throw new Error(`Product ${existingProductId} not found in detail API`);
+          }
+          
+          // Merge với data mới
           const updatePayload = {
-            Id: existingProductId,
-            Name: item.product_name,
-            ListPrice: item.selling_price || 0,
-            StandardPrice: item.unit_price || 0,
+            ...fullProduct,
+            Name: item.product_name || fullProduct.Name,
+            ListPrice: item.selling_price || fullProduct.ListPrice || 0,
+            StandardPrice: item.unit_price || fullProduct.StandardPrice || 0,
             Description: item.variant || null,
           };
+          
+          // Remove @odata.context nếu có
+          delete updatePayload["@odata.context"];
+          
+          console.log(`📝 [${currentStep}/${items.length}] Updating product ${existingProductId} with DefaultCode="${defaultCode}"`);
           
           const updateResponse = await fetch(
             `${TPOS_CONFIG.API_BASE}/ODataService.UpdateV2`,
