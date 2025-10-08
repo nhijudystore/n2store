@@ -22,10 +22,12 @@ interface PurchaseOrderItem {
   id?: string;
   product_name: string;
   product_code: string | null;
+  base_product_code?: string | null;
   variant: string | null;
   quantity: number;
   unit_price: number;
   selling_price: number;
+  total_price: number;
   product_images: string[] | null;
   price_images: string[] | null;
   position?: number;
@@ -247,7 +249,8 @@ const PurchaseOrders = () => {
           items:purchase_order_items(
             id,
             product_name, 
-            product_code, 
+            product_code,
+            base_product_code,
             variant, 
             quantity, 
             unit_price, 
@@ -500,6 +503,7 @@ const PurchaseOrders = () => {
       (order.items || []).map(item => ({
         id: item.id || crypto.randomUUID(),
         product_code: item.product_code,
+        base_product_code: item.base_product_code,
         product_name: item.product_name,
         variant: item.variant,
         quantity: item.quantity,

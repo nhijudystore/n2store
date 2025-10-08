@@ -554,10 +554,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       if (!confirmed) return;
     }
 
-    // Group items by product_code
+    // Group items by base_product_code (use this for TPOS upload)
     const groupedByProductCode = new Map<string, TPOSProductItem[]>();
     selectedItems.forEach(item => {
-      const code = item.product_code || 'NO_CODE';
+      const code = item.base_product_code || item.product_code || 'NO_CODE';
       if (!groupedByProductCode.has(code)) {
         groupedByProductCode.set(code, []);
       }
@@ -570,7 +570,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       console.log(`  - ${code}: ${items.length} items, variants: ${variants.join(', ')}`);
     });
 
-    // Check existing products and variants in database
+    // Check existing products and variants in database using base_product_code
     setCurrentStep("Đang kiểm tra sản phẩm trong kho...");
     const productCodes = Array.from(groupedByProductCode.keys()).filter(code => code !== 'NO_CODE');
     

@@ -316,6 +316,7 @@ export async function uploadProductToTPOS(
 export interface TPOSProductItem {
   id: string;
   product_code: string | null;
+  base_product_code: string | null;
   product_name: string;
   variant: string | null;
   quantity: number;
@@ -1048,17 +1049,17 @@ export async function uploadToTPOS(
     onProgress?.(currentStep, items.length * 2, `[1/2] Đang upload ${item.product_name}...`);
 
     try {
-      // Tạo Excel cho sản phẩm
+      // Tạo Excel cho sản phẩm - use base_product_code for TPOS upload
       const excelDataForTPOS = [{
         "Loại sản phẩm": TPOS_CONFIG.DEFAULT_PRODUCT_TYPE,
-        "Mã sản phẩm": item.product_code?.toString() || undefined,
+        "Mã sản phẩm": item.base_product_code?.toString() || item.product_code?.toString() || undefined,
         "Mã chốt đơn": undefined,
         "Tên sản phẩm": item.product_name?.toString() || undefined,
         "Giá bán": item.selling_price || 0,
         "Giá mua": item.unit_price || 0,
         "Đơn vị": TPOS_CONFIG.DEFAULT_UOM,
         "Nhóm sản phẩm": TPOS_CONFIG.DEFAULT_CATEGORY,
-        "Mã vạch": item.product_code?.toString() || undefined,
+        "Mã vạch": item.base_product_code?.toString() || item.product_code?.toString() || undefined,
         "Khối lượng": undefined,
         "Chiết khấu bán": undefined,
         "Chiết khấu mua": undefined,
