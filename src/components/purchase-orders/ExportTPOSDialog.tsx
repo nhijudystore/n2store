@@ -545,30 +545,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       return;
     }
 
-    // Validate variant quantity matching
-    const invalidItems: string[] = [];
-    selectedItems.forEach(item => {
-      const variant = item.variant || "";
-      const quantity = item.quantity || 0;
-      const variantCount = variant.trim() ? variant.split(',').map(v => v.trim()).filter(Boolean).length : 0;
-      
-      // Allow if: quantity equals variant count OR quantity is multiple of variant count
-      if (variantCount > 1) {
-        if (quantity % variantCount !== 0) {
-          invalidItems.push(`${item.product_code || item.product_name}: ${variantCount} biến thể nhưng số lượng ${quantity} không chia hết cho ${variantCount}`);
-        }
-      }
-    });
-
-    if (invalidItems.length > 0) {
-      toast({
-        title: "❌ Lỗi validation",
-        description: `Các sản phẩm sau có số lượng không chia hết cho số biến thể:\n${invalidItems.join('\n')}`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Check if any selected items already have TPOS ID
     const itemsWithTPOS = selectedItems.filter(item => item.tpos_product_id);
     if (itemsWithTPOS.length > 0) {
