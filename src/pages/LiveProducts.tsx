@@ -36,7 +36,8 @@ import {
   Download,
   CheckCircle,
   Upload,
-  Store
+  Store,
+  Search
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -208,6 +209,9 @@ export default function LiveProducts() {
     errors: number;
   } | null>(null);
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
+  
+  // Search state for products tab
+  const [productSearch, setProductSearch] = useState("");
   
   const queryClient = useQueryClient();
 
@@ -1138,7 +1142,30 @@ export default function LiveProducts() {
                   </CardContent>
                 </Card>
               ) : (
-                <Card>
+                <>
+                  {/* Search box */}
+                  <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-lg border">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm theo mã SP, tên sản phẩm, biến thể..."
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      className="flex-1 bg-transparent border-none outline-none text-sm placeholder:text-muted-foreground"
+                    />
+                    {productSearch && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setProductSearch("")}
+                        className="h-6 px-2"
+                      >
+                        Xóa
+                      </Button>
+                    )}
+                  </div>
+
+                  <Card>
                   <Table>
                      <TableHeader>
                       <TableRow>
@@ -1155,8 +1182,20 @@ export default function LiveProducts() {
                     </TableHeader>
                     <TableBody>
                       {(() => {
+                        // Filter products based on search
+                        const filteredProducts = productSearch.trim()
+                          ? liveProducts.filter(product => {
+                              const searchLower = productSearch.toLowerCase();
+                              return (
+                                product.product_code.toLowerCase().includes(searchLower) ||
+                                product.product_name.toLowerCase().includes(searchLower) ||
+                                (product.variant?.toLowerCase() || "").includes(searchLower)
+                              );
+                            })
+                          : liveProducts;
+
                         // Group products by product_code only
-                        const productGroups = liveProducts.reduce((groups, product) => {
+                        const productGroups = filteredProducts.reduce((groups, product) => {
                           const key = product.product_code;
                           if (!groups[key]) {
                             groups[key] = {
@@ -1397,6 +1436,7 @@ export default function LiveProducts() {
                     </TableBody>
                   </Table>
                 </Card>
+              </>
               )}
             </TabsContent>
 
