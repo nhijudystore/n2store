@@ -12,7 +12,7 @@ import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderLis
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 import { ExportTPOSDialog } from "@/components/purchase-orders/ExportTPOSDialog";
-
+import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
 import type { TPOSProductItem } from "@/lib/tpos-api";
 import { checkTPOSProductsExist } from "@/lib/tpos-api";
 import { format } from "date-fns";
@@ -67,7 +67,7 @@ const PurchaseOrders = () => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isCheckingTPOS, setIsCheckingTPOS] = useState(false);
   const [deletedTPOSIds, setDeletedTPOSIds] = useState<Set<number>>(new Set());
-  
+  const [isSimpleUploadOpen, setIsSimpleUploadOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Helper function to format date as DD-MM
@@ -505,6 +505,43 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleSimpleUpload = async () => {
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    // Flatten all items from orders to export
+    const allItems: TPOSProductItem[] = ordersToExport.flatMap(order => 
+      (order.items || []).map(item => ({
+        id: item.id || crypto.randomUUID(),
+        product_code: item.product?.product_code,
+        base_product_code: item.product?.base_product_code,
+        product_name: item.product?.product_name,
+        variant: item.product?.variant,
+        quantity: item.quantity,
+        unit_price: item.product?.purchase_price || 0,
+        selling_price: item.product?.selling_price || 0,
+        product_images: item.product?.product_images,
+        price_images: item.product?.price_images,
+        purchase_order_id: order.id,
+        supplier_name: order.supplier_name || '',
+        tpos_product_id: item.tpos_product_id,
+      }))
+    );
+
+    if (allItems.length === 0) {
+      toast({
+        title: "Không có sản phẩm",
+        description: "Vui lòng chọn đơn hàng có sản phẩm",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTposItems(allItems);
+    setIsSimpleUploadOpen(true);
+  };
 
   const handleExportToTPOS = async () => {
     // Use selected orders if any, otherwise use filtered orders
@@ -732,13 +769,23 @@ const PurchaseOrders = () => {
             Theo dõi và quản lý đơn đặt hàng với các nhà cung cấp
           </p>
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Tạo đơn đặt hàng
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={handleSimpleUpload}
+            variant="outline"
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Upload SP đơn giản
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo đơn đặt hàng
+          </Button>
+        </div>
       </div>
 
       <PurchaseOrderStats 
@@ -902,6 +949,14 @@ const PurchaseOrders = () => {
         }}
       />
 
+      <SimpleProductUploadDialog
+        open={isSimpleUploadOpen}
+        onOpenChange={setIsSimpleUploadOpen}
+        items={tposItems}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+        }}
+      />
     </div>
   );
 };
