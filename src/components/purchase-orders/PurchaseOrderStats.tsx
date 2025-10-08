@@ -4,16 +4,24 @@ import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 
 interface PurchaseOrderItem {
-  product_name: string;
-  product_code: string | null;
-  variant: string | null;
+  id?: string;
+  product_id: string;
   quantity: number;
-  unit_price: number;
-  selling_price: number;
-  product_images: string[] | null;
-  price_images: string[] | null;
   position?: number;
+  notes?: string | null;
   tpos_product_id?: number | null;
+  tpos_deleted?: boolean;
+  tpos_deleted_at?: string | null;
+  product?: {
+    product_name: string;
+    product_code: string;
+    variant: string | null;
+    purchase_price: number;
+    selling_price: number;
+    product_images: string[] | null;
+    price_images: string[] | null;
+    base_product_code: string | null;
+  };
 }
 
 interface PurchaseOrder {

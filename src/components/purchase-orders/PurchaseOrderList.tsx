@@ -22,16 +22,23 @@ import { generateTPOSProductLink } from "@/lib/tpos-api";
 
 interface PurchaseOrderItem {
   id?: string;
-  product_name: string;
-  product_code: string | null;
-  variant: string | null;
+  product_id: string;
   quantity: number;
-  unit_price: number;
-  selling_price: number;
-  product_images: string[] | null;
-  price_images: string[] | null;
   position?: number;
+  notes?: string | null;
   tpos_product_id?: number | null;
+  tpos_deleted?: boolean;
+  tpos_deleted_at?: string | null;
+  product?: {
+    product_name: string;
+    product_code: string;
+    variant: string | null;
+    purchase_price: number;
+    selling_price: number;
+    product_images: string[] | null;
+    price_images: string[] | null;
+    base_product_code: string | null;
+  };
 }
 
 interface PurchaseOrder {
@@ -437,7 +444,7 @@ export function PurchaseOrderList({
                         className={`overflow-visible border-r ${
                           (() => {
                             const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                              sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                              sum + ((item.product?.purchase_price || 0) * (item.quantity || 0)), 
                             0);
                             const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
                             const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
@@ -460,7 +467,7 @@ export function PurchaseOrderList({
                             </div>
                             {(() => {
                               const calculatedTotal = flatItem.items.reduce((sum, item) => 
-                                sum + ((item.unit_price || 0) * (item.quantity || 0)), 
+                                sum + ((item.product?.purchase_price || 0) * (item.quantity || 0)), 
                               0);
                               const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
                               const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
@@ -483,11 +490,11 @@ export function PurchaseOrderList({
                   {/* Item-level columns */}
                   <TableCell className="border-r">
                     <div className="font-medium">
-                      {flatItem.item?.product_name || "Không có sản phẩm"}
+                      {flatItem.item?.product?.product_name || "Không có sản phẩm"}
                     </div>
                   </TableCell>
                   <TableCell className="border-r">
-                    {flatItem.item?.product_code || "-"}
+                    {flatItem.item?.product?.product_code || "-"}
                   </TableCell>
                   <TableCell className="border-r">
                     {flatItem.item?.tpos_product_id ? (
@@ -507,16 +514,16 @@ export function PurchaseOrderList({
                     )}
                   </TableCell>
                     <TableCell className="border-r">
-                      {flatItem.item?.variant || "-"}
+                      {flatItem.item?.product?.variant || "-"}
                     </TableCell>
                     <TableCell className="border-r text-center">
                       {flatItem.item?.quantity || 0}
                     </TableCell>
                   <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
-                      {flatItem.item?.price_images && flatItem.item.price_images.length > 0 ? (
+                      {flatItem.item?.product?.price_images && flatItem.item.product.price_images.length > 0 ? (
                         <div className="flex flex-wrap gap-1 justify-end">
-                          {flatItem.item.price_images.map((imageUrl, index) => (
+                          {flatItem.item.product.price_images.map((imageUrl, index) => (
                             <img
                               key={index}
                               src={imageUrl}
@@ -528,14 +535,14 @@ export function PurchaseOrderList({
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
                       )}
-                      <span>{flatItem.item ? formatVND(flatItem.item.unit_price || 0) : "-"}</span>
+                      <span>{flatItem.item?.product ? formatVND(flatItem.item.product.purchase_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
                   <TableCell className="border-r text-right overflow-visible">
                     <div className="flex flex-col items-end gap-1">
-                      {flatItem.item?.product_images && flatItem.item.product_images.length > 0 ? (
+                      {flatItem.item?.product?.product_images && flatItem.item.product.product_images.length > 0 ? (
                         <div className="flex flex-wrap gap-1 justify-end">
-                          {flatItem.item.product_images.map((imageUrl, index) => (
+                          {flatItem.item.product.product_images.map((imageUrl, index) => (
                             <img
                               key={index}
                               src={imageUrl}
@@ -547,7 +554,7 @@ export function PurchaseOrderList({
                       ) : (
                         <span className="text-xs text-muted-foreground">Chưa có hình</span>
                       )}
-                      <span>{flatItem.item ? formatVND(flatItem.item.selling_price || 0) : "-"}</span>
+                      <span>{flatItem.item?.product ? formatVND(flatItem.item.product.selling_price || 0) : "-"}</span>
                     </div>
                   </TableCell>
                   

@@ -20,18 +20,23 @@ import { generateVariantCode, generateProductNameWithVariant } from "@/lib/varia
 
 interface PurchaseOrderItem {
   id?: string;
-  product_name: string;
-  product_code: string | null;
-  base_product_code?: string | null;
-  variant: string | null;
+  product_id: string;
   quantity: number;
-  unit_price: number;
-  selling_price: number;
-  total_price: number;
-  product_images: string[] | null;
-  price_images: string[] | null;
   position?: number;
+  notes?: string | null;
   tpos_product_id?: number | null;
+  tpos_deleted?: boolean;
+  tpos_deleted_at?: string | null;
+  product?: {
+    product_name: string;
+    product_code: string;
+    variant: string | null;
+    purchase_price: number;
+    selling_price: number;
+    product_images: string[] | null;
+    price_images: string[] | null;
+    base_product_code: string | null;
+  };
 }
 
 interface PurchaseOrder {
@@ -248,17 +253,23 @@ const PurchaseOrders = () => {
           *,
           items:purchase_order_items(
             id,
-            product_name, 
-            product_code,
-            base_product_code,
-            variant, 
-            quantity, 
-            unit_price, 
-            selling_price, 
-            product_images, 
-            price_images,
+            product_id,
+            quantity,
             position,
-            tpos_product_id
+            notes,
+            tpos_product_id,
+            tpos_deleted,
+            tpos_deleted_at,
+            product:products(
+              product_name,
+              product_code,
+              variant,
+              purchase_price,
+              selling_price,
+              product_images,
+              price_images,
+              base_product_code
+            )
           ),
           receiving:goods_receiving(
             id,
@@ -330,8 +341,8 @@ const PurchaseOrders = () => {
       format(new Date(order.created_at), "dd/MM").includes(searchTerm) ||
       format(new Date(order.created_at), "dd/MM/yyyy").includes(searchTerm) ||
       order.items?.some(item => 
-        item.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
+        item.product?.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.product?.product_code?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     
     // Status filter
@@ -370,14 +381,14 @@ const PurchaseOrders = () => {
       // Mapping according to the Excel template format (17 columns)
       const excelData = products.map(item => ({
         "Loại sản phẩm": "Có thể lưu trữ",
-        "Mã sản phẩm": item.product_code?.toString() || undefined,
+        "Mã sản phẩm": item.product?.product_code?.toString() || undefined,
         "Mã chốt đơn": undefined,
-        "Tên sản phẩm": item.product_name?.toString() || undefined,
-        "Giá bán": item.selling_price || 0,
-        "Giá mua": item.unit_price || 0,
+        "Tên sản phẩm": item.product?.product_name?.toString() || undefined,
+        "Giá bán": item.product?.selling_price || 0,
+        "Giá mua": item.product?.purchase_price || 0,
         "Đơn vị": "CÁI",
         "Nhóm sản phẩm": "QUẦN ÁO",
-        "Mã vạch": item.product_code?.toString() || undefined,
+        "Mã vạch": item.product?.product_code?.toString() || undefined,
         "Khối lượng": undefined,
         "Chiết khấu bán": undefined,
         "Chiết khấu mua": undefined,
@@ -463,9 +474,9 @@ const PurchaseOrders = () => {
       // Calculate discount percentage for each item
       const excelData = products.map(item => {
         return {
-          "Mã sản phẩm (*)": item.product_code?.toString() || "",
+          "Mã sản phẩm (*)": item.product?.product_code?.toString() || "",
           "Số lượng (*)": item.quantity || 0,
-          "Đơn giá": item.unit_price || 0,
+          "Đơn giá": item.product?.purchase_price || 0,
           "Chiết khấu (%)": 0,
         };
       });
@@ -502,15 +513,15 @@ const PurchaseOrders = () => {
     const allItems: TPOSProductItem[] = ordersToExport.flatMap(order => 
       (order.items || []).map(item => ({
         id: item.id || crypto.randomUUID(),
-        product_code: item.product_code,
-        base_product_code: item.base_product_code,
-        product_name: item.product_name,
-        variant: item.variant,
+        product_code: item.product?.product_code,
+        base_product_code: item.product?.base_product_code,
+        product_name: item.product?.product_name,
+        variant: item.product?.variant,
         quantity: item.quantity,
-        unit_price: item.unit_price || 0,
-        selling_price: item.selling_price || 0,
-        product_images: item.product_images,
-        price_images: item.price_images,
+        unit_price: item.product?.purchase_price || 0,
+        selling_price: item.product?.selling_price || 0,
+        product_images: item.product?.product_images,
+        price_images: item.product?.price_images,
         purchase_order_id: order.id,
         supplier_name: order.supplier_name || '',
         tpos_product_id: item.tpos_product_id,
@@ -579,7 +590,7 @@ const PurchaseOrders = () => {
       const productGroups = new Map<string, Array<typeof products[0]>>();
       
       products.forEach(item => {
-        const code = item.product_code?.toUpperCase() || "";
+        const code = item.product?.product_code?.toUpperCase() || "";
         if (!productGroups.has(code)) {
           productGroups.set(code, []);
         }
@@ -595,12 +606,12 @@ const PurchaseOrders = () => {
         
         items.forEach(item => {
           let finalCode = productCode;
-          let finalProductName = item.product_name?.toString() || "";
+          let finalProductName = item.product?.product_name?.toString() || "";
           
-          if (item.variant) {
-            const variantCode = generateVariantCode(item.variant, usedVariantCodes);
+          if (item.product?.variant) {
+            const variantCode = generateVariantCode(item.product.variant, usedVariantCodes);
             finalCode = `${productCode}${variantCode}`;
-            finalProductName = generateProductNameWithVariant(finalProductName, item.variant);
+            finalProductName = generateProductNameWithVariant(finalProductName, item.product.variant);
           }
           
           excelData.push({
@@ -608,8 +619,8 @@ const PurchaseOrders = () => {
             "Mã sản phẩm": finalCode || undefined,
             "Mã chốt đơn": undefined,
             "Tên sản phẩm": finalProductName || undefined,
-            "Giá bán": item.selling_price || 0,
-            "Giá mua": item.unit_price || 0,
+            "Giá bán": item.product?.selling_price || 0,
+            "Giá mua": item.product?.purchase_price || 0,
             "Đơn vị": "CÁI",
             "Nhóm sản phẩm": "QUẦN ÁO",
             "Mã vạch": finalCode || undefined,
