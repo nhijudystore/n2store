@@ -179,15 +179,21 @@ export function VariantGeneratorDialog({
                   {filteredSizeText.map((item) => (
                     <div 
                       key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
-                      onClick={() => toggleSelection('sizeText', item.Name)}
+                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
                     >
                       <Checkbox
                         id={`size-${item.Id}`}
                         checked={selectedSizeText.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('sizeText', item.Name)}
+                        onCheckedChange={(checked) => {
+                          toggleSelection('sizeText', item.Name);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       />
-                      <Label htmlFor={`size-${item.Id}`} className="cursor-pointer flex-1 font-normal">
+                      <Label 
+                        htmlFor={`size-${item.Id}`} 
+                        className="cursor-pointer flex-1 font-normal"
+                        onClick={() => toggleSelection('sizeText', item.Name)}
+                      >
                         {item.Name}
                       </Label>
                     </div>
@@ -213,15 +219,21 @@ export function VariantGeneratorDialog({
                   {filteredColors.map((item) => (
                     <div 
                       key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
-                      onClick={() => toggleSelection('color', item.Name)}
+                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
                     >
                       <Checkbox
                         id={`color-${item.Id}`}
                         checked={selectedColors.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('color', item.Name)}
+                        onCheckedChange={(checked) => {
+                          toggleSelection('color', item.Name);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       />
-                      <Label htmlFor={`color-${item.Id}`} className="cursor-pointer flex-1 font-normal">
+                      <Label 
+                        htmlFor={`color-${item.Id}`} 
+                        className="cursor-pointer flex-1 font-normal"
+                        onClick={() => toggleSelection('color', item.Name)}
+                      >
                         {item.Name}
                       </Label>
                     </div>
@@ -247,15 +259,21 @@ export function VariantGeneratorDialog({
                   {filteredSizeNumber.map((item) => (
                     <div 
                       key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer" 
-                      onClick={() => toggleSelection('sizeNumber', item.Name)}
+                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
                     >
                       <Checkbox
                         id={`num-${item.Id}`}
                         checked={selectedSizeNumber.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('sizeNumber', item.Name)}
+                        onCheckedChange={(checked) => {
+                          toggleSelection('sizeNumber', item.Name);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
                       />
-                      <Label htmlFor={`num-${item.Id}`} className="cursor-pointer flex-1 font-normal">
+                      <Label 
+                        htmlFor={`num-${item.Id}`} 
+                        className="cursor-pointer flex-1 font-normal"
+                        onClick={() => toggleSelection('sizeNumber', item.Name)}
+                      >
                         {item.Name}
                       </Label>
                     </div>
