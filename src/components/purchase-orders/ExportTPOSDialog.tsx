@@ -58,7 +58,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     return Array.from(codes);
   }, [filteredItems]);
 
-  // Query base products to get their variant field
+  // Query base products to get their variant field and product name
   const { data: baseProductVariants = [] } = useQuery({
     queryKey: ["base-product-variants", baseProductCodes],
     queryFn: async () => {
@@ -66,7 +66,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       
       const { data, error } = await supabase
         .from("products")
-        .select("product_code, variant")
+        .select("product_code, product_name, variant")
         .in("product_code", baseProductCodes)
         .is("base_product_code", null)
         .not("variant", "is", null);
@@ -706,10 +706,12 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const productCode = group.baseProductCode;
       const existingTPOSId = existingTPOSIds.get(productCode);
       
-      // Get variants from inventory (already loaded in groupedItems)
+      // Get variants and product name from inventory (base product in products table)
+      const baseProduct = baseProductVariants.find(pv => pv.product_code === productCode);
       const variantString = group.variants.length > 0 ? group.variants[0] : ''; // Single variant string from base product
+      const productName = baseProduct?.product_name || group.baseItem.product_name; // Use name from inventory or fallback
       
-      console.log(`📦 ${productCode}: Variant from inventory: ${variantString || '(none)'}`);
+      console.log(`📦 ${productCode}: Name from inventory: ${productName}, Variant: ${variantString || '(none)'}`);
 
       if (!variantString) {
         console.log(`⚠️ ${productCode}: No variants found in inventory, skipping variant upload`);
@@ -718,6 +720,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           const representative = { ...group.baseItem };
           representative.variant = null;
           representative.product_code = productCode;
+          representative.product_name = productName; // Use name from inventory
           itemsToUpload.push(representative);
         }
         return;
@@ -725,7 +728,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
       console.log(`📦 ${productCode}: Will upload with variants: ${variantString}`);
       
-      // Use base item as representative
+      // Use base item as representative but override with inventory data
       const representative = { ...group.baseItem };
       
       // Check if product already exists on TPOS
@@ -747,10 +750,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
           allVariants: [variantString], // Keep as single string
           variantString: variantString
         });
-        // Remove variant from upload payload (will be created later)
+        // Override with inventory data
         representative.variant = null;
-        // Use base_product_code for TPOS upload
         representative.product_code = productCode;
+        representative.product_name = productName; // Use name from inventory
         
         itemsToUpload.push(representative);
       }
