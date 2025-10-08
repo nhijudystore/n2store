@@ -273,6 +273,7 @@ export function CreateReceivingDialog({ open, onOpenChange, order, onSuccess }: 
                   <ReceivingItemRow
                     key={item.id}
                     item={item}
+                    index={index}
                     isConfirmed={confirmedItems.has(item.id)}
                     onQuantityChange={handleQuantityChange}
                     onConfirm={handleConfirm}

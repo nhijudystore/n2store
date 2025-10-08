@@ -4,13 +4,14 @@ import { CheckCircle, AlertCircle, AlertTriangle } from "lucide-react";
 
 interface ReceivingItemRowProps {
   item: any;
+  index?: number;
   onQuantityChange: (itemId: string, quantity: number) => void;
   isConfirmed: boolean;
   onConfirm: (itemId: string) => void;
   isMobile?: boolean;
 }
 
-export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfirm, isMobile = false }: ReceivingItemRowProps) {
+export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirmed, onConfirm, isMobile = false }: ReceivingItemRowProps) {
   const getRowClassName = () => {
     if (isConfirmed) return 'bg-green-50/50';
     return '';
@@ -121,29 +122,34 @@ export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfir
   // Desktop Table Row Layout
   return (
     <tr className={getRowClassName()}>
+      <td className="p-3 text-center">
+        <span className="text-sm text-muted-foreground">{index + 1}</span>
+      </td>
       <td className="p-3">
-        {item.product_images && item.product_images.length > 0 ? (
-          <img 
-            src={item.product_images[0]} 
-            alt={item.product_name}
-            className="w-16 h-16 object-cover rounded border"
-          />
-        ) : (
-          <div className="w-16 h-16 bg-muted rounded border flex items-center justify-center">
-            <span className="text-xs text-muted-foreground">No image</span>
+        <div className="flex items-center gap-3">
+          {item.product_images && item.product_images.length > 0 ? (
+            <img 
+              src={item.product_images[0]} 
+              alt={item.product_name}
+              className="w-12 h-12 object-cover rounded border flex-shrink-0"
+            />
+          ) : (
+            <div className="w-12 h-12 bg-muted rounded border flex items-center justify-center flex-shrink-0">
+              <span className="text-xs text-muted-foreground">No img</span>
+            </div>
+          )}
+          <div>
+            <div className="font-medium text-sm">{item.product_name}</div>
+            {item.variant && (
+              <div className="text-xs text-muted-foreground">{item.variant}</div>
+            )}
           </div>
-        )}
-      </td>
-      <td className="p-3">
-        <div className="font-medium text-sm">{item.product_name}</div>
-      </td>
-      <td className="p-3 text-sm text-muted-foreground">
-        {item.variant || '-'}
+        </div>
       </td>
       <td className="p-3 text-center">
         <span className="font-medium">{item.quantity}</span>
       </td>
-      <td className="p-3">
+      <td className="p-3 text-center">
         <Input
           type="number"
           min="0"
@@ -155,6 +161,16 @@ export function ReceivingItemRow({ item, onQuantityChange, isConfirmed, onConfir
       </td>
       <td className="p-3 text-center">
         {getConfirmationDisplay()}
+      </td>
+      <td className="p-3 text-center">
+        <Button 
+          size="sm"
+          variant={isConfirmed ? "secondary" : "default"}
+          onClick={() => onConfirm(item.id)}
+          className="min-h-[40px]"
+        >
+          {isConfirmed ? "Hủy xác nhận" : "Xác nhận"}
+        </Button>
       </td>
     </tr>
   );
