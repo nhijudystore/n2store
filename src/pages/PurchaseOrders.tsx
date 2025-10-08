@@ -12,6 +12,7 @@ import { PurchaseOrderList } from "@/components/purchase-orders/PurchaseOrderLis
 import { CreatePurchaseOrderDialog } from "@/components/purchase-orders/CreatePurchaseOrderDialog";
 import { PurchaseOrderStats } from "@/components/purchase-orders/PurchaseOrderStats";
 import { ExportTPOSDialog } from "@/components/purchase-orders/ExportTPOSDialog";
+import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
 import type { TPOSProductItem } from "@/lib/tpos-api";
 import { checkTPOSProductsExist } from "@/lib/tpos-api";
 import { format } from "date-fns";
@@ -66,6 +67,7 @@ const PurchaseOrders = () => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isCheckingTPOS, setIsCheckingTPOS] = useState(false);
   const [deletedTPOSIds, setDeletedTPOSIds] = useState<Set<number>>(new Set());
+  const [isSimpleUploadOpen, setIsSimpleUploadOpen] = useState(false);
   const queryClient = useQueryClient();
 
   // Helper function to format date as DD-MM
@@ -747,13 +749,23 @@ const PurchaseOrders = () => {
             Theo dõi và quản lý đơn đặt hàng với các nhà cung cấp
           </p>
         </div>
-        <Button 
-          onClick={() => setIsCreateDialogOpen(true)}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Tạo đơn đặt hàng
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setIsSimpleUploadOpen(true)}
+            variant="outline"
+            className="gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Upload SP đơn giản
+          </Button>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo đơn đặt hàng
+          </Button>
+        </div>
       </div>
 
       <PurchaseOrderStats 
@@ -915,6 +927,11 @@ const PurchaseOrders = () => {
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
         }}
+      />
+
+      <SimpleProductUploadDialog
+        open={isSimpleUploadOpen}
+        onOpenChange={setIsSimpleUploadOpen}
       />
     </div>
   );
