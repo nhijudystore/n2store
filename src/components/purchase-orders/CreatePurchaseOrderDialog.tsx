@@ -150,6 +150,69 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           .insert(orderItems);
 
         if (itemsError) throw itemsError;
+
+        // Auto-create base products in inventory
+        const groupedByBaseCode = orderItems.reduce((acc, item) => {
+          const baseCode = item.base_product_code || item.product_code;
+          if (!acc[baseCode]) {
+            acc[baseCode] = [];
+          }
+          acc[baseCode].push(item);
+          return acc;
+        }, {} as Record<string, typeof orderItems>);
+
+        for (const [baseCode, groupItems] of Object.entries(groupedByBaseCode)) {
+          const representativeItem = groupItems[0];
+          
+          // Collect all variants from the group (remove duplicates and empty strings)
+          const allVariants = [...new Set(
+            groupItems
+              .map(item => item.variant)
+              .filter(v => v && v.trim() !== '')
+          )].sort().join(', ');
+
+          // Check if base product already exists
+          const { data: existingBase } = await supabase
+            .from("products")
+            .select("*")
+            .eq("product_code", baseCode)
+            .is("base_product_code", null)
+            .maybeSingle();
+
+          if (existingBase) {
+            // Base product exists - merge variants
+            const existingVariants = existingBase.variant ? existingBase.variant.split(',').map((v: string) => v.trim()).filter(Boolean) : [];
+            const newVariants = allVariants ? allVariants.split(',').map(v => v.trim()).filter(Boolean) : [];
+            const mergedVariants = [...new Set([...existingVariants, ...newVariants])].sort().join(', ');
+            
+            await supabase
+              .from("products")
+              .update({
+                variant: mergedVariants || null,
+                product_images: representativeItem.product_images || existingBase.product_images,
+                price_images: representativeItem.price_images || existingBase.price_images
+              })
+              .eq("product_code", baseCode)
+              .is("base_product_code", null);
+          } else {
+            // Base product doesn't exist - create new
+            await supabase
+              .from("products")
+              .insert({
+                product_code: baseCode,
+                product_name: baseCode,
+                variant: allVariants || null,
+                base_product_code: null,
+                purchase_price: representativeItem.unit_price,
+                selling_price: representativeItem.selling_price,
+                supplier_name: formData.supplier_name.trim().toUpperCase(),
+                stock_quantity: 0,
+                unit: "Cái",
+                product_images: representativeItem.product_images || [],
+                price_images: representativeItem.price_images || []
+              });
+          }
+        }
       }
 
       return order;
@@ -158,6 +221,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       toast({ title: "Tạo đơn đặt hàng thành công!" });
       queryClient.invalidateQueries({ queryKey: ["purchase-orders"] });
       queryClient.invalidateQueries({ queryKey: ["purchase-order-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["products-select"] });
       onOpenChange(false);
       resetForm();
