@@ -1523,7 +1523,22 @@ export default function LiveProducts() {
                             p.orders.some(order => order.is_oversell)
                           );
                           
-                          return aggregatedProducts.map((product, index) => (
+                           return aggregatedProducts.map((product, index) => {
+                            // Determine background color priority: oversell > customer_status > alternating rows
+                            let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
+                            
+                            if (orders[0]?.customer_status === 'bom_hang') {
+                              bgColorClass = 'bg-red-50 dark:bg-red-950/20';
+                            } else if (orders[0]?.customer_status === 'thieu_thong_tin') {
+                              bgColorClass = 'bg-gray-100 dark:bg-gray-800';
+                            }
+                            
+                            // Oversell takes highest priority
+                            if (hasOversell) {
+                              bgColorClass = 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900';
+                            }
+                            
+                            return (
                             <TableRow 
                               key={`${orderCode}-${product.product_code}`}
                               id={orders[0]?.tpos_order_id || undefined}
@@ -1531,15 +1546,7 @@ export default function LiveProducts() {
                                 index === aggregatedProducts.length - 1 
                                   ? 'border-b-2 border-border/60' 
                                   : 'border-b border-border/20'
-                              } ${groupIndex % 2 === 1 ? 'bg-muted/30' : ''} ${
-                                hasOversell ? 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900' : ''
-                              } ${
-                                orders[0]?.customer_status === 'bom_hang' 
-                                  ? 'bg-red-50 dark:bg-red-950/20' 
-                                  : orders[0]?.customer_status === 'thieu_thong_tin'
-                                  ? 'bg-gray-100 dark:bg-gray-800'
-                                  : ''
-                              }`}
+                              } ${bgColorClass}`}
                             >
                     {index === 0 && (
                       <>
@@ -1674,7 +1681,8 @@ export default function LiveProducts() {
                                 </TableCell>
                               )}
                             </TableRow>
-                          ));
+                            );
+                          });
                         });
                       })()}
                     </TableBody>

@@ -112,8 +112,11 @@ export function EditOrderItemDialog({
         const currentTotalQty = orders.reduce((sum, o) => sum + o.quantity, 0);
         const newTotalQty = values.quantity;
         const diff = newTotalQty - currentTotalQty;
+        const currentStatus = orders[0]?.customer_status || 'normal';
+        const statusChanged = currentStatus !== values.customer_status;
 
-        if (diff === 0) return;
+        // Only return early if nothing changed
+        if (diff === 0 && !statusChanged) return;
 
         // Keep the first order and delete the rest
         const firstOrder = orders[0];
@@ -140,23 +143,25 @@ export function EditOrderItemDialog({
           if (deleteError) throw deleteError;
         }
 
-        // Update product sold_quantity
-        const { data: product, error: productFetchError } = await supabase
-          .from("live_products")
-          .select("sold_quantity")
-          .eq("id", orderItem.product_id)
-          .single();
+        // Update product sold_quantity only if quantity changed
+        if (diff !== 0) {
+          const { data: product, error: productFetchError } = await supabase
+            .from("live_products")
+            .select("sold_quantity")
+            .eq("id", orderItem.product_id)
+            .single();
 
-        if (productFetchError) throw productFetchError;
+          if (productFetchError) throw productFetchError;
 
-        const { error: productError } = await supabase
-          .from("live_products")
-          .update({ 
-            sold_quantity: Math.max(0, product.sold_quantity + diff)
-          })
-          .eq("id", orderItem.product_id);
+          const { error: productError } = await supabase
+            .from("live_products")
+            .update({ 
+              sold_quantity: Math.max(0, product.sold_quantity + diff)
+            })
+            .eq("id", orderItem.product_id);
 
-        if (productError) throw productError;
+          if (productError) throw productError;
+        }
 
       } else {
         // Single order item - update quantity directly
