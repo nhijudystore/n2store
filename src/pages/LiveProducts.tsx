@@ -147,6 +147,24 @@ const calculateIsOversell = (
   return cumulativeQuantity > product.prepared_quantity;
 };
 
+// Helper function to get highest priority customer_status from orders array
+const getHighestPriorityCustomerStatus = (orders: OrderWithProduct[]): string => {
+  if (!orders || orders.length === 0) return 'normal';
+  
+  // Check for bom_hang first (highest priority)
+  if (orders.some(order => order.customer_status === 'bom_hang')) {
+    return 'bom_hang';
+  }
+  
+  // Check for thieu_thong_tin (medium priority)
+  if (orders.some(order => order.customer_status === 'thieu_thong_tin')) {
+    return 'thieu_thong_tin';
+  }
+  
+  // Default to normal
+  return 'normal';
+};
+
 export default function LiveProducts() {
   // Initialize states from localStorage
   const [selectedSession, setSelectedSession] = useState<string>(() => {
@@ -1526,10 +1544,11 @@ export default function LiveProducts() {
                             return aggregatedProducts.map((product, index) => {
                              // Determine background color priority: oversell > customer_status > alternating rows
                              let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
+                             const customerStatus = getHighestPriorityCustomerStatus(product.orders);
                              
-                             if (product.orders[0]?.customer_status === 'bom_hang') {
+                             if (customerStatus === 'bom_hang') {
                                bgColorClass = 'bg-red-50 dark:bg-red-950/20';
-                             } else if (product.orders[0]?.customer_status === 'thieu_thong_tin') {
+                             } else if (customerStatus === 'thieu_thong_tin') {
                                bgColorClass = 'bg-gray-100 dark:bg-gray-800';
                              }
                             
@@ -1562,9 +1581,9 @@ export default function LiveProducts() {
                               <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
                                 hasOversell 
                                   ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700'
-                                  : product.orders[0]?.customer_status === 'bom_hang'
+                                  : customerStatus === 'bom_hang'
                                   ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
-                                  : product.orders[0]?.customer_status === 'thieu_thong_tin'
+                                  : customerStatus === 'thieu_thong_tin'
                                   ? 'bg-gray-500 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700'
                                   : 'bg-primary text-primary-foreground'
                               }`}>
@@ -1572,16 +1591,16 @@ export default function LiveProducts() {
                               </Badge>
                             </div>
                             
-                            {product.orders[0]?.customer_status && product.orders[0].customer_status !== 'normal' && (
+                            {customerStatus && customerStatus !== 'normal' && (
                               <Badge 
                                 variant="outline" 
                                 className={`text-xs ${
-                                  product.orders[0].customer_status === 'bom_hang' 
+                                  customerStatus === 'bom_hang' 
                                     ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950/50' 
                                     : 'border-gray-400 text-gray-600 bg-gray-100 dark:bg-gray-800'
                                 }`}
                               >
-                                {product.orders[0].customer_status === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
+                                {customerStatus === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
                               </Badge>
                             )}
                           </div>
