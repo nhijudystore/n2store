@@ -1561,7 +1561,11 @@ export default function LiveProducts() {
                               )}
                               <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
                                 hasOversell 
-                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700' 
+                                  ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700'
+                                  : orders[0]?.customer_status === 'bom_hang'
+                                  ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
+                                  : orders[0]?.customer_status === 'thieu_thong_tin'
+                                  ? 'bg-gray-500 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700'
                                   : 'bg-primary text-primary-foreground'
                               }`}>
                                 {orderCode}
