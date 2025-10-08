@@ -1546,6 +1546,16 @@ export default function LiveProducts() {
                              let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
                              const customerStatus = getHighestPriorityCustomerStatus(product.orders);
                              
+                             // Debug logging
+                             if (orderCode === '64' || orderCode === '67' || orderCode === '70') {
+                               console.log(`[DEBUG] Order ${orderCode}, Product ${product.product_code}:`, {
+                                 customerStatus,
+                                 ordersCount: product.orders.length,
+                                 orderStatuses: product.orders.map(o => o.customer_status),
+                                 hasOversell
+                               });
+                             }
+                             
                              if (customerStatus === 'bom_hang') {
                                bgColorClass = 'bg-red-50 dark:bg-red-950/20';
                              } else if (customerStatus === 'thieu_thong_tin') {
