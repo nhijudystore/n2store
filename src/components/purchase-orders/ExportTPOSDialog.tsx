@@ -68,7 +68,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         .from("products")
         .select("product_code, product_name, variant")
         .in("product_code", baseProductCodes)
-        .is("base_product_code", null)
         .not("variant", "is", null);
       
       if (error) {
