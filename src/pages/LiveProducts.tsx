@@ -1366,17 +1366,24 @@ export default function LiveProducts() {
                                             ordersWithProducts
                                           );
                                           
+                                          // Get badge color based on priority: oversell > customer_status
+                                          let badgeColor = "bg-blue-100 text-blue-700 hover:bg-blue-200"; // default/normal
+                                          
+                                          if (isOversell) {
+                                            badgeColor = "bg-yellow-500 text-white hover:bg-yellow-600 font-bold shadow-md";
+                                          } else if (order.customer_status === 'bom_hang') {
+                                            badgeColor = "bg-red-600 text-white hover:bg-red-700 font-bold";
+                                          } else if (order.customer_status === 'thieu_thong_tin') {
+                                            badgeColor = "bg-gray-500 text-white hover:bg-gray-600";
+                                          }
+                                          
                                           return (
                                             <TooltipProvider key={order.id}>
                                               <Tooltip>
                                                 <TooltipTrigger asChild>
                                                   <Badge
-                                                    variant={isOversell ? "destructive" : "secondary"}
-                                                    className={`text-xs cursor-pointer hover:scale-105 transition-transform ${
-                                                      isOversell
-                                                        ? "bg-destructive text-destructive-foreground font-bold shadow-md"
-                                                        : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                                                    }`}
+                                                    variant="secondary"
+                                                    className={`text-xs cursor-pointer hover:scale-105 transition-transform ${badgeColor}`}
                                                     onClick={() => {
                                                       // Handle edit order
                                                       const aggregatedProduct = {
@@ -1542,30 +1549,13 @@ export default function LiveProducts() {
                           );
                           
                             return aggregatedProducts.map((product, index) => {
-                             // Determine background color priority: oversell > customer_status > alternating rows
+                             // Only show oversell color in Orders tab
                              let bgColorClass = groupIndex % 2 === 1 ? 'bg-muted/30' : '';
-                             const customerStatus = getHighestPriorityCustomerStatus(product.orders);
                              
-                             // Debug logging
-                             if (orderCode === '64' || orderCode === '67' || orderCode === '70') {
-                               console.log(`[DEBUG] Order ${orderCode}, Product ${product.product_code}:`, {
-                                 customerStatus,
-                                 ordersCount: product.orders.length,
-                                 orderStatuses: product.orders.map(o => o.customer_status),
-                                 hasOversell
-                               });
+                             // Check if any order in this product group has oversell
+                             if (hasOversell) {
+                               bgColorClass = 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900';
                              }
-                             
-                             if (customerStatus === 'bom_hang') {
-                               bgColorClass = 'bg-red-50 dark:bg-red-950/20';
-                             } else if (customerStatus === 'thieu_thong_tin') {
-                               bgColorClass = 'bg-gray-100 dark:bg-gray-800';
-                             }
-                            
-                            // Oversell takes highest priority
-                            if (hasOversell) {
-                              bgColorClass = 'bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-900';
-                            }
                             
                             return (
                             <TableRow 
@@ -1591,28 +1581,11 @@ export default function LiveProducts() {
                               <Badge className={`text-base font-bold font-mono px-3 py-1.5 ${
                                 hasOversell 
                                   ? 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700'
-                                  : customerStatus === 'bom_hang'
-                                  ? 'bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800'
-                                  : customerStatus === 'thieu_thong_tin'
-                                  ? 'bg-gray-500 text-white hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700'
                                   : 'bg-primary text-primary-foreground'
                               }`}>
                                 {orderCode}
                               </Badge>
                             </div>
-                            
-                            {customerStatus && customerStatus !== 'normal' && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${
-                                  customerStatus === 'bom_hang' 
-                                    ? 'border-red-500 text-red-600 bg-red-50 dark:bg-red-950/50' 
-                                    : 'border-gray-400 text-gray-600 bg-gray-100 dark:bg-gray-800'
-                                }`}
-                              >
-                                {customerStatus === 'bom_hang' ? 'Bom hàng' : 'Thiếu TT'}
-                              </Badge>
-                            )}
                           </div>
                         </TableCell>
                         
