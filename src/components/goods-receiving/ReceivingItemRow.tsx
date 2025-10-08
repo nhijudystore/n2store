@@ -31,19 +31,7 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
     return baseClass;
   };
 
-  const getConfirmationDisplay = () => {
-    if (!isConfirmed) {
-      return (
-        <Button 
-          size={isMobile ? "default" : "sm"}
-          onClick={() => onConfirm(item.id)}
-          className={isMobile ? "w-full min-h-[48px] text-base" : "min-h-[44px]"}
-        >
-          Xác nhận
-        </Button>
-      );
-    }
-
+  const getDiscrepancyDisplay = () => {
     const diff = item.received_quantity - item.quantity;
     
     if (diff < 0) {
@@ -113,7 +101,18 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
         </div>
 
         <div>
-          {getConfirmationDisplay()}
+          {getDiscrepancyDisplay()}
+        </div>
+
+        <div>
+          <Button 
+            size="default"
+            variant={isConfirmed ? "secondary" : "default"}
+            onClick={() => onConfirm(item.id)}
+            className="w-full min-h-[48px] text-base"
+          >
+            {isConfirmed ? "Hủy xác nhận" : "Xác nhận"}
+          </Button>
         </div>
       </div>
     );
@@ -160,7 +159,7 @@ export function ReceivingItemRow({ item, index = 0, onQuantityChange, isConfirme
         />
       </td>
       <td className="p-3 text-center">
-        {getConfirmationDisplay()}
+        {getDiscrepancyDisplay()}
       </td>
       <td className="p-3 text-center">
         <Button 
