@@ -172,7 +172,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
               product_code: baseCode,
               product_name: item._tempProductName.trim().toUpperCase(),
               variant: item._tempVariant.trim().toUpperCase() || null,
-              base_product_code: null,
+              base_product_code: baseCode,
               purchase_price: Number(item._tempUnitPrice || 0) * 1000,
               selling_price: Number(item._tempSellingPrice || 0) * 1000,
               supplier_name: formData.supplier_name.trim().toUpperCase(),

@@ -75,6 +75,7 @@ export function CreateProductDialog({ open, onOpenChange, onSuccess }: CreatePro
 
     const { error } = await supabase.from("products").insert({
       product_code: finalProductCode,
+      base_product_code: finalProductCode,
       product_name: finalProductName,
       variant: formData.variant || null,
       selling_price: parseFloat(formData.selling_price) || 0,

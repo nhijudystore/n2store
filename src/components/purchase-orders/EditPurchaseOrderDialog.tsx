@@ -385,6 +385,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
               .from("products")
               .insert({
                 product_code: item._tempProductCode.trim().toUpperCase(),
+                base_product_code: item._tempProductCode.trim().toUpperCase(),
                 product_name: item._tempProductName.trim().toUpperCase(),
                 variant: item._tempVariant.trim().toUpperCase() || null,
                 purchase_price: Number(item._tempUnitPrice || 0) * 1000,

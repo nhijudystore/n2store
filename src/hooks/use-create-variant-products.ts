@@ -79,6 +79,7 @@ export function useCreateVariantProducts() {
           .from("products")
           .insert({
             product_code: baseProduct.product_code,
+            base_product_code: baseProduct.product_code,
             product_name: baseProduct.product_name,
             variant: baseProduct.variant,
             purchase_price: baseProduct.purchase_price,

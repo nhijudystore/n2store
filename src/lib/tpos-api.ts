@@ -1187,24 +1187,27 @@ export async function uploadToTPOS(
     console.log(`   Match rule: DefaultCode (TPOS) === product_code (local)`);
     console.log(`   Save rule: Id (TPOS) → tpos_product_id (DB)`);
     
-    for (const { item, index } of uploadedItems) {
-      const currentStep = index + 1 + items.length;
-      
-      if (!item.product_code) {
-        console.warn(`⚠️ [${currentStep}/${items.length * 2}] ${item.product_name} không có product_code`);
-        continue;
-      }
+  for (const { item, index } of uploadedItems) {
+    const currentStep = index + 1 + items.length;
+    
+    // Use base_product_code if available, otherwise use product_code (consistent with upload logic)
+    const codeToMatch = item.base_product_code || item.product_code;
+    
+    if (!codeToMatch) {
+      console.warn(`⚠️ [${currentStep}/${items.length * 2}] ${item.product_name} không có product_code hoặc base_product_code`);
+      continue;
+    }
 
-      const tposProduct = tposProductMap.get(item.product_code.trim());
+    const tposProduct = tposProductMap.get(codeToMatch.trim());
       
       // VALIDATION CHẶT CHẼ: 
-      // 1. DefaultCode (TPOS) phải === product_code (local)
+      // 1. DefaultCode (TPOS) phải === product_code/base_product_code (local)
       // 2. Id (TPOS) phải nằm trong danh sách N products mới nhất
       if (!tposProduct) {
-        console.warn(`⚠️ [${currentStep}/${items.length * 2}] DefaultCode "${item.product_code}" không tìm thấy trong ${tposProductIds.size} products mới nhất`);
+        console.warn(`⚠️ [${currentStep}/${items.length * 2}] DefaultCode "${codeToMatch}" không tìm thấy trong ${tposProductIds.size} products mới nhất`);
         result.errors.push({
           productName: item.product_name,
-          productCode: item.product_code,
+          productCode: codeToMatch,
           errorMessage: `DefaultCode không tìm thấy trong ${tposProductIds.size} products mới nhất của Tú`,
           fullError: null,
         });
@@ -1216,7 +1219,7 @@ export async function uploadToTPOS(
         console.error(`❌ [${currentStep}/${items.length * 2}] SECURITY: Product Id ${tposProduct.Id} KHÔNG nằm trong danh sách mới nhất!`);
         result.errors.push({
           productName: item.product_name,
-          productCode: item.product_code,
+          productCode: codeToMatch,
           errorMessage: `Product Id ${tposProduct.Id} không thuộc ${tposProductIds.size} products mới nhất`,
           fullError: null,
         });
@@ -1224,7 +1227,8 @@ export async function uploadToTPOS(
       }
 
       console.log(`✅ [${currentStep}/${items.length * 2}] MATCHED:`);
-      console.log(`   Local: product_code="${item.product_code}"`);
+      console.log(`   Local: product_code="${item.product_code}" | base="${item.base_product_code}"`);
+      console.log(`   Used for match: "${codeToMatch}"`);
       console.log(`   TPOS:  DefaultCode="${tposProduct.DefaultCode}" | Id=${tposProduct.Id}`);
       console.log(`   → Will save: tpos_product_id = ${tposProduct.Id}`);
       
@@ -1242,7 +1246,7 @@ export async function uploadToTPOS(
 
       // Lưu vào cache
       const cache = getCachedTPOSIds();
-      cache.set(item.product_code, tposProduct.Id);
+      cache.set(codeToMatch, tposProduct.Id);
       saveCachedTPOSIds(cache);
 
       // ========================================
