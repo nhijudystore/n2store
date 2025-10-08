@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
 import { detectVariantsFromText } from "@/lib/variant-detector";
 import { generateAllVariants } from "@/lib/variant-code-generator";
+import { useQuery } from "@tanstack/react-query";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -47,6 +48,38 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     }
   }, [items, imageFilter]);
 
+  // Get unique base product codes from filtered items
+  const baseProductCodes = useMemo(() => {
+    const codes = new Set<string>();
+    filteredItems.forEach(item => {
+      const baseCode = item.base_product_code || item.product_code?.match(/^[A-Z]+\d+/)?.[0] || item.product_code || 'AUTO';
+      codes.add(baseCode);
+    });
+    return Array.from(codes);
+  }, [filteredItems]);
+
+  // Query variants from products table for all base product codes
+  const { data: productVariants = [] } = useQuery({
+    queryKey: ["product-variants-bulk", baseProductCodes],
+    queryFn: async () => {
+      if (baseProductCodes.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from("products")
+        .select("product_code, base_product_code, variant")
+        .or(baseProductCodes.map(code => `product_code.eq.${code},base_product_code.eq.${code}`).join(','))
+        .not("variant", "is", null);
+      
+      if (error) {
+        console.error("Error fetching product variants:", error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    enabled: baseProductCodes.length > 0
+  });
+
   // Group items by base_product_code
   const groupedItems = useMemo(() => {
     const groups = new Map<string, {
@@ -72,11 +105,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
 
       const group = groups.get(baseCode)!;
       group.items.push(item);
-      
-      // Collect unique variants
-      if (item.variant && !group.variants.includes(item.variant)) {
-        group.variants.push(item.variant);
-      }
 
       // Use item with base_product_code as baseItem, or first item with images
       if (item.base_product_code === baseCode || 
@@ -85,13 +113,24 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       }
     }
 
+    // Add variants from products table (from database/inventory)
+    groups.forEach(group => {
+      const variantsFromDB = productVariants
+        .filter(pv => pv.product_code === group.baseProductCode || pv.base_product_code === group.baseProductCode)
+        .map(pv => pv.variant)
+        .filter((v): v is string => Boolean(v));
+      
+      // Get unique variants
+      group.variants = [...new Set(variantsFromDB)];
+    });
+
     // Check if all items in each group are selected
     groups.forEach(group => {
       group.allSelected = group.items.every(item => selectedIds.has(item.id));
     });
 
     return Array.from(groups.values());
-  }, [filteredItems, selectedIds]);
+  }, [filteredItems, selectedIds, productVariants]);
 
   // Get selected items
   const selectedItems = useMemo(() => {
