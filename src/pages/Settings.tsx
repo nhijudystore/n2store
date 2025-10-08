@@ -625,17 +625,27 @@ const Settings = () => {
           <h1 className="text-3xl font-bold">Cài đặt</h1>
           <p className="text-muted-foreground mt-2">Quản lý các cài đặt hệ thống</p>
         </div>
-        <SimpleProductUploadDialog 
-          open={isSimpleUploadOpen}
-          onOpenChange={setIsSimpleUploadOpen}
-          trigger={
-            <Button variant="default" size="lg">
-              <Upload className="mr-2 h-4 w-4" />
-              Upload sản phẩm đơn giản
-            </Button>
-          }
-        />
+        <Button 
+          variant="default" 
+          size="lg"
+          onClick={() => setIsSimpleUploadOpen(true)}
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          Upload sản phẩm đơn giản
+        </Button>
       </div>
+
+      <SimpleProductUploadDialog 
+        open={isSimpleUploadOpen}
+        onOpenChange={setIsSimpleUploadOpen}
+        items={[]}
+        onSuccess={() => {
+          toast({
+            title: "Thành công",
+            description: "Đã upload sản phẩm lên TPOS",
+          });
+        }}
+      />
 
       <Card>
         <CardHeader>

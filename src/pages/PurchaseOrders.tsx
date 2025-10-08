@@ -505,6 +505,44 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleSimpleUpload = async () => {
+    // Use selected orders if any, otherwise use filtered orders
+    const ordersToExport = selectedOrders.length > 0 
+      ? orders?.filter(order => selectedOrders.includes(order.id)) || []
+      : filteredOrders;
+
+    // Flatten all items from orders to export
+    const allItems: TPOSProductItem[] = ordersToExport.flatMap(order => 
+      (order.items || []).map(item => ({
+        id: item.id || crypto.randomUUID(),
+        product_code: item.product?.product_code,
+        base_product_code: item.product?.base_product_code,
+        product_name: item.product?.product_name,
+        variant: item.product?.variant,
+        quantity: item.quantity,
+        unit_price: item.product?.purchase_price || 0,
+        selling_price: item.product?.selling_price || 0,
+        product_images: item.product?.product_images,
+        price_images: item.product?.price_images,
+        purchase_order_id: order.id,
+        supplier_name: order.supplier_name || '',
+        tpos_product_id: item.tpos_product_id,
+      }))
+    );
+
+    if (allItems.length === 0) {
+      toast({
+        title: "Không có sản phẩm",
+        description: "Vui lòng chọn đơn hàng có sản phẩm",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTposItems(allItems);
+    setIsSimpleUploadOpen(true);
+  };
+
   const handleExportToTPOS = async () => {
     // Use selected orders if any, otherwise use filtered orders
     const ordersToExport = selectedOrders.length > 0 
@@ -539,24 +577,6 @@ const PurchaseOrders = () => {
       return;
     }
 
-    // Get all unique product codes from allItems (normalize with trim)
-    const productCodesToCheck = [...new Set(
-      allItems
-        .map(item => item.product_code?.trim())
-        .filter(Boolean)
-    )];
-
-    if (productCodesToCheck.length === 0) {
-      toast({
-        title: "Không có mã sản phẩm",
-        description: "Các sản phẩm không có mã để kiểm tra",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Không filter kho - hiển thị tất cả items
-    // User sẽ tự filter trong dialog TPOS
     setTposItems(allItems);
     setIsTPOSDialogOpen(true);
   };
@@ -751,7 +771,7 @@ const PurchaseOrders = () => {
         </div>
         <div className="flex gap-2">
           <Button 
-            onClick={() => setIsSimpleUploadOpen(true)}
+            onClick={handleSimpleUpload}
             variant="outline"
             className="gap-2"
           >
@@ -932,6 +952,10 @@ const PurchaseOrders = () => {
       <SimpleProductUploadDialog
         open={isSimpleUploadOpen}
         onOpenChange={setIsSimpleUploadOpen}
+        items={tposItems}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+        }}
       />
     </div>
   );
