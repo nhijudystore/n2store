@@ -272,21 +272,25 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   ) => {
     const baseItem = items[index];
 
-    // Prepare data for database insertion
-    const productsToCreate = variants.map(v => ({
-      product_code: v.fullCode,
-      product_name: v.productName,
-      variant: v.variantText,
-      purchase_price: Number(baseItem.unit_price) * 1000, // Convert to VND
-      selling_price: Number(baseItem.selling_price) * 1000, // Convert to VND
+    // Extract unique variant names and merge them
+    const uniqueVariants = [...new Set(variants.map(v => v.variantText))];
+    const mergedVariant = uniqueVariants.sort().join(', ');
+
+    // Prepare base product data
+    const baseProductData = {
+      product_code: baseItem.product_code.trim().toUpperCase(),
+      product_name: baseItem.product_name.trim().toUpperCase(),
+      variant: mergedVariant || null,
+      purchase_price: Number(baseItem.unit_price) * 1000,
+      selling_price: Number(baseItem.selling_price) * 1000,
       supplier_name: formData.supplier_name || undefined,
-      stock_quantity: 0, // Mới tạo chưa có trong kho
+      stock_quantity: 0,
       product_images: [...baseItem.product_images],
       price_images: [...baseItem.price_images]
-    }));
+    };
 
-    // Call mutation to create products in database
-    createVariantProducts.mutate(productsToCreate);
+    // Call mutation to upsert base product only
+    createVariantProducts.mutate({ baseProduct: baseProductData });
 
     // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới)
   };
@@ -301,6 +305,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     if (!item.product_code.trim()) missingFields.push("Mã sản phẩm");
     if (!item.unit_price || Number(item.unit_price) <= 0) missingFields.push("Giá mua");
     if (!item.selling_price || Number(item.selling_price) <= 0) missingFields.push("Giá bán");
+    if (!item.product_images || item.product_images.length === 0) missingFields.push("Hình ảnh sản phẩm");
     
     if (missingFields.length > 0) {
       toast({

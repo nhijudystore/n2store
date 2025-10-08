@@ -2,68 +2,100 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
-interface VariantProductData {
+interface BaseProductData {
   product_code: string;
   product_name: string;
-  variant: string;
+  variant: string | null;
   purchase_price: number;
   selling_price: number;
   supplier_name?: string;
-  stock_quantity?: number;
-  product_images?: string[];
-  price_images?: string[];
+  stock_quantity: number;
+  product_images: string[];
+  price_images: string[];
+}
+
+interface CreateVariantInput {
+  baseProduct: BaseProductData;
+}
+
+// Helper function to merge and deduplicate variants
+function mergeVariants(oldVariant: string | null, newVariant: string | null): string | null {
+  if (!newVariant) return oldVariant;
+  if (!oldVariant) return newVariant;
+  
+  // Split, combine, deduplicate, and sort
+  const oldParts = oldVariant.split(',').map(s => s.trim()).filter(Boolean);
+  const newParts = newVariant.split(',').map(s => s.trim()).filter(Boolean);
+  const combined = [...new Set([...oldParts, ...newParts])];
+  
+  return combined.sort().join(', ');
 }
 
 export function useCreateVariantProducts() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (products: VariantProductData[]) => {
-      // Check for existing product codes
-      const codes = products.map(p => p.product_code);
-      const { data: existingProducts } = await supabase
-        .from("products")
-        .select("product_code")
-        .in("product_code", codes);
+    mutationFn: async (input: CreateVariantInput) => {
+      const { baseProduct } = input;
 
-      const existingCodes = existingProducts?.map(p => p.product_code) || [];
-      if (existingCodes.length > 0) {
-        throw new Error(`Mã sản phẩm đã tồn tại: ${existingCodes.join(", ")}`);
-      }
-
-      // Insert products
-      const { data, error } = await supabase
+      // Check if base product exists
+      const { data: existing } = await supabase
         .from("products")
-        .insert(
-          products.map(p => ({
-            product_code: p.product_code,
-            product_name: p.product_name,
-            variant: p.variant,
-            purchase_price: p.purchase_price,
-            selling_price: p.selling_price,
-            supplier_name: p.supplier_name || null,
-            stock_quantity: p.stock_quantity || 0,
+        .select("*")
+        .eq("product_code", baseProduct.product_code)
+        .maybeSingle();
+
+      if (existing) {
+        // UPDATE only product_images and variant
+        const mergedVariant = mergeVariants(existing.variant, baseProduct.variant);
+        
+        const { data, error } = await supabase
+          .from("products")
+          .update({
+            product_images: baseProduct.product_images,
+            variant: mergedVariant
+          })
+          .eq("product_code", baseProduct.product_code)
+          .select()
+          .single();
+
+        if (error) throw error;
+        return { action: 'updated' as const, product: data };
+      } else {
+        // INSERT with full data
+        const { data, error } = await supabase
+          .from("products")
+          .insert({
+            product_code: baseProduct.product_code,
+            product_name: baseProduct.product_name,
+            variant: baseProduct.variant,
+            purchase_price: baseProduct.purchase_price,
+            selling_price: baseProduct.selling_price,
+            supplier_name: baseProduct.supplier_name || null,
+            stock_quantity: baseProduct.stock_quantity,
             unit: "Cái",
-            product_images: p.product_images || [],
-            price_images: p.price_images || []
-          }))
-        )
-        .select();
+            product_images: baseProduct.product_images,
+            price_images: baseProduct.price_images
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
-      return data;
+        if (error) throw error;
+        return { action: 'created' as const, product: data };
+      }
     },
-    onSuccess: (data) => {
+    onSuccess: ({ action, product }) => {
+      const actionText = action === 'created' ? 'tạo' : 'cập nhật';
       toast({
-        title: "Đã tạo sản phẩm biến thể",
-        description: `Đã tạo ${data.length} sản phẩm vào kho hàng`
+        title: `Đã ${actionText} sản phẩm gốc`,
+        description: `${product.product_code} - ${product.product_name}`
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["products-select"] });
     },
     onError: (error: Error) => {
       toast({
-        title: "Lỗi tạo sản phẩm",
+        title: "Lỗi xử lý sản phẩm",
         description: error.message,
         variant: "destructive"
       });
