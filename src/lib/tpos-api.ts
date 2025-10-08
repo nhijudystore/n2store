@@ -1035,31 +1035,61 @@ export async function uploadToTPOS(
   console.log(`🚀 Bắt đầu upload ${items.length} sản phẩm`);
 
   // ========================================
+  // PRE-FETCH: Lấy base_product_code từ database
+  // ========================================
+  const productIds = items.map(item => item.id).filter(Boolean);
+  const { data: productsData, error: fetchError } = await supabase
+    .from('products')
+    .select('id, base_product_code, product_code')
+    .in('id', productIds);
+
+  if (fetchError) {
+    console.error('❌ Error fetching products:', fetchError);
+    result.errors.push({
+      productName: 'Fetch Error',
+      productCode: 'N/A',
+      errorMessage: fetchError.message,
+      fullError: fetchError,
+    });
+    return result;
+  }
+
+  // Tạo Map để lookup nhanh: productId -> base_product_code
+  const productMap = new Map(
+    productsData?.map(p => [p.id, p.base_product_code || p.product_code]) || []
+  );
+  console.log(`📦 Loaded ${productMap.size} products with base_product_code`);
+
+  // ========================================
   // PHASE 1: Upload tất cả products lên TPOS
   // ========================================
   const uploadedItems: Array<{
     item: TPOSProductItem;
     index: number;
+    defaultCode: string;
   }> = [];
 
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
     const currentStep = i + 1;
     
+    // Lấy defaultCode từ productMap (base_product_code từ DB)
+    const defaultCode = productMap.get(item.id) || item.product_code || '';
+    
     onProgress?.(currentStep, items.length * 2, `[1/2] Đang upload ${item.product_name}...`);
 
     try {
-      // Tạo Excel cho sản phẩm - use base_product_code for TPOS upload
+      // Tạo Excel cho sản phẩm - use defaultCode from database
       const excelDataForTPOS = [{
         "Loại sản phẩm": TPOS_CONFIG.DEFAULT_PRODUCT_TYPE,
-        "Mã sản phẩm": item.base_product_code?.toString() || item.product_code?.toString() || undefined,
+        "Mã sản phẩm": defaultCode.toString() || undefined,
         "Mã chốt đơn": undefined,
         "Tên sản phẩm": item.product_name?.toString() || undefined,
         "Giá bán": item.selling_price || 0,
         "Giá mua": item.unit_price || 0,
         "Đơn vị": TPOS_CONFIG.DEFAULT_UOM,
         "Nhóm sản phẩm": TPOS_CONFIG.DEFAULT_CATEGORY,
-        "Mã vạch": item.base_product_code?.toString() || item.product_code?.toString() || undefined,
+        "Mã vạch": defaultCode.toString() || undefined,
         "Khối lượng": undefined,
         "Chiết khấu bán": undefined,
         "Chiết khấu mua": undefined,
@@ -1078,7 +1108,7 @@ export async function uploadToTPOS(
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" 
       });
       
-      console.log(`📝 [${currentStep}/${items.length}] Created Excel for ${item.product_name}`);
+      console.log(`📝 [${currentStep}/${items.length}] Created Excel with DefaultCode="${defaultCode}" for ${item.product_name}`);
       
       // Upload Excel
       const uploadResult = await uploadExcelToTPOS(excelBlob);
@@ -1090,7 +1120,7 @@ export async function uploadToTPOS(
 
       console.log(`✅ [${currentStep}/${items.length}] Excel uploaded: ${item.product_name}`);
       
-      uploadedItems.push({ item, index: i });
+      uploadedItems.push({ item, index: i, defaultCode });
       result.successCount++;
       
       // Delay giữa các upload
@@ -1187,27 +1217,25 @@ export async function uploadToTPOS(
     console.log(`   Match rule: DefaultCode (TPOS) === product_code (local)`);
     console.log(`   Save rule: Id (TPOS) → tpos_product_id (DB)`);
     
-  for (const { item, index } of uploadedItems) {
+  for (const { item, index, defaultCode } of uploadedItems) {
     const currentStep = index + 1 + items.length;
     
-    // Use base_product_code if available, otherwise use product_code (consistent with upload logic)
-    const codeToMatch = item.base_product_code || item.product_code;
-    
-    if (!codeToMatch) {
-      console.warn(`⚠️ [${currentStep}/${items.length * 2}] ${item.product_name} không có product_code hoặc base_product_code`);
+    // Use defaultCode from upload phase (already fetched from DB)
+    if (!defaultCode) {
+      console.warn(`⚠️ [${currentStep}/${items.length * 2}] ${item.product_name} không có defaultCode`);
       continue;
     }
 
-    const tposProduct = tposProductMap.get(codeToMatch.trim());
+    const tposProduct = tposProductMap.get(defaultCode.trim());
       
       // VALIDATION CHẶT CHẼ: 
-      // 1. DefaultCode (TPOS) phải === product_code/base_product_code (local)
+      // 1. DefaultCode (TPOS) phải === defaultCode (from DB)
       // 2. Id (TPOS) phải nằm trong danh sách N products mới nhất
       if (!tposProduct) {
-        console.warn(`⚠️ [${currentStep}/${items.length * 2}] DefaultCode "${codeToMatch}" không tìm thấy trong ${tposProductIds.size} products mới nhất`);
+        console.warn(`⚠️ [${currentStep}/${items.length * 2}] DefaultCode "${defaultCode}" không tìm thấy trong ${tposProductIds.size} products mới nhất`);
         result.errors.push({
           productName: item.product_name,
-          productCode: codeToMatch,
+          productCode: defaultCode,
           errorMessage: `DefaultCode không tìm thấy trong ${tposProductIds.size} products mới nhất của Tú`,
           fullError: null,
         });
@@ -1219,7 +1247,7 @@ export async function uploadToTPOS(
         console.error(`❌ [${currentStep}/${items.length * 2}] SECURITY: Product Id ${tposProduct.Id} KHÔNG nằm trong danh sách mới nhất!`);
         result.errors.push({
           productName: item.product_name,
-          productCode: codeToMatch,
+          productCode: defaultCode,
           errorMessage: `Product Id ${tposProduct.Id} không thuộc ${tposProductIds.size} products mới nhất`,
           fullError: null,
         });
@@ -1227,8 +1255,8 @@ export async function uploadToTPOS(
       }
 
       console.log(`✅ [${currentStep}/${items.length * 2}] MATCHED:`);
-      console.log(`   Local: product_code="${item.product_code}" | base="${item.base_product_code}"`);
-      console.log(`   Used for match: "${codeToMatch}"`);
+      console.log(`   Local: product_id="${item.id}" | product_code="${item.product_code}"`);
+      console.log(`   DefaultCode from DB: "${defaultCode}"`);
       console.log(`   TPOS:  DefaultCode="${tposProduct.DefaultCode}" | Id=${tposProduct.Id}`);
       console.log(`   → Will save: tpos_product_id = ${tposProduct.Id}`);
       
@@ -1246,7 +1274,7 @@ export async function uploadToTPOS(
 
       // Lưu vào cache
       const cache = getCachedTPOSIds();
-      cache.set(codeToMatch, tposProduct.Id);
+      cache.set(defaultCode, tposProduct.Id);
       saveCachedTPOSIds(cache);
 
       // ========================================
