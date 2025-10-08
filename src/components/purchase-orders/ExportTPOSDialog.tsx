@@ -831,327 +831,142 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                   .eq("id", groupItem.id);
               }
             }
+            
+            console.log(`💾 Saved TPOS IDs to ${allItemUpdates.length} items for variant products`);
+            totalSuccess += variantResult.successCount;
+            totalFailed += variantResult.failedCount;
+            allErrors = [...allErrors, ...variantResult.errors];
           }
 
-          // ... keep existing variant creation logic ...
-        });
+          // Create variants on TPOS for products with variants
+          setCurrentStep("Đang tạo biến thể trên TPOS...");
+          setProgress(75);
+          
+          for (const { itemId, tposId } of variantResult.productIds) {
+            const representative = itemsToUpload.find(i => i.id === itemId);
+            if (!representative?.product_code) continue;
+            
+            const variantInfo = variantMapping.get(representative.product_code);
+            if (!variantInfo) continue;
+            
+            const { variantString } = variantInfo;
 
-      // Log TPOS response
-        console.log("TPOS Upload Result:", JSON.stringify(result, null, 2));
-      } else {
-        console.log("⏭️  No new products to upload - will only add variants to existing products");
-        result.success = true;
-        result.totalProducts = 0;
-        result.successCount = 0;
-      }
-
-      // Handle successful uploads even if TPOS IDs weren't matched
-      const successfullyUploadedCodes = new Set<string>();
-      
-      // Collect product codes that were successfully uploaded
-      if (itemsToUpload.length > 0 && result.successCount > 0) {
-        // Track which items were successfully uploaded (even if TPOS ID wasn't retrieved)
-        for (const item of itemsToUpload) {
-          const variantInfo = variantMapping.get(item.product_code || '');
-          if (variantInfo) {
-            // Check if this product was successfully uploaded (not in errors with this product_code)
-            const hasError = result.errors.some(e => e.productCode === item.product_code);
-            if (!hasError) {
-              successfullyUploadedCodes.add(item.product_code || '');
-              console.log(`✅ Product ${item.product_code} was successfully uploaded (even without matched TPOS ID)`);
+            try {
+              console.log(`🎨 Creating variants for: ${representative.product_name} (TPOS ID: ${tposId})`);
+              setCurrentStep(`Đang tạo biến thể cho: ${representative.product_name}...`);
+              
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
+              await createTPOSVariants(
+                tposId,
+                variantString,
+                (msg) => {
+                  console.log(`  → ${msg}`);
+                  setCurrentStep(`${representative.product_name}: ${msg}`);
+                }
+              );
+              
+              console.log(`✅ Variants created for ${representative.product_name}`);
+            } catch (error) {
+              console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
+              allErrors.push({
+                productName: representative.product_name,
+                productCode: representative.product_code || 'N/A',
+                errorMessage: error instanceof Error ? error.message : String(error)
+              });
             }
           }
-        }
-      }
-      
-      // Save TPOS IDs to Supabase - update ALL items in the group
-      if (result.productIds.length > 0) {
-        setCurrentStep("Đang lưu TPOS IDs vào database...");
-        
-        // Map TPOS IDs back to all original items in the group
-        const allItemUpdates: Array<{ itemId: string; tposId: number }> = [];
-        
-        for (const { itemId, tposId } of result.productIds) {
-          // Find the representative item
-          const representative = itemsToUpload.find(i => i.id === itemId);
-          if (!representative || !representative.product_code) continue;
-          
-          // Get all NEW items in this group (from variantMapping)
-          const variantInfo = variantMapping.get(representative.product_code);
-          if (!variantInfo) continue;
-          
-          // Update ALL NEW items in the group with the same TPOS ID
-          for (const groupItem of variantInfo.items) {
-            allItemUpdates.push({ itemId: groupItem.id, tposId });
-            await supabase
-              .from("purchase_order_items")
-              .update({ tpos_product_id: tposId })
-              .eq("id", groupItem.id);
-          }
-        }
-        
-        console.log(`💾 Saved TPOS IDs to ${allItemUpdates.length} items (including grouped items)`);
-        result.savedIds = allItemUpdates.length;
-      }
 
-      // Upsert products to inventory with color variant handling
-      setCurrentStep("Đang cập nhật kho hàng...");
-      
-      // Create a map of product_code to tpos_product_id for new products
-      const productCodeToTPOSId = new Map<string, number>();
-      for (const { itemId, tposId } of result.productIds) {
-        const representative = itemsToUpload.find(i => i.id === itemId);
-        if (representative?.product_code) {
-          productCodeToTPOSId.set(representative.product_code, tposId);
-        }
-      }
-      
-      // Group variants by product_code for inventory creation
-      // Include both products with TPOS IDs AND successfully uploaded products without IDs
-      const variantsByProductCode = new Map<string, Array<{ variant: string | null; item: TPOSProductItem; tposId?: number }>>();
-      
-      for (const [productCode, variantInfo] of variantMapping) {
-        const tposId = productCodeToTPOSId.get(productCode);
-        const wasSuccessfullyUploaded = successfullyUploadedCodes.has(productCode);
-        
-        // Include if has TPOS ID OR was successfully uploaded
-        if (!tposId && !wasSuccessfullyUploaded) {
-          console.log(`⏭️  Skipping ${productCode}: no TPOS ID and not successfully uploaded`);
-          continue;
-        }
-        
-        if (!variantsByProductCode.has(productCode)) {
-          variantsByProductCode.set(productCode, []);
-        }
-        
-        // Add all items with their variants
-        for (const item of variantInfo.items) {
-          variantsByProductCode.get(productCode)!.push({
-            variant: item.variant || null,
-            item: item,
-            tposId: tposId
-          });
-        }
-        
-        if (wasSuccessfullyUploaded && !tposId) {
-          console.log(`⚠️  Creating inventory for ${productCode} without TPOS ID (upload was successful)`);
-        }
-      }
-      
-      // Bỏ phần tự động thêm sản phẩm vào kho
-      result.productsAddedToInventory = 0;
-      console.log(`⏭️  Skipped creating inventory entries (disabled)`);
+          // Handle products that already exist on TPOS - add new variants only
+          const existingTPOSProducts = Array.from(variantMapping.entries())
+            .filter(([_, info]) => info.existingTPOSId !== undefined);
 
-      // Auto-create variants for NEW products uploaded to TPOS
-      setCurrentStep("Đang tạo biến thể cho sản phẩm mới...");
-      result.variantsCreated = 0;
-      result.variantsFailed = 0;
-      result.variantErrors = [];
+          if (existingTPOSProducts.length > 0) {
+            setCurrentStep("Đang thêm biến thể vào sản phẩm có sẵn...");
+            console.log(`🔗 Adding variants to ${existingTPOSProducts.length} existing TPOS products`);
 
-      for (const { itemId, tposId } of result.productIds) {
-        const representative = itemsToUpload.find(i => i.id === itemId);
-        if (!representative?.product_code) continue;
-        
-        const variantInfo = variantMapping.get(representative.product_code);
-        if (!variantInfo) continue;
-        
-        const { variantString } = variantInfo;
+            for (const [productCode, variantInfo] of existingTPOSProducts) {
+              const { existingTPOSId, variantString, items } = variantInfo;
+              if (!existingTPOSId) continue;
 
-        try {
-          console.log(`🎨 Creating variants for: ${representative.product_name} (TPOS ID: ${tposId})`);
-          console.log(`   Variants: ${variantString}`);
-          setCurrentStep(`Đang tạo biến thể cho: ${representative.product_name}...`);
-          
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          await createTPOSVariants(
-            tposId,
-            variantString,
-            (msg) => {
-              console.log(`  → ${msg}`);
-              setCurrentStep(`${representative.product_name}: ${msg}`);
-            }
-          );
-          
-          console.log(`✅ Variants created for ${representative.product_name}`);
-          result.variantsCreated++;
-        } catch (error) {
-          console.error(`❌ Failed to create variants for ${representative.product_name}:`, error);
-          result.variantsFailed++;
-          result.variantErrors.push({
-            productName: representative.product_name,
-            productCode: representative.product_code || 'N/A',
-            errorMessage: error instanceof Error ? error.message : String(error)
-          });
-        }
-      }
+              try {
+                console.log(`🎨 Adding variants to: ${productCode} (TPOS ID: ${existingTPOSId})`);
+                setCurrentStep(`Đang thêm biến thể cho: ${productCode}...`);
+                
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                await createTPOSVariants(
+                  existingTPOSId,
+                  variantString,
+                  (msg) => {
+                    console.log(`  → ${msg}`);
+                    setCurrentStep(`${productCode}: ${msg}`);
+                  }
+                );
+                
+                console.log(`✅ Variants added to ${productCode}`);
 
-      // Handle products that already exist on TPOS - add new variants only
-      const existingTPOSProducts = Array.from(variantMapping.entries())
-        .filter(([_, info]) => info.existingTPOSId !== undefined);
-
-      if (existingTPOSProducts.length > 0) {
-        setCurrentStep("Đang thêm biến thể mới vào sản phẩm có sẵn...");
-        console.log(`🔗 Adding variants to ${existingTPOSProducts.length} existing TPOS products`);
-
-        for (const [productCode, variantInfo] of existingTPOSProducts) {
-          const { existingTPOSId, variantString, items } = variantInfo;
-          if (!existingTPOSId) continue;
-
-          try {
-            console.log(`🎨 Adding variants to existing product: ${productCode} (TPOS ID: ${existingTPOSId})`);
-            console.log(`   Variants: ${variantString}`);
-            setCurrentStep(`Đang thêm biến thể cho: ${productCode}...`);
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            await createTPOSVariants(
-              existingTPOSId,
-              variantString,
-              (msg) => {
-                console.log(`  → ${msg}`);
-                setCurrentStep(`${productCode}: ${msg}`);
+                // Update purchase_order_items with TPOS ID
+                for (const item of items) {
+                  await supabase
+                    .from("purchase_order_items")
+                    .update({ tpos_product_id: existingTPOSId })
+                    .eq("id", item.id);
+                }
+              } catch (error) {
+                console.error(`❌ Failed to add variants for ${productCode}:`, error);
+                allErrors.push({
+                  productName: productCode,
+                  productCode: productCode,
+                  errorMessage: error instanceof Error ? error.message : String(error)
+                });
               }
-            );
-            
-            console.log(`✅ Variants added to ${productCode}`);
-            result.variantsCreated = (result.variantsCreated || 0) + 1;
-
-            // Update purchase_order_items with TPOS ID
-            for (const item of items) {
-              await supabase
-                .from("purchase_order_items")
-                .update({ tpos_product_id: existingTPOSId })
-                .eq("id", item.id);
             }
-          } catch (error) {
-            console.error(`❌ Failed to add variants for ${productCode}:`, error);
-            result.variantsFailed = (result.variantsFailed || 0) + 1;
-            if (!result.variantErrors) result.variantErrors = [];
-            result.variantErrors.push({
-              productName: productCode,
-              productCode: productCode,
-              errorMessage: error instanceof Error ? error.message : String(error)
-            });
           }
         }
       }
 
-      // Thông báo kết quả chi tiết
-      const successRate = ((result.successCount / result.totalProducts) * 100).toFixed(1);
-      
-      // Show TPOS response in notification
-      const tposResponseInfo = result.productIds.length > 0 
-        ? `\n🔗 TPOS Product IDs: ${result.productIds.map(p => p.tposId).join(', ')}`
-        : '';
-      
+      setProgress(100);
+      setCurrentStep("Hoàn thành!");
+
+      // Show results
       toast({
-        title: result.failedCount === 0 ? "🎉 Upload thành công!" : "⚠️ Upload hoàn tất",
+        title: totalFailed === 0 ? "🎉 Upload thành công!" : "⚠️ Upload hoàn tất",
         description: (
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-2">
             <div className="font-semibold">
-              Tỷ lệ thành công: {successRate}%
+              Kết quả upload:
             </div>
             <div className="space-y-1 text-sm">
-              <p>✅ Thành công: {result.successCount}/{result.totalProducts} sản phẩm</p>
-              <p>💾 Đã lưu TPOS IDs: {result.savedIds} sản phẩm</p>
-              <p>📦 Đã thêm vào kho: {result.productsAddedToInventory || 0} sản phẩm</p>
-              {result.variantsCreated !== undefined && result.variantsCreated > 0 && (
-                <p className="text-green-600 dark:text-green-400">🎨 Đã tạo biến thể: {result.variantsCreated} sản phẩm</p>
+              <p>✅ Thành công: {totalSuccess} sản phẩm</p>
+              {totalFailed > 0 && (
+                <p className="text-destructive">❌ Thất bại: {totalFailed} sản phẩm</p>
               )}
-              {result.variantsFailed !== undefined && result.variantsFailed > 0 && (
-                <p className="text-yellow-600 dark:text-yellow-400">⚠️ Tạo biến thể thất bại: {result.variantsFailed} sản phẩm</p>
+              {itemsWithoutVariants.length > 0 && (
+                <p className="text-blue-600">🔷 Sản phẩm đơn giản: {itemsWithoutVariants.length}</p>
               )}
-              {result.productIds.length > 0 && (
-                <div className="mt-2 p-2 bg-muted rounded text-xs">
-                  <p className="font-medium mb-1">TPOS Product IDs:</p>
-                  {result.productIds.slice(0, 10).map((p, i) => (
-                    <p key={i}>• ID {p.tposId}</p>
-                  ))}
-                  {result.productIds.length > 10 && (
-                    <p className="text-muted-foreground italic">
-                      ... và {result.productIds.length - 10} IDs khác
-                    </p>
-                  )}
-                </div>
-              )}
-              {result.failedCount > 0 && (
-                <p className="text-destructive font-medium">
-                  ❌ Thất bại: {result.failedCount} sản phẩm
-                </p>
-              )}
-              {result.imageUploadWarnings && result.imageUploadWarnings.length > 0 && (
-                <details className="mt-2">
-                  <summary className="cursor-pointer text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 font-semibold">
-                    ⚠️ {result.imageUploadWarnings.length} sản phẩm upload ảnh thất bại (đã tạo trên TPOS)
-                  </summary>
-                  <div className="mt-2 space-y-2 text-xs max-h-64 overflow-y-auto">
-                    {result.imageUploadWarnings.map((warning, i) => (
-                      <div key={i} className="border-l-4 border-yellow-500 pl-3 py-2 bg-yellow-50 dark:bg-yellow-950/20 rounded">
-                        <p className="font-bold text-yellow-800 dark:text-yellow-200 text-sm mb-1">
-                          {i + 1}. {warning.productName} 
-                          <span className="text-muted-foreground"> ({warning.productCode})</span>
-                        </p>
-                        <p className="text-xs text-green-600 dark:text-green-400 mb-1">
-                          ✅ Đã tạo trên TPOS - ID: {warning.tposId}
-                        </p>
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">Lỗi upload ảnh:</p>
-                          <pre className="bg-muted/80 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed font-mono border border-yellow-200 dark:border-yellow-800">
-                            {warning.errorMessage}
-                          </pre>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              )}
-              {result.errors.length > 0 && (
-                <details className="mt-2" open>
-                  <summary className="cursor-pointer text-destructive hover:text-destructive/80 font-semibold">
-                    ❌ Xem chi tiết {result.errors.length} lỗi
-                  </summary>
-                  <div className="mt-2 space-y-2 text-xs max-h-64 overflow-y-auto">
-                    {result.errors.map((error, i) => (
-                      <div key={i} className="border-l-4 border-destructive pl-3 py-2 bg-destructive/5 rounded">
-                        <p className="font-bold text-destructive text-sm mb-1">
-                          {i + 1}. {error.productName} 
-                          {error.productCode !== 'N/A' && <span className="text-muted-foreground"> ({error.productCode})</span>}
-                        </p>
-                        <div className="space-y-1">
-                          <p className="font-medium text-foreground">Chi tiết lỗi:</p>
-                          <pre className="bg-muted/80 p-2 rounded overflow-x-auto whitespace-pre-wrap text-[11px] leading-relaxed font-mono border border-destructive/20">
-                            {error.errorMessage}
-                          </pre>
-                        </div>
-                        {error.fullError?.details && (
-                          <div className="mt-2 pt-2 border-t border-destructive/20">
-                            <p className="text-[10px] text-muted-foreground font-medium mb-1">Debug info:</p>
-                            <pre className="text-[10px] text-muted-foreground overflow-x-auto">
-                              {JSON.stringify(error.fullError.details, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded">
-                    <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
-                      💡 Các nguyên nhân thường gặp:
-                    </p>
-                    <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-0.5 ml-4 list-disc">
-                      <li>Thiếu trường bắt buộc (Tên sản phẩm, Mã sản phẩm, Giá bán...)</li>
-                      <li>Format dữ liệu không đúng (giá phải là số, không có ký tự đặc biệt...)</li>
-                      <li>Mã sản phẩm trùng lặp hoặc không hợp lệ</li>
-                      <li>Tên sản phẩm quá dài hoặc chứa ký tự không cho phép</li>
-                    </ul>
-                  </div>
-                </details>
+              {itemsWithVariants.length > 0 && (
+                <p className="text-purple-600">🔶 Sản phẩm có biến thể: {itemsWithVariants.length}</p>
               )}
             </div>
+            {allErrors.length > 0 && (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-destructive font-semibold">
+                  ❌ Xem {allErrors.length} lỗi
+                </summary>
+                <div className="mt-2 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {allErrors.map((error, i) => (
+                    <div key={i} className="border-l-2 border-destructive pl-2">
+                      <p className="font-medium">{error.productName}</p>
+                      <p className="text-destructive">{error.errorMessage}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         ),
-        duration: 10000, // Hiển thị lâu hơn để user đọc kết quả
+        duration: 10000,
       });
 
       onSuccess?.();
@@ -1160,81 +975,10 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("❌ Upload error:", errorMessage);
       
-      // Parse error message to extract TPOS error details
-      let parsedError = null;
-      try {
-        // Try to extract JSON from error message
-        const jsonMatch = errorMessage.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          parsedError = JSON.parse(jsonMatch[0]);
-        }
-      } catch (e) {
-        // Keep as is if parsing fails
-      }
-      
       toast({
         title: "❌ Lỗi upload lên TPOS",
-        description: (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            <div className="bg-destructive/10 p-3 rounded-lg border border-destructive/20">
-              <p className="font-semibold text-destructive mb-2">Chi tiết lỗi từ TPOS:</p>
-              {parsedError ? (
-                <div className="space-y-2">
-                  {parsedError.errors && Array.isArray(parsedError.errors) && (
-                    <div>
-                      <p className="text-xs font-medium mb-1">
-                        Có {parsedError.errors.length} lỗi được phát hiện:
-                      </p>
-                      <div className="space-y-1 max-h-40 overflow-y-auto">
-                        {parsedError.errors.slice(0, 5).map((err: any, i: number) => (
-                          <div key={i} className="text-xs bg-background/50 p-2 rounded border border-destructive/20">
-                            <p className="font-medium">
-                              {err.row ? `Hàng ${err.row}: ` : ''}
-                              {err.product_name || err.product_code || 'Unknown'}
-                            </p>
-                            <p className="text-destructive">
-                              {err.error || err.message || 'No error message'}
-                            </p>
-                            {err.field && (
-                              <p className="text-muted-foreground">Trường: {err.field}</p>
-                            )}
-                          </div>
-                        ))}
-                        {parsedError.errors.length > 5 && (
-                          <p className="text-xs text-muted-foreground italic">
-                            ... và {parsedError.errors.length - 5} lỗi khác
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  <pre className="text-[10px] bg-background/50 p-2 rounded overflow-x-auto whitespace-pre-wrap border border-destructive/20 font-mono">
-                    {JSON.stringify(parsedError, null, 2)}
-                  </pre>
-                </div>
-              ) : (
-                <pre className="text-xs bg-background/50 p-2 rounded overflow-x-auto whitespace-pre-wrap border border-destructive/20 font-mono">
-                  {errorMessage}
-                </pre>
-              )}
-            </div>
-            
-            <div className="bg-yellow-50 dark:bg-yellow-950/20 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800">
-              <p className="text-sm font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
-                💡 Các bước kiểm tra:
-              </p>
-              <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
-                <li><strong>Kết nối mạng:</strong> Kiểm tra kết nối internet</li>
-                <li><strong>Token TPOS:</strong> Đảm bảo token còn hiệu lực và có quyền</li>
-                <li><strong>Dữ liệu Excel:</strong> Kiểm tra các trường bắt buộc (Tên SP, Mã SP, Giá...)</li>
-                <li><strong>Format:</strong> Đảm bảo giá là số, tên không có ký tự đặc biệt</li>
-                <li><strong>Duplicate:</strong> Kiểm tra mã sản phẩm có bị trùng không</li>
-              </ul>
-            </div>
-          </div>
-        ),
+        description: errorMessage,
         variant: "destructive",
-        duration: 15000,
       });
     } finally {
       setIsUploading(false);
