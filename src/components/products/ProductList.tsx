@@ -81,9 +81,18 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
       .eq("id", deletingProduct.id);
 
     if (error) {
+      let errorMessage = "Không thể xóa sản phẩm";
+      
+      // Check for foreign key constraint error
+      if (error.code === "23503" || error.message.includes("violates foreign key constraint")) {
+        errorMessage = `Không thể xóa sản phẩm "${deletingProduct.product_name}" vì đang được sử dụng trong đơn đặt hàng. Vui lòng xóa các đơn hàng liên quan trước.`;
+      } else if (error.message) {
+        errorMessage = `Không thể xóa sản phẩm: ${error.message}`;
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể xóa sản phẩm",
+        description: errorMessage,
         variant: "destructive",
       });
     } else {
@@ -105,9 +114,18 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
       .in("id", Array.from(selectedIds));
 
     if (error) {
+      let errorMessage = "Không thể xóa sản phẩm đã chọn";
+      
+      // Check for foreign key constraint error
+      if (error.code === "23503" || error.message.includes("violates foreign key constraint")) {
+        errorMessage = `Một hoặc nhiều sản phẩm đang được sử dụng trong đơn đặt hàng. Vui lòng xóa các đơn hàng liên quan trước hoặc bỏ chọn các sản phẩm đó.`;
+      } else if (error.message) {
+        errorMessage = `Không thể xóa sản phẩm: ${error.message}`;
+      }
+      
       toast({
         title: "Lỗi",
-        description: "Không thể xóa sản phẩm đã chọn",
+        description: errorMessage,
         variant: "destructive",
       });
     } else {
