@@ -21,6 +21,8 @@ interface ChildVariantData {
   purchase_price: number;
   selling_price: number;
   supplier_name?: string;
+  product_images: string[];
+  price_images: string[];
 }
 
 interface CreateVariantInput {
@@ -105,22 +107,22 @@ export function useCreateVariantProducts() {
 
       let childrenCreated = 0;
       if (newChildren.length > 0) {
-        const { error } = await supabase
-          .from("products")
-          .insert(
-            newChildren.map(c => ({
-              product_code: c.product_code,
-              product_name: c.product_name,
-              variant: c.variant,
-              purchase_price: c.purchase_price,
-              selling_price: c.selling_price,
-              supplier_name: c.supplier_name || null,
-              stock_quantity: 0,
-              unit: "Cái",
-              product_images: [], // No images for child variants
-              price_images: []
-            }))
-          );
+      const { error } = await supabase
+        .from("products")
+        .insert(
+          newChildren.map(c => ({
+            product_code: c.product_code,
+            product_name: c.product_name,
+            variant: c.variant,
+            purchase_price: c.purchase_price,
+            selling_price: c.selling_price,
+            supplier_name: c.supplier_name || null,
+            stock_quantity: 0,
+            unit: "Cái",
+            product_images: c.product_images,
+            price_images: c.price_images
+          }))
+        );
 
         if (error) throw error;
         childrenCreated = newChildren.length;
