@@ -145,14 +145,13 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
                 <TableHead className="w-[80px]">Hình ảnh</TableHead>
                 <TableHead className="text-center">SL chuẩn bị</TableHead>
                 <TableHead className="text-center">SL bán</TableHead>
-                <TableHead className="text-right">Giá mua</TableHead>
                 <TableHead className="text-right">Giá bán</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {supplierGroups.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     Không có dữ liệu
                   </TableCell>
                 </TableRow>
@@ -200,9 +199,6 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
                         </TableCell>
                         <TableCell className="text-center font-medium text-primary">
                           {product.sold_quantity}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatVND(product.purchase_price)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatVND(product.selling_price)}
