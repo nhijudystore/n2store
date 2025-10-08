@@ -58,7 +58,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
     return Array.from(codes);
   }, [filteredItems]);
 
-  // Query variants from products table for base product codes
+  // Query variants from products table for all base product codes
   const { data: productVariants = [] } = useQuery({
     queryKey: ["product-variants-bulk", baseProductCodes],
     queryFn: async () => {
@@ -67,7 +67,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       const { data, error } = await supabase
         .from("products")
         .select("product_code, base_product_code, variant")
-        .in("base_product_code", baseProductCodes)
+        .or(baseProductCodes.map(code => `product_code.eq.${code},base_product_code.eq.${code}`).join(','))
         .not("variant", "is", null);
       
       if (error) {
@@ -113,14 +113,14 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       }
     }
 
-    // Add variants ONLY from products table (inventory) - not from purchase order items
+    // Add variants from products table (from database/inventory)
     groups.forEach(group => {
       const variantsFromDB = productVariants
-        .filter(pv => pv.base_product_code === group.baseProductCode)
+        .filter(pv => pv.product_code === group.baseProductCode || pv.base_product_code === group.baseProductCode)
         .map(pv => pv.variant)
         .filter((v): v is string => Boolean(v));
       
-      // Get unique variants from database only
+      // Get unique variants
       group.variants = [...new Set(variantsFromDB)];
     });
 
