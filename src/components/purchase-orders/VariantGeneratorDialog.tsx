@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sparkles, AlertTriangle, Search } from "lucide-react";
+import { Sparkles, AlertTriangle, Search, Check } from "lucide-react";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 import { TPOS_ATTRIBUTES } from "@/lib/tpos-attributes";
+import { cn } from "@/lib/utils";
 
 interface VariantGeneratorDialogProps {
   open: boolean;
@@ -36,6 +36,7 @@ export function VariantGeneratorDialog({
   const [selectedSizeText, setSelectedSizeText] = useState<string[]>([]);
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedSizeNumber, setSelectedSizeNumber] = useState<string[]>([]);
+  const [activeAttributeType, setActiveAttributeType] = useState<'sizeText' | 'color' | 'sizeNumber' | null>(null);
   const [sizeTextFilter, setSizeTextFilter] = useState("");
   const [colorFilter, setColorFilter] = useState("");
   const [sizeNumberFilter, setSizeNumberFilter] = useState("");
@@ -84,18 +85,29 @@ export function VariantGeneratorDialog({
   }, [selectedSizeText, selectedColors, selectedSizeNumber, currentItem.product_code, currentItem.product_name]);
 
   const toggleSelection = (type: 'sizeText' | 'color' | 'sizeNumber', value: string) => {
+    // Block if different type is already active
+    if (activeAttributeType && activeAttributeType !== type) {
+      return;
+    }
+
     if (type === 'sizeText') {
-      setSelectedSizeText(prev => 
-        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
-      );
+      const newSelection = selectedSizeText.includes(value)
+        ? selectedSizeText.filter(v => v !== value)
+        : [...selectedSizeText, value];
+      setSelectedSizeText(newSelection);
+      setActiveAttributeType(newSelection.length > 0 ? 'sizeText' : null);
     } else if (type === 'color') {
-      setSelectedColors(prev => 
-        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
-      );
+      const newSelection = selectedColors.includes(value)
+        ? selectedColors.filter(v => v !== value)
+        : [...selectedColors, value];
+      setSelectedColors(newSelection);
+      setActiveAttributeType(newSelection.length > 0 ? 'color' : null);
     } else {
-      setSelectedSizeNumber(prev => 
-        prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]
-      );
+      const newSelection = selectedSizeNumber.includes(value)
+        ? selectedSizeNumber.filter(v => v !== value)
+        : [...selectedSizeNumber, value];
+      setSelectedSizeNumber(newSelection);
+      setActiveAttributeType(newSelection.length > 0 ? 'sizeNumber' : null);
     }
   };
 
@@ -119,6 +131,7 @@ export function VariantGeneratorDialog({
     setSelectedSizeText([]);
     setSelectedColors([]);
     setSelectedSizeNumber([]);
+    setActiveAttributeType(null);
     setSizeTextFilter("");
     setColorFilter("");
     setSizeNumberFilter("");
@@ -163,7 +176,10 @@ export function VariantGeneratorDialog({
           {/* Selection Columns */}
           <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
             {/* Size Text */}
-            <div className="space-y-2 flex flex-col h-full">
+            <div className={cn(
+              "space-y-2 flex flex-col h-full transition-opacity",
+              activeAttributeType && activeAttributeType !== 'sizeText' && "opacity-40 pointer-events-none"
+            )}>
               <Label>Size Chữ ({selectedSizeText.length})</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -175,23 +191,30 @@ export function VariantGeneratorDialog({
                 />
               </div>
               <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {filteredSizeText.map((item) => (
                     <div 
-                      key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
+                      key={item.Id}
+                      onClick={() => toggleSelection('sizeText', item.Name)}
+                      className={cn(
+                        "flex items-center space-x-3 py-3 px-2 rounded cursor-pointer transition-all",
+                        "hover:bg-accent/50 active:bg-accent",
+                        selectedSizeText.includes(item.Name) && "bg-primary/10 border border-primary/20"
+                      )}
                     >
-                      <Checkbox
-                        id={`size-${item.Id}`}
-                        checked={selectedSizeText.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('sizeText', item.Name)}
-                      />
-                      <Label 
-                        htmlFor={`size-${item.Id}`} 
-                        className="cursor-pointer flex-1 font-normal"
-                      >
+                      <div className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0",
+                        selectedSizeText.includes(item.Name) 
+                          ? "bg-primary border-primary" 
+                          : "border-muted-foreground/30"
+                      )}>
+                        {selectedSizeText.includes(item.Name) && (
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <span className="flex-1 font-normal select-none">
                         {item.Name}
-                      </Label>
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -199,7 +222,10 @@ export function VariantGeneratorDialog({
             </div>
 
             {/* Color */}
-            <div className="space-y-2 flex flex-col h-full">
+            <div className={cn(
+              "space-y-2 flex flex-col h-full transition-opacity",
+              activeAttributeType && activeAttributeType !== 'color' && "opacity-40 pointer-events-none"
+            )}>
               <Label>Màu Sắc ({selectedColors.length})</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -211,23 +237,30 @@ export function VariantGeneratorDialog({
                 />
               </div>
               <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {filteredColors.map((item) => (
                     <div 
-                      key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
+                      key={item.Id}
+                      onClick={() => toggleSelection('color', item.Name)}
+                      className={cn(
+                        "flex items-center space-x-3 py-3 px-2 rounded cursor-pointer transition-all",
+                        "hover:bg-accent/50 active:bg-accent",
+                        selectedColors.includes(item.Name) && "bg-primary/10 border border-primary/20"
+                      )}
                     >
-                      <Checkbox
-                        id={`color-${item.Id}`}
-                        checked={selectedColors.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('color', item.Name)}
-                      />
-                      <Label 
-                        htmlFor={`color-${item.Id}`} 
-                        className="cursor-pointer flex-1 font-normal"
-                      >
+                      <div className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0",
+                        selectedColors.includes(item.Name) 
+                          ? "bg-primary border-primary" 
+                          : "border-muted-foreground/30"
+                      )}>
+                        {selectedColors.includes(item.Name) && (
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <span className="flex-1 font-normal select-none">
                         {item.Name}
-                      </Label>
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -235,7 +268,10 @@ export function VariantGeneratorDialog({
             </div>
 
             {/* Size Number */}
-            <div className="space-y-2 flex flex-col h-full">
+            <div className={cn(
+              "space-y-2 flex flex-col h-full transition-opacity",
+              activeAttributeType && activeAttributeType !== 'sizeNumber' && "opacity-40 pointer-events-none"
+            )}>
               <Label>Size Số ({selectedSizeNumber.length})</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -247,23 +283,30 @@ export function VariantGeneratorDialog({
                 />
               </div>
               <ScrollArea className="flex-1 rounded-md border p-3 bg-muted/30 max-h-[400px]">
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {filteredSizeNumber.map((item) => (
                     <div 
-                      key={item.Id} 
-                      className="flex items-center space-x-2 hover:bg-accent p-2 rounded cursor-pointer"
+                      key={item.Id}
+                      onClick={() => toggleSelection('sizeNumber', item.Name)}
+                      className={cn(
+                        "flex items-center space-x-3 py-3 px-2 rounded cursor-pointer transition-all",
+                        "hover:bg-accent/50 active:bg-accent",
+                        selectedSizeNumber.includes(item.Name) && "bg-primary/10 border border-primary/20"
+                      )}
                     >
-                      <Checkbox
-                        id={`num-${item.Id}`}
-                        checked={selectedSizeNumber.includes(item.Name)}
-                        onCheckedChange={() => toggleSelection('sizeNumber', item.Name)}
-                      />
-                      <Label 
-                        htmlFor={`num-${item.Id}`} 
-                        className="cursor-pointer flex-1 font-normal"
-                      >
+                      <div className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0",
+                        selectedSizeNumber.includes(item.Name) 
+                          ? "bg-primary border-primary" 
+                          : "border-muted-foreground/30"
+                      )}>
+                        {selectedSizeNumber.includes(item.Name) && (
+                          <Check className="h-3 w-3 text-primary-foreground" />
+                        )}
+                      </div>
+                      <span className="flex-1 font-normal select-none">
                         {item.Name}
-                      </Label>
+                      </span>
                     </div>
                   ))}
                 </div>
