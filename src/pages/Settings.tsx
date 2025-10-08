@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
 import { getTPOSProduct, parseVariantToAttributes, createAttributeLines, generateVariants, createPayload, postTPOSVariantPayload, createTPOSVariants } from "@/lib/tpos-variant-creator";
 import { TPOS_ATTRIBUTES } from "@/lib/variant-attributes";
+import { uploadToTPOS, TPOSProductItem } from "@/lib/tpos-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VariantTestTool } from "@/components/settings/VariantTestTool";
 
@@ -64,6 +65,16 @@ const Settings = () => {
   const [isTestingVariant, setIsTestingVariant] = useState(false);
   const [testVariantError, setTestVariantError] = useState<string | null>(null);
   const [isVariantResponseOpen, setIsVariantResponseOpen] = useState(false);
+  
+  // Single Product Upload states
+  const [singleProductName, setSingleProductName] = useState("");
+  const [singleProductCode, setSingleProductCode] = useState("");
+  const [singleVariant, setSingleVariant] = useState("");
+  const [singlePurchasePrice, setSinglePurchasePrice] = useState("");
+  const [singleSellingPrice, setSingleSellingPrice] = useState("");
+  const [isUploadingSingle, setIsUploadingSingle] = useState(false);
+  const [singleUploadResult, setSingleUploadResult] = useState<any>(null);
+  const [isSingleResultOpen, setIsSingleResultOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -522,6 +533,86 @@ const Settings = () => {
       });
     } finally {
       setIsTestingVariant(false);
+    }
+  };
+
+  const handleUploadSingleProduct = async () => {
+    // Validate inputs
+    if (!singleProductName.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập tên sản phẩm",
+      });
+      return;
+    }
+    
+    if (!singleProductCode.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Lỗi",
+        description: "Vui lòng nhập mã sản phẩm",
+      });
+      return;
+    }
+    
+    const purchasePrice = parseFloat(singlePurchasePrice) || 0;
+    const sellingPrice = parseFloat(singleSellingPrice) || 0;
+    
+    setIsUploadingSingle(true);
+    setSingleUploadResult(null);
+    
+    try {
+      const item: TPOSProductItem = {
+        id: crypto.randomUUID(),
+        product_code: singleProductCode.trim(),
+        product_name: singleProductName.trim(),
+        variant: singleVariant.trim() || null,
+        quantity: 1,
+        unit_price: purchasePrice,
+        selling_price: sellingPrice,
+        product_images: null,
+        price_images: null,
+        base_product_code: singleProductCode.trim(),
+        purchase_order_id: "",
+        supplier_name: "Manual Upload",
+      };
+      
+      const result = await uploadToTPOS([item], (step, total, message) => {
+        console.log(`[${step}/${total}] ${message}`);
+      });
+      
+      setSingleUploadResult(result);
+      setIsSingleResultOpen(true);
+      
+      if (result.successCount > 0) {
+        toast({
+          title: "✅ Upload thành công",
+          description: `Sản phẩm đã được upload lên TPOS`,
+        });
+        
+        // Clear form
+        setSingleProductName("");
+        setSingleProductCode("");
+        setSingleVariant("");
+        setSinglePurchasePrice("");
+        setSingleSellingPrice("");
+      } else {
+        toast({
+          variant: "destructive",
+          title: "❌ Upload thất bại",
+          description: result.errors[0]?.errorMessage || "Có lỗi xảy ra",
+        });
+      }
+    } catch (error: any) {
+      console.error("Upload single product error:", error);
+      toast({
+        variant: "destructive",
+        title: "Lỗi upload",
+        description: error.message,
+      });
+    } finally {
+      setIsUploadingSingle(false);
     }
   };
 
@@ -1130,6 +1221,161 @@ const Settings = () => {
                 </Card>
               </Collapsible>
             </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Single Product Upload Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5" />
+            Upload sản phẩm lên TPOS
+          </CardTitle>
+          <CardDescription>
+            Test upload từng sản phẩm lên TPOS với thông tin cơ bản
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tên sản phẩm *</label>
+              <Input
+                value={singleProductName}
+                onChange={(e) => setSingleProductName(e.target.value)}
+                placeholder="Nhập tên sản phẩm..."
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Mã sản phẩm *</label>
+              <Input
+                value={singleProductCode}
+                onChange={(e) => setSingleProductCode(e.target.value)}
+                placeholder="Nhập mã sản phẩm..."
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Biến thể</label>
+              <Input
+                value={singleVariant}
+                onChange={(e) => setSingleVariant(e.target.value)}
+                placeholder="Ví dụ: Đỏ, S, 28"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Giá mua</label>
+              <Input
+                type="number"
+                value={singlePurchasePrice}
+                onChange={(e) => setSinglePurchasePrice(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Giá bán</label>
+              <Input
+                type="number"
+                value={singleSellingPrice}
+                onChange={(e) => setSingleSellingPrice(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          <Button
+            onClick={handleUploadSingleProduct}
+            disabled={isUploadingSingle || !singleProductName.trim() || !singleProductCode.trim()}
+            className="w-full"
+          >
+            {isUploadingSingle ? (
+              <>
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                Đang upload...
+              </>
+            ) : (
+              <>
+                <Upload className="mr-2 h-4 w-4" />
+                Upload lên TPOS
+              </>
+            )}
+          </Button>
+          
+          {singleUploadResult && (
+            <Alert>
+              {singleUploadResult.successCount > 0 ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <AlertCircle className="h-4 w-4" />
+              )}
+              <AlertTitle>
+                {singleUploadResult.successCount > 0 ? "Upload thành công" : "Upload thất bại"}
+              </AlertTitle>
+              <AlertDescription>
+                <div className="mt-2 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span>Thành công:</span>
+                    <Badge variant={singleUploadResult.successCount > 0 ? "default" : "secondary"}>
+                      {singleUploadResult.successCount}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Thất bại:</span>
+                    <Badge variant={singleUploadResult.failedCount > 0 ? "destructive" : "secondary"}>
+                      {singleUploadResult.failedCount}
+                    </Badge>
+                  </div>
+                  {singleUploadResult.productIds.length > 0 && (
+                    <div className="flex justify-between">
+                      <span>TPOS Product ID:</span>
+                      <Badge variant="outline">
+                        {singleUploadResult.productIds[0].tposId}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {singleUploadResult && (
+            <Collapsible open={isSingleResultOpen} onOpenChange={setIsSingleResultOpen}>
+              <Card className="border-dashed">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader className="hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Chi tiết JSON Response</CardTitle>
+                      {isSingleResultOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Upload Result:</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => copyToClipboard(JSON.stringify(singleUploadResult, null, 2))}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <pre className="bg-muted p-4 rounded-md text-xs overflow-auto max-h-96">
+                      {JSON.stringify(singleUploadResult, null, 2)}
+                    </pre>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
         </CardContent>
       </Card>
