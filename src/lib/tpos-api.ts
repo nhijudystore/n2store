@@ -1065,7 +1065,7 @@ export async function uploadToTPOS(
         "Chiết khấu mua": undefined,
         "Tồn kho": undefined,
         "Giá vốn": undefined,
-        "Ghi chú": item.variant || undefined,
+        "Ghi chú": (item.variant && item.variant !== "-" && item.variant.trim() !== "") ? item.variant : undefined,
         "Cho phép bán ở công ty khác": "FALSE",
         "Thuộc tính": undefined,
       }];
