@@ -220,61 +220,9 @@ export function createAttributeLines(
   // DO NOT MERGE - Just create new attribute lines (overwrite mode)
   // This will replace all existing variants on TPOS
   
-  // Size Chữ (AttributeId = 1)
-  if (selectedAttributes.sizeText && selectedAttributes.sizeText.length > 0) {
-    const newValues = selectedAttributes.sizeText.map(attr => ({
-      Id: attr.Id,
-      Name: attr.Name,
-      Code: attr.Code,
-      Sequence: attr.Sequence,
-      AttributeId: 1,
-      AttributeName: "Size Chữ",
-      PriceExtra: null,
-      NameGet: `Size Chữ: ${attr.Name}`,
-      DateCreated: null
-    }));
-    
-    attributeLines.push({
-      Attribute: {
-        Id: 1,
-        Name: "Size Chữ",
-        Code: "SZCh",
-        Sequence: 1,
-        CreateVariant: true
-      },
-      Values: newValues,
-      AttributeId: 1
-    });
-  }
+  // Thứ tự sắp xếp: Màu → Size Chữ → Size Số (giống với tạo biến thể tự động)
   
-  // Size Số (AttributeId = 4)
-  if (selectedAttributes.sizeNumber && selectedAttributes.sizeNumber.length > 0) {
-    const newValues = selectedAttributes.sizeNumber.map(attr => ({
-      Id: attr.Id,
-      Name: attr.Name,
-      Code: attr.Code,
-      Sequence: null,
-      AttributeId: 4,
-      AttributeName: "Size Số",
-      PriceExtra: null,
-      NameGet: `Size Số: ${attr.Name}`,
-      DateCreated: null
-    }));
-    
-    attributeLines.push({
-      Attribute: {
-        Id: 4,
-        Name: "Size Số",
-        Code: "SZS",
-        Sequence: 2,
-        CreateVariant: true
-      },
-      Values: newValues,
-      AttributeId: 4
-    });
-  }
-  
-  // Màu (AttributeId = 3)
+  // Màu (AttributeId = 3) - FIRST
   if (selectedAttributes.color && selectedAttributes.color.length > 0) {
     const newValues = selectedAttributes.color.map(attr => ({
       Id: attr.Id,
@@ -293,11 +241,65 @@ export function createAttributeLines(
         Id: 3,
         Name: "Màu",
         Code: "mau",
-        Sequence: 3,
+        Sequence: 1,
         CreateVariant: true
       },
       Values: newValues,
       AttributeId: 3
+    });
+  }
+  
+  // Size Chữ (AttributeId = 1) - SECOND
+  if (selectedAttributes.sizeText && selectedAttributes.sizeText.length > 0) {
+    const newValues = selectedAttributes.sizeText.map(attr => ({
+      Id: attr.Id,
+      Name: attr.Name,
+      Code: attr.Code,
+      Sequence: attr.Sequence,
+      AttributeId: 1,
+      AttributeName: "Size Chữ",
+      PriceExtra: null,
+      NameGet: `Size Chữ: ${attr.Name}`,
+      DateCreated: null
+    }));
+    
+    attributeLines.push({
+      Attribute: {
+        Id: 1,
+        Name: "Size Chữ",
+        Code: "SZCh",
+        Sequence: 2,
+        CreateVariant: true
+      },
+      Values: newValues,
+      AttributeId: 1
+    });
+  }
+  
+  // Size Số (AttributeId = 4) - THIRD
+  if (selectedAttributes.sizeNumber && selectedAttributes.sizeNumber.length > 0) {
+    const newValues = selectedAttributes.sizeNumber.map(attr => ({
+      Id: attr.Id,
+      Name: attr.Name,
+      Code: attr.Code,
+      Sequence: null,
+      AttributeId: 4,
+      AttributeName: "Size Số",
+      PriceExtra: null,
+      NameGet: `Size Số: ${attr.Name}`,
+      DateCreated: null
+    }));
+    
+    attributeLines.push({
+      Attribute: {
+        Id: 4,
+        Name: "Size Số",
+        Code: "SZS",
+        Sequence: 3,
+        CreateVariant: true
+      },
+      Values: newValues,
+      AttributeId: 4
     });
   }
   
