@@ -45,7 +45,7 @@ export function SelectProductDialog({ open, onOpenChange, onSelect }: SelectProd
       let query = supabase
         .from("products")
         .select("*")
-        .order("product_code", { ascending: false });
+        .order("created_at", { ascending: false });
       
       // Nếu có search (>= 2 ký tự): Search trong database
       if (debouncedSearch.length >= 2) {
