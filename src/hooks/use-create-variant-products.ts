@@ -16,6 +16,7 @@ interface BaseProductData {
 
 interface ChildVariantData {
   product_code: string;
+  base_product_code: string;
   product_name: string;
   variant: string;
   purchase_price: number;
@@ -112,6 +113,7 @@ export function useCreateVariantProducts() {
         .insert(
           newChildren.map(c => ({
             product_code: c.product_code,
+            base_product_code: c.base_product_code,
             product_name: c.product_name,
             variant: c.variant,
             purchase_price: c.purchase_price,
