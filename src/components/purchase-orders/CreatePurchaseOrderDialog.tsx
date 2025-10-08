@@ -793,7 +793,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
         onSelect={handleSelectProduct}
       />
 
-      {variantGeneratorIndex !== null && items[variantGeneratorIndex] && (
+      {variantGeneratorIndex !== null && (
         <VariantGeneratorDialog
           open={isVariantDialogOpen}
           onOpenChange={setIsVariantDialogOpen}
