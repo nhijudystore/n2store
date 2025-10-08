@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -88,7 +88,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [isVariantDialogOpen, setIsVariantDialogOpen] = useState(false);
   const [variantGeneratorIndex, setVariantGeneratorIndex] = useState<number | null>(null);
-  const isConfirmingVariants = useRef(false);
   
   const createVariantProducts = useCreateVariantProducts();
 
@@ -786,35 +785,12 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       {variantGeneratorIndex !== null && items[variantGeneratorIndex] && (
         <VariantGeneratorDialog
           open={isVariantDialogOpen}
-          onOpenChange={(open) => {
-            setIsVariantDialogOpen(open);
-            // Khi đóng dialog mà không confirm, xóa dữ liệu của dòng đó
-            if (!open && variantGeneratorIndex !== null && !isConfirmingVariants.current) {
-              const newItems = [...items];
-              newItems[variantGeneratorIndex] = {
-                ...newItems[variantGeneratorIndex],
-                _tempProductName: "",
-                _tempProductCode: "",
-                _tempVariant: "",
-                _tempUnitPrice: 0,
-                _tempSellingPrice: 0,
-                _tempProductImages: [],
-                _tempPriceImages: []
-              };
-              setItems(newItems);
-              setVariantGeneratorIndex(null);
-            }
-            // Reset flag sau khi đóng
-            if (!open) {
-              isConfirmingVariants.current = false;
-            }
-          }}
+          onOpenChange={setIsVariantDialogOpen}
           currentItem={{
             product_code: items[variantGeneratorIndex]._tempProductCode,
             product_name: items[variantGeneratorIndex]._tempProductName
           }}
           onVariantsGenerated={(variants) => {
-            isConfirmingVariants.current = true; // Đánh dấu đang confirm
             handleVariantsGenerated(variantGeneratorIndex, variants);
             setVariantGeneratorIndex(null);
           }}
