@@ -68,6 +68,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
         .from("products")
         .select("product_code, product_name, variant")
         .in("product_code", baseProductCodes)
+        .is("base_product_code", null)
         .not("variant", "is", null);
       
       if (error) {
@@ -1334,7 +1335,7 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                       <TableCell className="font-mono text-xs">
                         {group.baseProductCode}
                       </TableCell>
-                      <TableCell className="font-medium">{group.baseItem.product_name}</TableCell>
+                      <TableCell className="font-medium">{group.baseProductCode}</TableCell>
                       <TableCell>
                         {group.variants.length > 0 ? (
                           <div className="flex flex-wrap gap-1">

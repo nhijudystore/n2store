@@ -499,35 +499,18 @@ export async function postTPOSVariantPayload(payload: any): Promise<any> {
 
 export async function createTPOSVariants(
   tposProductId: number, 
-  variant: string | null | undefined,
+  variant: string,
   onProgress?: (message: string) => void
 ): Promise<any> {
   try {
     onProgress?.(`Đang lấy thông tin sản phẩm ${tposProductId}...`);
     const originalProduct = await getTPOSProduct(tposProductId);
     
-    // Nếu không có variant, tạo payload với AttributeLines rỗng
-    if (!variant || variant.trim() === '') {
-      onProgress?.(`Sản phẩm không có biến thể, đang tạo payload với attributes rỗng...`);
-      const payload = createPayload(originalProduct, [], []);
-      
-      onProgress?.(`Đang upload lên TPOS...`);
-      const result = await postTPOSVariantPayload(payload);
-      
-      onProgress?.(`✅ Cập nhật sản phẩm thành công (không có biến thể)`);
-      return result;
-    }
-    
     onProgress?.(`Đang phân tích variant "${variant}"...`);
     const selectedAttributes = parseVariantToAttributes(variant);
     
     if (!selectedAttributes.sizeText && !selectedAttributes.sizeNumber && !selectedAttributes.color) {
-      // Nếu không parse được variant, cũng tạo payload rỗng thay vì throw error
-      onProgress?.(`Không phát hiện biến thể hợp lệ, đang tạo payload với attributes rỗng...`);
-      const payload = createPayload(originalProduct, [], []);
-      const result = await postTPOSVariantPayload(payload);
-      onProgress?.(`✅ Cập nhật sản phẩm thành công (không có biến thể)`);
-      return result;
+      throw new Error(`Không thể phân tích variant: ${variant}`);
     }
     
     // DO NOT use existing AttributeLines - OVERWRITE mode
