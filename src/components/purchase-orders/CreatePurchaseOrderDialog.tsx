@@ -306,6 +306,20 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     createVariantProducts.mutate({ 
       baseProduct: baseProductData,
       childVariants: childVariantsData
+    }, {
+      onSuccess: () => {
+        // Update variant field in the form for the base product row
+        setItems(prev => {
+          const newItems = [...prev];
+          if (newItems[index]) {
+            newItems[index] = {
+              ...newItems[index],
+              variant: mergedVariant
+            };
+          }
+          return newItems;
+        });
+      }
     });
 
     // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới)
