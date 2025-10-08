@@ -641,163 +641,199 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       if (!confirmed) return;
     }
 
-    // Group items by base_product_code (use this for TPOS upload)
-    const groupedByProductCode = new Map<string, TPOSProductItem[]>();
-    selectedItems.forEach(item => {
-      const code = item.base_product_code || item.product_code || 'NO_CODE';
-      if (!groupedByProductCode.has(code)) {
-        groupedByProductCode.set(code, []);
-      }
-      groupedByProductCode.get(code)!.push(item);
-    });
+    // Split items into two groups: with variants and without variants
+    const itemsWithoutVariants = selectedItems.filter(item => !item.variant || item.variant.trim() === '');
+    const itemsWithVariants = selectedItems.filter(item => item.variant && item.variant.trim() !== '');
 
-    console.log(`📦 Grouped ${selectedItems.length} items into ${groupedByProductCode.size} product codes`);
-    groupedByProductCode.forEach((items, code) => {
-      const variants = items.map(i => i.variant).filter(Boolean);
-      console.log(`  - ${code}: ${items.length} items, variants: ${variants.join(', ')}`);
-    });
-
-    // Check existing products and variants in database using base_product_code
-    setCurrentStep("Đang kiểm tra sản phẩm trong kho...");
-    const productCodes = Array.from(groupedByProductCode.keys()).filter(code => code !== 'NO_CODE');
-    
-    const { data: existingProducts } = await supabase
-      .from("products")
-      .select("product_code, variant, tpos_product_id")
-      .in("product_code", productCodes);
-
-    // Map ALL existing variants by product_code (to merge with new ones when uploading to TPOS)
-    const existingVariantsByCode = new Map<string, Array<{ variant: string | null; tpos_product_id: number | null }>>();
-    const existingTPOSIds = new Map<string, number>();
-    
-    existingProducts?.forEach(p => {
-      if (!existingVariantsByCode.has(p.product_code)) {
-        existingVariantsByCode.set(p.product_code, []);
-      }
-      existingVariantsByCode.get(p.product_code)!.push({
-        variant: p.variant,
-        tpos_product_id: p.tpos_product_id
-      });
-      if (p.tpos_product_id) {
-        existingTPOSIds.set(p.product_code, p.tpos_product_id);
-      }
-    });
-
-    console.log(`📋 Found ${existingProducts?.length || 0} existing products in database`);
-    existingVariantsByCode.forEach((variants, code) => {
-      console.log(`  - ${code}: existing variants in products table: ${variants.map(v => v.variant || '(no variant)').join(', ')}`);
-    });
-
-    // Prepare items for upload - use variants from inventory (baseProductVariants)
-    const itemsToUpload: TPOSProductItem[] = [];
-    const variantMapping = new Map<string, { 
-      items: TPOSProductItem[], 
-      allVariants: string[], // Variants from inventory to upload to TPOS
-      variantString: string,
-      existingTPOSId?: number 
-    }>();
-
-    // Get selected groups from groupedItems (which has variants from inventory)
-    const selectedGroups = groupedItems.filter(group => 
-      group.items.some(item => selectedIds.has(item.id))
-    );
-
-    selectedGroups.forEach((group) => {
-      const productCode = group.baseProductCode;
-      const existingTPOSId = existingTPOSIds.get(productCode);
-      
-      // Get variants and product name from inventory (base product in products table)
-      const baseProduct = baseProductVariants.find(pv => pv.product_code === productCode);
-      const variantString = group.variants.length > 0 ? group.variants[0] : ''; // Single variant string from base product
-      const productName = baseProduct?.product_name; // Use name from inventory only
-      
-      console.log(`📦 ${productCode}: Name from inventory: ${productName}, Variant: ${variantString || '(none)'}`);
-
-      if (!variantString) {
-        console.log(`⚠️ ${productCode}: No variants found in inventory, skipping variant upload`);
-        // Still upload the product itself if needed
-        if (!existingTPOSId) {
-          const representative = { ...group.baseItem };
-          representative.variant = null;
-          representative.product_code = productCode;
-          representative.product_name = productName; // Use name from inventory
-          itemsToUpload.push(representative);
-        }
-        return;
-      }
-
-      console.log(`📦 ${productCode}: Will upload with variants: ${variantString}`);
-      
-      // Use base item as representative but override with inventory data
-      const representative = { ...group.baseItem };
-      
-      // Check if product already exists on TPOS
-      if (existingTPOSId) {
-        console.log(`🔗 ${productCode}: Product exists on TPOS (ID: ${existingTPOSId}), will sync variants`);
-        // Store for variant creation
-        variantMapping.set(productCode, {
-          items: group.items,
-          allVariants: [variantString], // Keep as single string
-          variantString: variantString,
-          existingTPOSId: existingTPOSId
-        });
-      } else {
-        // Product doesn't exist on TPOS yet - need to upload with variants
-        console.log(`📤 ${productCode}: New product, will upload to TPOS with variants`);
-        
-        variantMapping.set(productCode, {
-          items: group.items,
-          allVariants: [variantString], // Keep as single string
-          variantString: variantString
-        });
-        // Override with inventory data
-        representative.variant = null;
-        representative.product_code = productCode;
-        representative.product_name = productName; // Use name from inventory
-        
-        itemsToUpload.push(representative);
-      }
-    });
-
-    console.log(`🚀 Will upload ${itemsToUpload.length} NEW products to TPOS`);
-    console.log(`🎨 Will create variants for ${variantMapping.size} products`);
-
-    if (itemsToUpload.length === 0 && variantMapping.size === 0) {
-      toast({
-        title: "⚠️ Không có sản phẩm mới",
-        description: "Tất cả các biến thể đã tồn tại trong kho sản phẩm",
-      });
-      setIsUploading(false);
-      return;
-    }
-
-    // Thông báo bắt đầu upload
-    toast({
-      title: "Bắt đầu upload",
-      description: `Đang upload ${itemsToUpload.length} sản phẩm (${selectedItems.length} items) lên TPOS...`,
-    });
+    console.log(`📦 Total selected: ${selectedItems.length}`);
+    console.log(`   - Without variants: ${itemsWithoutVariants.length}`);
+    console.log(`   - With variants: ${itemsWithVariants.length}`);
 
     setIsUploading(true);
     setProgress(0);
     setCurrentStep("Đang bắt đầu...");
 
     try {
-      // Upload NEW products to TPOS (those that don't exist yet)
-      let result: any = {
-        success: false,
-        totalProducts: itemsToUpload.length,
-        successCount: 0,
-        failedCount: 0,
-        savedIds: 0,
-        errors: [],
-        imageUploadWarnings: [],
-        productIds: [],
-      };
+      let totalSuccess = 0;
+      let totalFailed = 0;
+      let allErrors: any[] = [];
 
-      if (itemsToUpload.length > 0) {
-        result = await uploadToTPOS(itemsToUpload, (step, total, message) => {
-          setProgress((step / total) * 100);
+      // ========== PART 1: Upload simple products (no variants) ==========
+      if (itemsWithoutVariants.length > 0) {
+        console.log(`\n🔷 UPLOADING ${itemsWithoutVariants.length} SIMPLE PRODUCTS (no variants)`);
+        setCurrentStep(`Đang upload ${itemsWithoutVariants.length} sản phẩm đơn giản...`);
+
+        const simpleResult = await uploadToTPOS(itemsWithoutVariants, (step, total, message) => {
+          setProgress((step / (total + itemsWithVariants.length)) * 50); // First 50%
           setCurrentStep(message);
+        });
+
+        totalSuccess += simpleResult.successCount;
+        totalFailed += simpleResult.failedCount;
+        allErrors = [...allErrors, ...simpleResult.errors];
+
+        // Save TPOS IDs for simple products
+        if (simpleResult.productIds.length > 0) {
+          setCurrentStep("Đang lưu TPOS IDs cho sản phẩm đơn giản...");
+          for (const { itemId, tposId } of simpleResult.productIds) {
+            await supabase
+              .from("purchase_order_items")
+              .update({ tpos_product_id: tposId })
+              .eq("id", itemId);
+          }
+        }
+
+        console.log(`✅ Simple products: ${simpleResult.successCount} success, ${simpleResult.failedCount} failed`);
+      }
+
+      // ========== PART 2: Upload products with variants (existing logic) ==========
+      if (itemsWithVariants.length > 0) {
+        console.log(`\n🔶 UPLOADING ${itemsWithVariants.length} PRODUCTS WITH VARIANTS`);
+        setCurrentStep(`Đang xử lý ${itemsWithVariants.length} sản phẩm có biến thể...`);
+        setProgress(50);
+
+        // Group items by base_product_code (use this for TPOS upload)
+        const groupedByProductCode = new Map<string, TPOSProductItem[]>();
+        itemsWithVariants.forEach(item => {
+          const code = item.base_product_code || item.product_code || 'NO_CODE';
+          if (!groupedByProductCode.has(code)) {
+            groupedByProductCode.set(code, []);
+          }
+          groupedByProductCode.get(code)!.push(item);
+        });
+
+        console.log(`📦 Grouped ${itemsWithVariants.length} items into ${groupedByProductCode.size} product codes`);
+        groupedByProductCode.forEach((items, code) => {
+          const variants = items.map(i => i.variant).filter(Boolean);
+          console.log(`  - ${code}: ${items.length} items, variants: ${variants.join(', ')}`);
+        });
+
+        // Check existing products and variants in database using base_product_code
+        setCurrentStep("Đang kiểm tra sản phẩm trong kho...");
+        const productCodes = Array.from(groupedByProductCode.keys()).filter(code => code !== 'NO_CODE');
+        
+        const { data: existingProducts } = await supabase
+          .from("products")
+          .select("product_code, variant, tpos_product_id")
+          .in("product_code", productCodes);
+
+        // Map ALL existing variants by product_code
+        const existingVariantsByCode = new Map<string, Array<{ variant: string | null; tpos_product_id: number | null }>>();
+        const existingTPOSIds = new Map<string, number>();
+        
+        existingProducts?.forEach(p => {
+          if (!existingVariantsByCode.has(p.product_code)) {
+            existingVariantsByCode.set(p.product_code, []);
+          }
+          existingVariantsByCode.get(p.product_code)!.push({
+            variant: p.variant,
+            tpos_product_id: p.tpos_product_id
+          });
+          if (p.tpos_product_id) {
+            existingTPOSIds.set(p.product_code, p.tpos_product_id);
+          }
+        });
+
+        // Prepare items for upload
+        const itemsToUpload: TPOSProductItem[] = [];
+        const variantMapping = new Map<string, { 
+          items: TPOSProductItem[], 
+          allVariants: string[],
+          variantString: string,
+          existingTPOSId?: number 
+        }>();
+
+        // Get selected groups from groupedItems (which has variants from inventory)
+        const selectedGroups = groupedItems.filter(group => 
+          group.items.some(item => selectedIds.has(item.id) && item.variant && item.variant.trim() !== '')
+        );
+
+        selectedGroups.forEach((group) => {
+          const productCode = group.baseProductCode;
+          const existingTPOSId = existingTPOSIds.get(productCode);
+          
+          const baseProduct = baseProductVariants.find(pv => pv.product_code === productCode);
+          const variantString = group.variants.length > 0 ? group.variants[0] : '';
+          const productName = baseProduct?.product_name;
+          
+          if (!variantString) {
+            if (!existingTPOSId) {
+              const representative = { ...group.baseItem };
+              representative.variant = null;
+              representative.product_code = productCode;
+              representative.product_name = productName;
+              itemsToUpload.push(representative);
+            }
+            return;
+          }
+
+          const representative = { ...group.baseItem };
+          
+          if (existingTPOSId) {
+            variantMapping.set(productCode, {
+              items: group.items,
+              allVariants: [variantString],
+              variantString: variantString,
+              existingTPOSId: existingTPOSId
+            });
+          } else {
+            variantMapping.set(productCode, {
+              items: group.items,
+              allVariants: [variantString],
+              variantString: variantString
+            });
+            representative.variant = null;
+            representative.product_code = productCode;
+            representative.product_name = productName;
+            itemsToUpload.push(representative);
+          }
+        });
+
+        // Upload products with variants
+        if (itemsToUpload.length > 0 || variantMapping.size > 0) {
+          let variantResult: any = {
+            success: false,
+            totalProducts: itemsToUpload.length,
+            successCount: 0,
+            failedCount: 0,
+            savedIds: 0,
+            errors: [],
+            imageUploadWarnings: [],
+            productIds: [],
+          };
+
+          if (itemsToUpload.length > 0) {
+            variantResult = await uploadToTPOS(itemsToUpload, (step, total, message) => {
+              setProgress(50 + (step / total) * 25); // 50-75%
+              setCurrentStep(message);
+            });
+          } else {
+            variantResult.success = true;
+          }
+
+          // Save TPOS IDs and create variants
+          if (variantResult.productIds.length > 0) {
+            setCurrentStep("Đang lưu TPOS IDs...");
+            const allItemUpdates: Array<{ itemId: string; tposId: number }> = [];
+            
+            for (const { itemId, tposId } of variantResult.productIds) {
+              const representative = itemsToUpload.find(i => i.id === itemId);
+              if (!representative || !representative.product_code) continue;
+              
+              const variantInfo = variantMapping.get(representative.product_code);
+              if (!variantInfo) continue;
+              
+              for (const groupItem of variantInfo.items) {
+                allItemUpdates.push({ itemId: groupItem.id, tposId });
+                await supabase
+                  .from("purchase_order_items")
+                  .update({ tpos_product_id: tposId })
+                  .eq("id", groupItem.id);
+              }
+            }
+          }
+
+          // ... keep existing variant creation logic ...
         });
 
       // Log TPOS response
