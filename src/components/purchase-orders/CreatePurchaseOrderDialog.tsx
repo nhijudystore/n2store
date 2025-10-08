@@ -308,23 +308,9 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     createVariantProducts.mutate({ 
       baseProduct: baseProductData,
       childVariants: childVariantsData
-    }, {
-      onSuccess: () => {
-        // Update variant field in the form for the base product row
-        setItems(prev => {
-          const newItems = [...prev];
-          if (newItems[index]) {
-            newItems[index] = {
-              ...newItems[index],
-              variant: mergedVariant
-            };
-          }
-          return newItems;
-        });
-      }
     });
 
-    // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới)
+    // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới, KHÔNG update variant field)
   };
 
   const openVariantGenerator = (index: number) => {
@@ -472,13 +458,13 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                     <TableHead className="w-16">STT</TableHead>
               <TableHead className="w-[260px]">Tên sản phẩm</TableHead>
               <TableHead className="w-[70px]">Mã sản phẩm</TableHead>
-              <TableHead className="w-[150px]">Biến thể</TableHead>
               <TableHead className="w-[60px]">SL</TableHead>
               <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
               <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
               <TableHead className="w-[130px]">Thành tiền (VND)</TableHead>
               <TableHead className="w-[100px]">Hình ảnh sản phẩm</TableHead>
               <TableHead className="w-[100px]">Hình ảnh Giá mua</TableHead>
+              <TableHead className="w-[150px]">Biến thể</TableHead>
               <TableHead className="w-16">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -518,30 +504,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                 className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
                 maxLength={10}
               />
-            </TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1">
-                <VariantDropdownSelector
-                  baseProductCode={item.product_code}
-                  value={item.variant}
-                  onChange={(value) => updateItem(index, "variant", value)}
-                  onVariantSelect={(data) => {
-                    updateItem(index, "product_code", data.productCode);
-                    updateItem(index, "product_name", data.productName);
-                    updateItem(index, "variant", data.variant);
-                  }}
-                  className="flex-1"
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() => openVariantGenerator(index)}
-                  title="Tạo biến thể tự động"
-                >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
-              </div>
             </TableCell>
                       <TableCell>
                         <Input
@@ -589,6 +551,30 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           itemIndex={index}
                         />
                       </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-1">
+                <VariantDropdownSelector
+                  baseProductCode={item.product_code}
+                  value={item.variant}
+                  onChange={(value) => updateItem(index, "variant", value)}
+                  onVariantSelect={(data) => {
+                    updateItem(index, "product_code", data.productCode);
+                    updateItem(index, "product_name", data.productName);
+                    updateItem(index, "variant", data.variant);
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={() => openVariantGenerator(index)}
+                  title="Tạo biến thể tự động"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
+              </div>
+            </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
                           <Button 
