@@ -35,7 +35,8 @@ export function VariantDropdownSelector({
         variant: variant.variant
       });
     }
-    setOpen(false);
+    // Delay closing to ensure selection is processed
+    setTimeout(() => setOpen(false), 100);
   };
   
   return (
@@ -59,7 +60,17 @@ export function VariantDropdownSelector({
           )}
         </div>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-80" align="start">
+      <PopoverContent 
+        className="p-0 w-80" 
+        align="start"
+        onInteractOutside={(e) => {
+          // Prevent closing when clicking inside the popover content
+          const target = e.target as HTMLElement;
+          if (target.closest('[role="option"]')) {
+            e.preventDefault();
+          }
+        }}
+      >
         <Command>
           <CommandList>
             {isLoading && <CommandEmpty>Đang tải...</CommandEmpty>}
@@ -72,6 +83,10 @@ export function VariantDropdownSelector({
                   <CommandItem
                     key={variant.id}
                     onSelect={() => handleSelectVariant(variant)}
+                    onMouseDown={(e) => {
+                      // Prevent default to avoid popover closing during click
+                      e.preventDefault();
+                    }}
                     className="cursor-pointer"
                   >
                     <div className="flex items-center justify-between w-full gap-2">
