@@ -43,6 +43,9 @@ serve(async (req) => {
         headers: {
           'Authorization': `Bearer ${bearerToken}`,
           'Content-Type': 'application/json',
+          'accept': 'application/json, text/javascript, */*; q=0.01',
+          'tposappversion': '5.9.10.1',
+          'x-requested-with': 'XMLHttpRequest',
         },
       }
     );
