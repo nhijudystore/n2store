@@ -86,22 +86,17 @@ export function FacebookLiveComments() {
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
 
-  // Map StatusText to database values
+  // Map StatusText to Vietnamese labels for database
   const mapStatusText = (statusText: string | null | undefined): string => {
-    if (!statusText) return 'normal';
+    if (!statusText) return 'Bình thường';
     
-    const statusMap: Record<string, string> = {
-      'Bình thường': 'normal',
-      'Bom hàng': 'bomb',
-      'Cảnh báo': 'warning',
-      'Khách sỉ': 'wholesale',
-      'Nguy hiểm': 'danger',
-      'Thân thiết': 'close',
-      'Vip': 'vip',
-      'VIP': 'vip',
-    };
+    // Normalize the status text (handle both "Vip" and "VIP")
+    const normalizedStatus = statusText.toLowerCase();
+    if (normalizedStatus === 'vip') return 'VIP';
     
-    return statusMap[statusText] || 'normal';
+    // Return as-is if already Vietnamese, default to "Bình thường"
+    const validStatuses = ['Bình thường', 'Bom hàng', 'Cảnh báo', 'Khách sỉ', 'Nguy hiểm', 'Thân thiết', 'VIP'];
+    return validStatuses.includes(statusText) ? statusText : 'Bình thường';
   };
 
   // Fetch and process partner status for comments and save to customer database

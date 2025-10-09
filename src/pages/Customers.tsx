@@ -62,23 +62,23 @@ type Customer = {
 type CustomerFormData = Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'total_orders' | 'total_spent'>;
 
 const statusColors: Record<string, string> = {
-  normal: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-  bomb: 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
-  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-  wholesale: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-  danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
-  close: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
-  vip: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+  'Bình thường': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  'Bom hàng': 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
+  'Cảnh báo': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+  'Khách sỉ': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  'Nguy hiểm': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+  'Thân thiết': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
+  'VIP': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
 };
 
 const statusLabels: Record<string, string> = {
-  normal: 'Bình thường',
-  bomb: 'Bom hàng',
-  warning: 'Cảnh báo',
-  wholesale: 'Khách sỉ',
-  danger: 'Nguy hiểm',
-  close: 'Thân thiết',
-  vip: 'VIP',
+  'Bình thường': 'Bình thường',
+  'Bom hàng': 'Bom hàng',
+  'Cảnh báo': 'Cảnh báo',
+  'Khách sỉ': 'Khách sỉ',
+  'Nguy hiểm': 'Nguy hiểm',
+  'Thân thiết': 'Thân thiết',
+  'VIP': 'VIP',
 };
 
 const infoStatusLabels: Record<string, string> = {
@@ -103,7 +103,7 @@ export default function Customers() {
     email: "",
     address: "",
     notes: "",
-    customer_status: "normal",
+    customer_status: "Bình thường",
     info_status: "incomplete",
     facebook_id: "",
   });
