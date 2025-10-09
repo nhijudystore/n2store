@@ -370,9 +370,10 @@ export function FacebookLiveComments() {
                   filteredComments.map((comment) => {
                     const isNew = newCommentIds.has(comment.id);
                     // Generate a simple status based on comment content (for display only)
+                    // Default status is "Khách lạ" (strange customer) for people without data
                     const hasWarningKeyword = comment.message?.toLowerCase().includes('cảnh báo') || 
                                              comment.message?.toLowerCase().includes('warning');
-                    const partnerStatus = hasWarningKeyword ? 'warning' : 'normal';
+                    const partnerStatus = hasWarningKeyword ? 'warning' : 'stranger';
                     
                     return (
                       <Card
@@ -420,13 +421,13 @@ export function FacebookLiveComments() {
                                   Thông tin
                                 </Button>
                                 <Badge 
-                                  variant={partnerStatus === 'warning' ? 'secondary' : 'default'}
+                                  variant="secondary"
                                   className={partnerStatus === 'warning' 
                                     ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                                    : 'bg-green-500 hover:bg-green-600 text-white'
+                                    : 'bg-gray-500 hover:bg-gray-600 text-white'
                                   }
                                 >
-                                  {partnerStatus === 'warning' ? 'Cảnh báo' : 'Bình thường'}
+                                  {partnerStatus === 'warning' ? 'Cảnh báo' : 'Khách lạ'}
                                 </Badge>
                                 {comment.like_count > 0 && (
                                   <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
