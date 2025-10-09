@@ -86,7 +86,7 @@ export function FacebookLiveComments() {
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
 
-  // Fetch and process partner status for comments
+  // Fetch and process partner status for comments and save to customer database
   const fetchPartnerStatusBatch = useCallback(async (commentsToProcess: FacebookComment[]) => {
     if (!selectedVideo?.objectId || commentsToProcess.length === 0) return;
 
@@ -131,6 +131,7 @@ export function FacebookLiveComments() {
 
       // Batch fetch partner status (10 at a time)
       const partnerStatusMap = new Map<string, string>();
+      const partnerPhoneMap = new Map<string, string>(); // Map comment name to phone
       
       for (let i = 0; i < phoneNumbers.length; i += 10) {
         const batch = phoneNumbers.slice(i, i + 10);
@@ -153,9 +154,51 @@ export function FacebookLiveComments() {
             const matchingComment = commentsToProcess.find(c => 
               c.from.name.toLowerCase() === partner.Name?.toLowerCase()
             );
-            if (matchingComment && partner.StatusText) {
-              partnerStatusMap.set(matchingComment.id, partner.StatusText);
+            if (matchingComment) {
+              if (partner.StatusText) {
+                partnerStatusMap.set(matchingComment.id, partner.StatusText);
+              }
+              if (partner.Phone) {
+                partnerPhoneMap.set(matchingComment.from.name, partner.Phone);
+              }
             }
+          }
+        }
+      }
+
+      // Save customers to database
+      for (const comment of commentsToProcess) {
+        const order = commentOrderMap.get(comment.id);
+        const partnerStatus = partnerStatusMap.get(comment.id);
+        const phone = partnerPhoneMap.get(comment.from.name) || order?.Telephone;
+        
+        if (order) {
+          // Check if customer already exists
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id, info_status')
+            .eq('phone', phone)
+            .maybeSingle();
+
+          const customerData = {
+            customer_name: order.Name,
+            phone: phone,
+            facebook_id: comment.from.id,
+            customer_status: order.PartnerStatus?.toLowerCase() || 'normal',
+            info_status: partnerStatus ? 'complete' : 'incomplete',
+          };
+
+          if (existingCustomer) {
+            // Update existing customer
+            await supabase
+              .from('customers')
+              .update(customerData)
+              .eq('id', existingCustomer.id);
+          } else {
+            // Insert new customer
+            await supabase
+              .from('customers')
+              .insert(customerData);
           }
         }
       }
@@ -535,6 +578,15 @@ export function FacebookLiveComments() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm">{comment.from?.name}</span>
+                                {comment.orderInfo?.Telephone ? (
+                                  <Badge variant="outline" className="text-xs">
+                                    {comment.orderInfo.Telephone}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary" className="text-xs bg-orange-500/20 text-orange-700">
+                                    Chưa có TT
+                                  </Badge>
+                                )}
                                 {comment.from?.id && (
                                   <Badge variant="outline" className="text-xs">
                                     #{comment.from.id.slice(-8)}

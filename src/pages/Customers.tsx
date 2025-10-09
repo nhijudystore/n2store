@@ -50,6 +50,7 @@ type Customer = {
   address: string | null;
   notes: string | null;
   customer_status: string;
+  info_status: string;
   total_orders: number;
   total_spent: number;
   facebook_id: string | null;
@@ -84,6 +85,7 @@ export default function Customers() {
     address: "",
     notes: "",
     customer_status: "normal",
+    info_status: "incomplete",
     facebook_id: "",
   });
 
@@ -189,6 +191,7 @@ export default function Customers() {
       address: customer.address || "",
       notes: customer.notes || "",
       customer_status: customer.customer_status,
+      info_status: customer.info_status || "incomplete",
       facebook_id: customer.facebook_id || "",
     });
     setIsDialogOpen(true);
@@ -210,6 +213,7 @@ export default function Customers() {
       address: "",
       notes: "",
       customer_status: "normal",
+      info_status: "incomplete",
       facebook_id: "",
     });
   };
@@ -429,6 +433,7 @@ export default function Customers() {
               <TableHead>Liên hệ</TableHead>
               <TableHead>Địa chỉ</TableHead>
               <TableHead>Trạng thái</TableHead>
+              <TableHead>Thông tin</TableHead>
               <TableHead className="text-right">Đơn hàng</TableHead>
               <TableHead className="text-right">Tổng chi</TableHead>
               <TableHead className="text-right">Thao tác</TableHead>
@@ -437,13 +442,13 @@ export default function Customers() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Đang tải...
                 </TableCell>
               </TableRow>
             ) : filteredCustomers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   Không có khách hàng nào
                 </TableCell>
               </TableRow>
@@ -480,6 +485,11 @@ export default function Customers() {
                   <TableCell>
                     <Badge className={statusColors[customer.customer_status as keyof typeof statusColors]}>
                       {statusLabels[customer.customer_status as keyof typeof statusLabels]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={customer.info_status === 'complete' ? 'default' : 'secondary'}>
+                      {customer.info_status === 'complete' ? 'Đã có thông tin' : 'Chưa có thông tin'}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">{customer.total_orders}</TableCell>

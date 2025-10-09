@@ -56,6 +56,7 @@ export type Database = {
           email: string | null
           facebook_id: string | null
           id: string
+          info_status: string | null
           notes: string | null
           phone: string | null
           total_orders: number | null
@@ -70,6 +71,7 @@ export type Database = {
           email?: string | null
           facebook_id?: string | null
           id?: string
+          info_status?: string | null
           notes?: string | null
           phone?: string | null
           total_orders?: number | null
@@ -84,6 +86,7 @@ export type Database = {
           email?: string | null
           facebook_id?: string | null
           id?: string
+          info_status?: string | null
           notes?: string | null
           phone?: string | null
           total_orders?: number | null
