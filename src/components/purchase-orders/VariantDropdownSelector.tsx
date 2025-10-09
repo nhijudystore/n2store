@@ -45,8 +45,8 @@ export function VariantDropdownSelector({
         <div className="relative">
           <Input
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Chọn biến thể hoặc nhập..."
+            readOnly
+            placeholder="Chọn biến thể..."
             className={className}
             onFocus={() => setOpen(true)}
           />

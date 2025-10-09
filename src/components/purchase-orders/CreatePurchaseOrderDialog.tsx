@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { detectAttributesFromText } from "@/lib/tpos-api";
 import { generateProductCodeFromMax, incrementProductCode, extractBaseProductCode } from "@/lib/product-code-generator";
 import { useDebounce } from "@/hooks/use-debounce";
-import { detectVariantsFromText } from "@/lib/variant-detector";
+
 import { useCreateVariantProducts } from "@/hooks/use-create-variant-products";
 
 interface PurchaseOrderItem {
@@ -584,19 +584,6 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                           placeholder="Nhập tên sản phẩm"
                           value={item._tempProductName}
                           onChange={(e) => updateItem(index, "_tempProductName", e.target.value)}
-                          onBlur={() => {
-                            // Auto-detect variants on blur
-                            const result = detectVariantsFromText(item._tempProductName);
-                            if (result.colors.length > 0 || result.sizeText.length > 0) {
-                              const detectedVariant = [
-                                ...result.colors.map(c => c.value),
-                                ...result.sizeText.map(s => s.value)
-                              ].join(" ");
-                              if (detectedVariant && !item._tempVariant) {
-                                updateItem(index, "_tempVariant", detectedVariant);
-                              }
-                            }
-                          }}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 min-h-[60px] resize-none"
                           rows={2}
                         />
