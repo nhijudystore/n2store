@@ -265,6 +265,7 @@ export type Database = {
       }
       live_products: {
         Row: {
+          base_product_code: string | null
           created_at: string
           id: string
           image_url: string | null
@@ -279,6 +280,7 @@ export type Database = {
           variant: string | null
         }
         Insert: {
+          base_product_code?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
@@ -293,6 +295,7 @@ export type Database = {
           variant?: string | null
         }
         Update: {
+          base_product_code?: string | null
           created_at?: string
           id?: string
           image_url?: string | null

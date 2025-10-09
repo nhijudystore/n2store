@@ -101,6 +101,12 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       }));
       form.setValue("variants", variantData);
       
+      // Auto-populate product_name from first variant
+      if (detectedVariants[0]) {
+        const baseName = detectedVariants[0].product_name.split('(')[0].trim();
+        form.setValue('product_name', baseName);
+      }
+      
       // Set image from first variant if available
       if (!imageUrl && detectedVariants[0]) {
         const firstVariant = detectedVariants[0];
@@ -316,86 +322,77 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   const addProductMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      let baseProductCode = data.product_code.trim().toUpperCase();
-      
-      // If product code is empty, generate N/A1, N/A2, N/A3...
-      if (!baseProductCode) {
-        const { data: existingNACodes, error: naError } = await supabase
-          .from("live_products")
-          .select("product_code")
-          .eq("live_phase_id", phaseId)
-          .like("product_code", "N/A%")
-          .order("product_code", { ascending: false });
-        
-        if (naError) throw naError;
-        
-        let maxNumber = 0;
-        if (existingNACodes && existingNACodes.length > 0) {
-          for (const item of existingNACodes) {
-            const match = item.product_code.match(/^N\/A(\d+)/);
-            if (match) {
-              const num = parseInt(match[1], 10);
-              if (num > maxNumber) maxNumber = num;
-            }
-          }
-        }
-        
-        baseProductCode = `N/A${maxNumber + 1}`;
-      }
-      
-      const baseProductName = data.product_name.trim().toUpperCase() || "KHÔNG CÓ";
-      
-      const finalImageUrl = imageUrl || null;
-      
-      // Process each variant to generate unique product codes and names
-      const usedCodes = new Set<string>();
-      const codeCollisionCount = new Map<string, number>();
       const insertData = [];
       
-      for (const variant of data.variants) {
-        const variantName = variant.name.trim().toUpperCase();
-        
-        // Parse variant name to extract parts using variant detector
-        const detectionResult = detectVariantsFromText(variantName);
-        
-        // Extract parts from detection
-        const sizeNumber = detectionResult.sizeNumber.length > 0 ? detectionResult.sizeNumber[0].value : undefined;
-        const color = detectionResult.colors.length > 0 ? detectionResult.colors[0].value : undefined;
-        const sizeText = detectionResult.sizeText.length > 0 ? detectionResult.sizeText[0].value : undefined;
-        
-        // Generate variant code and full product code
-        const combo = {
-          text: variantName,
-          parts: { sizeNumber, color, sizeText }
-        };
-        
-        const codeInfo = generateVariantCode(combo, baseProductCode, usedCodes, codeCollisionCount);
-        const fullProductName = generateProductName(baseProductName, combo.parts);
-        
-        // Check for duplicates with the new full code
-        const { data: existingProducts, error: checkError } = await supabase
-          .from("live_products")
-          .select("id")
-          .eq("live_phase_id", phaseId)
-          .eq("product_code", codeInfo.fullCode);
+      // SCENARIO A: Adding from inventory (has detectedVariants)
+      if (detectedVariants.length > 0) {
+        for (const variant of data.variants) {
+          const matchedProduct = detectedVariants.find(v => v.variant === variant.name);
+          
+          if (matchedProduct) {
+            // Check for duplicates
+            const { data: existingProducts, error: checkError } = await supabase
+              .from("live_products")
+              .select("id")
+              .eq("live_phase_id", phaseId)
+              .eq("product_code", matchedProduct.product_code);
 
-        if (checkError) throw checkError;
+            if (checkError) throw checkError;
 
-        if (existingProducts && existingProducts.length > 0) {
-          throw new Error(`Sản phẩm "${codeInfo.fullCode}" đã tồn tại trong phiên live này`);
+            if (existingProducts && existingProducts.length > 0) {
+              throw new Error(`Sản phẩm "${matchedProduct.product_code}" đã tồn tại trong phiên live này`);
+            }
+            
+            insertData.push({
+              live_session_id: sessionId,
+              live_phase_id: phaseId,
+              product_code: matchedProduct.product_code,
+              product_name: matchedProduct.product_name,
+              variant: matchedProduct.variant,
+              base_product_code: matchedProduct.base_product_code,
+              prepared_quantity: variant.quantity,
+              sold_quantity: 0,
+              image_url: imageUrl || matchedProduct.tpos_image_url || null,
+              note: data.note.trim() || null,
+            });
+          }
         }
-        
-        insertData.push({
-          live_session_id: sessionId,
-          live_phase_id: phaseId,
-          product_code: codeInfo.fullCode,
-          product_name: fullProductName,
-          variant: variantName || null,
-          prepared_quantity: variant.quantity,
-          sold_quantity: 0,
-          image_url: finalImageUrl,
-          note: data.note.trim() || null,
-        });
+      } 
+      // SCENARIO B: Manual add (no inventory match)
+      else {
+        for (const variant of data.variants) {
+          const productCode = data.product_code.trim() || null;
+          const productName = data.product_name.trim() || null;
+          const variantName = variant.name.trim() || null;
+          
+          // Check for duplicates
+          if (productCode) {
+            const { data: existingProducts, error: checkError } = await supabase
+              .from("live_products")
+              .select("id")
+              .eq("live_phase_id", phaseId)
+              .eq("product_code", productCode);
+
+            if (checkError) throw checkError;
+
+            if (existingProducts && existingProducts.length > 0) {
+              throw new Error(`Sản phẩm "${productCode}" đã tồn tại trong phiên live này`);
+            }
+          }
+          
+          insertData.push({
+            live_session_id: sessionId,
+            live_phase_id: phaseId,
+            product_code: productCode,
+            product_name: productName,
+            variant: variantName,
+            base_product_code: null,
+            prepared_quantity: variant.quantity,
+            sold_quantity: 0,
+            image_url: imageUrl || null,
+            note: data.note.trim() || null,
+          });
+        }
       }
 
       const { error } = await supabase

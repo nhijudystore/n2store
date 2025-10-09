@@ -82,6 +82,7 @@ interface LiveProduct {
   product_code: string;
   product_name: string;
   variant?: string | null;
+  base_product_code?: string | null;
   prepared_quantity: number;
   sold_quantity: number;
   image_url?: string;
@@ -1215,15 +1216,22 @@ export default function LiveProducts() {
                             })
                           : liveProducts;
 
-                        // Group products by product_code only
+                        // Group products by base_product_code (or unique key for manual products)
                         const productGroups = filteredProducts.reduce((groups, product) => {
-                          const key = product.product_code;
+                          // Use base_product_code for inventory items, unique key for manual items
+                          const key = product.base_product_code 
+                            ? product.base_product_code 
+                            : `single_${product.id}`;
+                          
                           if (!groups[key]) {
                             groups[key] = {
-                              product_code: product.product_code,
-                              product_name: product.product_name,
+                              product_code: product.base_product_code || product.product_code,
+                              product_name: product.base_product_code 
+                                ? product.product_name.split('(')[0].trim()
+                                : product.product_name,
                               products: [],
-                              earliest_created_at: product.created_at
+                              earliest_created_at: product.created_at,
+                              base_product_code: product.base_product_code
                             };
                           }
                           groups[key].products.push(product);
@@ -1237,6 +1245,7 @@ export default function LiveProducts() {
                           product_name: string;
                           products: LiveProduct[];
                           earliest_created_at?: string;
+                          base_product_code?: string | null;
                         }>);
 
                         // Sort groups by earliest created_at (newest first)
