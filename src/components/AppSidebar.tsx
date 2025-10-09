@@ -6,7 +6,8 @@ import {
   Package,
   Warehouse,
   Search,
-  History
+  History,
+  Users
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -50,6 +51,11 @@ const adminItems = [
     title: "Kho Sản Phẩm",
     url: "/products",
     icon: Warehouse,
+  },
+  {
+    title: "Kho Khách Hàng",
+    url: "/customers",
+    icon: Users,
   },
   {
     title: "Tìm Kiếm SP",

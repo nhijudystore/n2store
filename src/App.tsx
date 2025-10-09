@@ -15,6 +15,7 @@ import GoodsReceiving from "./pages/GoodsReceiving";
 import SearchProducts from "./pages/SearchProducts";
 import Settings from "./pages/Settings";
 import ActivityLog from "./pages/ActivityLog";
+import Customers from "./pages/Customers";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -94,6 +95,13 @@ const App = () => (
               <ProtectedRoute>
                 <Layout>
                   <ActivityLog />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/customers" element={
+              <ProtectedRoute>
+                <Layout>
+                  <Customers />
                 </Layout>
               </ProtectedRoute>
             } />

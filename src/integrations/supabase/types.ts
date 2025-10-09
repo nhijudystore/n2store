@@ -47,6 +47,51 @@ export type Database = {
         }
         Relationships: []
       }
+      customers: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_name: string
+          customer_status: string
+          email: string | null
+          facebook_id: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          total_orders: number | null
+          total_spent: number | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_name: string
+          customer_status?: string
+          email?: string | null
+          facebook_id?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_name?: string
+          customer_status?: string
+          email?: string | null
+          facebook_id?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goods_receiving: {
         Row: {
           created_at: string | null
