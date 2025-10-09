@@ -1215,14 +1215,13 @@ export default function LiveProducts() {
                             })
                           : liveProducts;
 
-                        // Group products by product_name to handle variants with different codes
+                        // Group products by product_code only
                         const productGroups = filteredProducts.reduce((groups, product) => {
-                          const key = product.product_name; // Group by name instead of code
+                          const key = product.product_code;
                           if (!groups[key]) {
                             groups[key] = {
                               product_code: product.product_code,
                               product_name: product.product_name,
-                              base_product_name: product.product_name, // Track base product name
                               products: [],
                               earliest_created_at: product.created_at
                             };
@@ -1232,17 +1231,10 @@ export default function LiveProducts() {
                           if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
                             groups[key].earliest_created_at = product.created_at;
                           }
-                          // Update with base product info (product without variant or shortest code)
-                          if (!product.variant || product.variant === '' || 
-                              product.product_code.length < groups[key].product_code.length) {
-                            groups[key].product_code = product.product_code;
-                            groups[key].base_product_name = product.product_name; // Use base product name
-                          }
                           return groups;
                         }, {} as Record<string, {
                           product_code: string;
                           product_name: string;
-                          base_product_name: string;
                           products: LiveProduct[];
                           earliest_created_at?: string;
                         }>);
@@ -1255,11 +1247,6 @@ export default function LiveProducts() {
                         });
 
                         return sortedGroups.flatMap((group) => {
-                          // Find base product (one without variant or with product_code matching exactly)
-                          const baseProduct = group.products.find(p => !p.variant || p.variant === '') 
-                            || group.products.find(p => p.product_code === group.product_code)
-                            || group.products[0]; // fallback to first product
-                          
                           // Sort products within group by variant name first, then by created_at
                           const sortedProducts = [...group.products].sort((a, b) => {
                             // Primary sort: variant name (alphabetically)
@@ -1289,15 +1276,15 @@ export default function LiveProducts() {
                                     rowSpan={group.products.length}
                                     className="align-top border-r"
                                   >
-                                    {group.base_product_name}
+                                    {group.product_name}
                                   </TableCell>
                                   <TableCell 
                                     rowSpan={group.products.length}
                                     className="align-top border-r"
                                   >
-                                    {baseProduct.image_url ? (
+                                    {product.image_url ? (
                                       <img 
-                                        src={baseProduct.image_url} 
+                                        src={product.image_url} 
                                         alt={group.product_name}
                                         className="w-12 h-12 object-cover rounded"
                                       />
