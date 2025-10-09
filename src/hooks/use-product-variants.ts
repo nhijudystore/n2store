@@ -24,7 +24,7 @@ export function useProductVariants(baseProductCode: string) {
         .select("id, product_code, product_name, variant, product_images, tpos_image_url, stock_quantity")
         .eq("base_product_code", baseProductCode)
         .not("variant", "is", null)
-        .neq("product_code", baseProductCode)
+        .neq("variant", "")
         .order("variant");
       
       if (error) throw error;
