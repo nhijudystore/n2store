@@ -99,6 +99,20 @@ export function FacebookLiveComments() {
     return validStatuses.includes(statusText) ? statusText : 'Bình thường';
   };
 
+  // Convert old English status to Vietnamese (for backward compatibility)
+  const convertToVietnamese = (status: string): string => {
+    const statusMap: Record<string, string> = {
+      'normal': 'Bình thường',
+      'bomb': 'Bom hàng',
+      'warning': 'Cảnh báo',
+      'wholesale': 'Khách sỉ',
+      'danger': 'Nguy hiểm',
+      'close': 'Thân thiết',
+      'vip': 'VIP',
+    };
+    return statusMap[status.toLowerCase()] || status;
+  };
+
   // Fetch and process partner status for comments and save to customer database
   const fetchPartnerStatusBatch = useCallback(async (commentsToProcess: FacebookComment[]) => {
     if (!selectedVideo?.objectId || commentsToProcess.length === 0) return;
@@ -223,7 +237,7 @@ export function FacebookLiveComments() {
             customer_name: comment.from.name,
             phone: null,
             facebook_id: comment.from.id,
-            customer_status: 'normal',
+            customer_status: 'Bình thường',
             info_status: 'incomplete',
           };
 
@@ -264,7 +278,7 @@ export function FacebookLiveComments() {
               // Show customer status if they have a phone (meaning we have their info)
               const hasCompleteInfo = !!existingCustomer.phone;
               const statusText = (existingCustomer.info_status === 'complete' || hasCompleteInfo)
-                ? existingCustomer.customer_status 
+                ? convertToVietnamese(existingCustomer.customer_status)
                 : 'Cần thêm TT';
               
               updated[index] = {
