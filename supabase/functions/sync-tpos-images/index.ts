@@ -104,14 +104,22 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const bearerToken = Deno.env.get('TPOS_BEARER_TOKEN');
-    if (!bearerToken) {
-      throw new Error('TPOS_BEARER_TOKEN not configured');
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get active TPOS token from database
+    const { data: tposConfig, error: tokenError } = await supabase
+      .from('tpos_config')
+      .select('bearer_token')
+      .eq('is_active', true)
+      .single();
+
+    if (tokenError || !tposConfig) {
+      throw new Error('TPOS token not found in database. Please configure it in Settings.');
+    }
+
+    const bearerToken = tposConfig.bearer_token;
 
     console.log('Starting TPOS image sync...');
 
