@@ -109,31 +109,56 @@ export function FacebookLiveComments() {
     if (!selectedVideo?.objectId || commentsToProcess.length === 0) return;
 
     try {
-      // First, fetch orders for this post
-      const { data: { session } } = await supabase.auth.getSession();
+      // Step 1: Check existing customers in database first
+      const facebookIds = commentsToProcess.map(c => c.from.id);
+      const { data: existingCustomers = [] } = await supabase
+        .from('customers')
+        .select('*')
+        .in('facebook_id', facebookIds);
       
-      const ordersResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-facebook-orders`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ postId: selectedVideo.objectId, top: 100 }),
-      });
-
-      if (!ordersResponse.ok) {
-        throw new Error('Failed to fetch orders');
+      const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
+      
+      // Separate comments into: already complete, need update, need create
+      const commentsNeedingFetch: FacebookComment[] = [];
+      const alreadyCompleteMap = new Map<string, any>();
+      
+      for (const comment of commentsToProcess) {
+        const existing = existingCustomersMap.get(comment.from.id);
+        if (existing && existing.info_status === 'complete') {
+          // Already have complete info, no need to fetch
+          alreadyCompleteMap.set(comment.id, existing);
+        } else {
+          // Need to fetch (either new or incomplete)
+          commentsNeedingFetch.push(comment);
+        }
       }
 
-      const ordersData = await ordersResponse.json();
-      const orders: TPOSOrder[] = ordersData.value || [];
+      // Step 2: Fetch orders only for comments that need updating
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      let orders: TPOSOrder[] = [];
+      if (commentsNeedingFetch.length > 0) {
+        const ordersResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-facebook-orders`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ postId: selectedVideo.objectId, top: 100 }),
+        });
 
-      // Map comments to orders and collect phone numbers
+        if (ordersResponse.ok) {
+          const ordersData = await ordersResponse.json();
+          orders = ordersData.value || [];
+        }
+      }
+
+      // Step 3: Map comments needing fetch to orders and collect phone numbers
       const commentOrderMap = new Map<string, TPOSOrder>();
       const phoneNumbers: string[] = [];
       const commentPhoneMap = new Map<string, string>(); // comment id to phone
 
-      for (const comment of commentsToProcess) {
+      for (const comment of commentsNeedingFetch) {
         // Find order by comment ID or user name
         const order = orders.find(o => 
           o.Facebook_CommentId === comment.id || 
@@ -151,7 +176,7 @@ export function FacebookLiveComments() {
         }
       }
 
-      // Batch fetch partner status (10 at a time)
+      // Step 4: Batch fetch partner status (10 at a time) only for comments needing update
       const partnerStatusMap = new Map<string, string>();
       
       for (let i = 0; i < phoneNumbers.length; i += 10) {
@@ -171,7 +196,7 @@ export function FacebookLiveComments() {
           const partners = partnerData.value || [];
 
           // Match partners with comments by name and phone
-          for (const comment of commentsToProcess) {
+          for (const comment of commentsNeedingFetch) {
             const order = commentOrderMap.get(comment.id);
             const phone = commentPhoneMap.get(comment.id);
             
@@ -189,11 +214,19 @@ export function FacebookLiveComments() {
         }
       }
 
-      // Save all customers to database
-      for (const comment of commentsToProcess) {
+      // Step 5: Save/update customers to database (only those that were fetched)
+      const wasInDbButIncomplete = new Map<string, boolean>(); // Track which customers were in DB but incomplete
+      
+      for (const comment of commentsNeedingFetch) {
         const order = commentOrderMap.get(comment.id);
         const partnerStatus = partnerStatusMap.get(comment.id);
         const phone = commentPhoneMap.get(comment.id);
+        const existingCustomer = existingCustomersMap.get(comment.from.id);
+        
+        // Track if this customer was already in DB but incomplete
+        if (existingCustomer && existingCustomer.info_status === 'incomplete') {
+          wasInDbButIncomplete.set(comment.id, true);
+        }
         
         try {
           if (order && phone) {
@@ -226,16 +259,19 @@ export function FacebookLiveComments() {
         }
       }
 
-      // Update comments with status and order info
+      // Step 6: Update comments with status and order info
       setCommentsWithStatus(prev => {
         const updated = [...prev];
         for (const comment of commentsToProcess) {
           const index = updated.findIndex(c => c.id === comment.id);
           if (index >= 0) {
+            const existingComplete = alreadyCompleteMap.get(comment.id);
+            const needsMoreInfo = wasInDbButIncomplete.get(comment.id) && !partnerStatusMap.get(comment.id);
+            
             updated[index] = {
               ...updated[index],
-              partnerStatus: partnerStatusMap.get(comment.id) || 'Khách lạ',
-              orderInfo: commentOrderMap.get(comment.id),
+              partnerStatus: partnerStatusMap.get(comment.id) || (existingComplete ? existingComplete.customer_status : (needsMoreInfo ? 'Cần thêm TT' : 'Khách lạ')),
+              orderInfo: commentOrderMap.get(comment.id) || (existingComplete ? { Telephone: existingComplete.phone } as any : undefined),
               isLoadingStatus: false,
             };
           }
@@ -601,7 +637,7 @@ export function FacebookLiveComments() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm">{comment.from?.name}</span>
-                                {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && (
+                                {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && comment.partnerStatus !== 'Cần thêm TT' && (
                                   <Badge 
                                     variant={
                                       comment.partnerStatus === 'Bình thường' || comment.partnerStatus === 'Thân thiết' || comment.partnerStatus === 'Vip' || comment.partnerStatus === 'VIP' ? 'default' :
@@ -616,6 +652,10 @@ export function FacebookLiveComments() {
                                 {comment.orderInfo?.Telephone ? (
                                   <Badge variant="outline" className="text-xs">
                                     {comment.orderInfo.Telephone}
+                                  </Badge>
+                                ) : comment.partnerStatus === 'Cần thêm TT' ? (
+                                  <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-700">
+                                    Cần thêm TT
                                   </Badge>
                                 ) : (
                                   <Badge variant="secondary" className="text-xs bg-orange-500/20 text-orange-700">
