@@ -118,19 +118,16 @@ export function FacebookLiveComments() {
       
       const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
       
-      // Separate comments into: already complete, need update, need create
+      // Separate comments: already in DB (don't fetch) vs completely new (need to fetch)
       const commentsNeedingFetch: FacebookComment[] = [];
-      const alreadyCompleteMap = new Map<string, any>();
       
       for (const comment of commentsToProcess) {
         const existing = existingCustomersMap.get(comment.from.id);
-        if (existing && existing.info_status === 'complete') {
-          // Already have complete info, no need to fetch
-          alreadyCompleteMap.set(comment.id, existing);
-        } else {
-          // Need to fetch (either new or incomplete)
+        if (!existing) {
+          // Completely new customer - need to fetch
           commentsNeedingFetch.push(comment);
         }
+        // If already in DB (complete or incomplete) - don't fetch, use existing data
       }
 
       // Step 2: Fetch orders only for comments that need updating
@@ -214,23 +211,15 @@ export function FacebookLiveComments() {
         }
       }
 
-      // Step 5: Save/update customers to database (only those that were fetched)
-      const wasInDbButIncomplete = new Map<string, boolean>(); // Track which customers were in DB but incomplete
-      
+      // Step 5: Save/update customers to database (only NEW customers that were fetched)
       for (const comment of commentsNeedingFetch) {
         const order = commentOrderMap.get(comment.id);
         const partnerStatus = partnerStatusMap.get(comment.id);
         const phone = commentPhoneMap.get(comment.id);
-        const existingCustomer = existingCustomersMap.get(comment.from.id);
-        
-        // Track if this customer was already in DB but incomplete
-        if (existingCustomer && existingCustomer.info_status === 'incomplete') {
-          wasInDbButIncomplete.set(comment.id, true);
-        }
         
         try {
           if (order && phone) {
-            // Customer with phone and order info
+            // New customer with phone and order info
             await supabase.from('customers').upsert({
               customer_name: order.Name,
               phone: phone,
@@ -242,7 +231,7 @@ export function FacebookLiveComments() {
               ignoreDuplicates: false
             });
           } else {
-            // "Khách lạ" - without complete info
+            // New "Khách lạ" - without complete info
             await supabase.from('customers').upsert({
               customer_name: comment.from.name,
               phone: null,
@@ -265,15 +254,29 @@ export function FacebookLiveComments() {
         for (const comment of commentsToProcess) {
           const index = updated.findIndex(c => c.id === comment.id);
           if (index >= 0) {
-            const existingComplete = alreadyCompleteMap.get(comment.id);
-            const needsMoreInfo = wasInDbButIncomplete.get(comment.id) && !partnerStatusMap.get(comment.id);
+            const existingCustomer = existingCustomersMap.get(comment.from.id);
             
-            updated[index] = {
-              ...updated[index],
-              partnerStatus: partnerStatusMap.get(comment.id) || (existingComplete ? existingComplete.customer_status : (needsMoreInfo ? 'Cần thêm TT' : 'Khách lạ')),
-              orderInfo: commentOrderMap.get(comment.id) || (existingComplete ? { Telephone: existingComplete.phone } as any : undefined),
-              isLoadingStatus: false,
-            };
+            if (existingCustomer) {
+              // Customer already in database - use existing data
+              const statusText = existingCustomer.info_status === 'complete' 
+                ? existingCustomer.customer_status 
+                : 'Cần thêm TT';
+              
+              updated[index] = {
+                ...updated[index],
+                partnerStatus: statusText,
+                orderInfo: existingCustomer.phone ? { Telephone: existingCustomer.phone } as any : undefined,
+                isLoadingStatus: false,
+              };
+            } else {
+              // New customer - use fetched data
+              updated[index] = {
+                ...updated[index],
+                partnerStatus: partnerStatusMap.get(comment.id) || 'Chưa có TT',
+                orderInfo: commentOrderMap.get(comment.id),
+                isLoadingStatus: false,
+              };
+            }
           }
         }
         return updated;
