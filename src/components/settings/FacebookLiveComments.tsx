@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,9 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search } from "lucide-react";
+import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import type { FacebookVideo, FacebookComment } from "@/types/facebook";
+import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
 
 export function FacebookLiveComments() {
   const [pageId, setPageId] = useState("117267091364524");
@@ -21,6 +21,10 @@ export function FacebookLiveComments() {
   const [searchQuery, setSearchQuery] = useState("");
   const [previousCommentIds, setPreviousCommentIds] = useState<Set<string>>(new Set());
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
+  const [commentsWithStatus, setCommentsWithStatus] = useState<CommentWithStatus[]>([]);
+  const [selectedOrderInfo, setSelectedOrderInfo] = useState<TPOSOrder | null>(null);
+  const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(20);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -59,7 +63,7 @@ export function FacebookLiveComments() {
     queryFn: async () => {
       if (!pageId || !selectedVideo?.objectId) return [];
       
-      const url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=100`;
+      const url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=500`;
       
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -76,12 +80,123 @@ export function FacebookLiveComments() {
       }
 
       const result = await response.json();
-      // API returns array directly or { data: [...] } structure
       return (Array.isArray(result) ? result : result.data || []) as FacebookComment[];
     },
     enabled: !!selectedVideo && !!pageId,
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
+
+  // Fetch and process partner status for comments
+  const fetchPartnerStatusBatch = useCallback(async (commentsToProcess: FacebookComment[]) => {
+    if (!selectedVideo?.objectId || commentsToProcess.length === 0) return;
+
+    try {
+      // First, fetch orders for this post
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const ordersResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-facebook-orders`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ postId: selectedVideo.objectId, top: 100 }),
+      });
+
+      if (!ordersResponse.ok) {
+        throw new Error('Failed to fetch orders');
+      }
+
+      const ordersData = await ordersResponse.json();
+      const orders: TPOSOrder[] = ordersData.value || [];
+
+      // Map comments to orders and collect phone numbers
+      const commentOrderMap = new Map<string, TPOSOrder>();
+      const phoneNumbers: string[] = [];
+
+      for (const comment of commentsToProcess) {
+        // Find order by comment ID or user name
+        const order = orders.find(o => 
+          o.Facebook_CommentId === comment.id || 
+          o.Facebook_UserName?.toLowerCase() === comment.from.name.toLowerCase()
+        );
+
+        if (order) {
+          commentOrderMap.set(comment.id, order);
+          if (order.Telephone && !phoneNumbers.includes(order.Telephone)) {
+            phoneNumbers.push(order.Telephone);
+          }
+        }
+      }
+
+      // Batch fetch partner status (10 at a time)
+      const partnerStatusMap = new Map<string, string>();
+      
+      for (let i = 0; i < phoneNumbers.length; i += 10) {
+        const batch = phoneNumbers.slice(i, i + 10);
+        
+        const partnerResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-partner-status`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ phones: batch }),
+        });
+
+        if (partnerResponse.ok) {
+          const partnerData = await partnerResponse.json();
+          const partners = partnerData.value || [];
+
+          // Match partners with comments by name
+          for (const partner of partners) {
+            const matchingComment = commentsToProcess.find(c => 
+              c.from.name.toLowerCase() === partner.Name?.toLowerCase()
+            );
+            if (matchingComment && partner.StatusText) {
+              partnerStatusMap.set(matchingComment.id, partner.StatusText);
+            }
+          }
+        }
+      }
+
+      // Update comments with status and order info
+      setCommentsWithStatus(prev => {
+        const updated = [...prev];
+        for (const comment of commentsToProcess) {
+          const index = updated.findIndex(c => c.id === comment.id);
+          if (index >= 0) {
+            updated[index] = {
+              ...updated[index],
+              partnerStatus: partnerStatusMap.get(comment.id) || 'Khách lạ',
+              orderInfo: commentOrderMap.get(comment.id),
+              isLoadingStatus: false,
+            };
+          }
+        }
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error fetching partner status:', error);
+    }
+  }, [selectedVideo]);
+
+  // Process comments when they change
+  useEffect(() => {
+    if (comments.length === 0) return;
+
+    // Initialize comments with status
+    const newComments: CommentWithStatus[] = comments.map(c => ({
+      ...c,
+      partnerStatus: 'Khách lạ',
+      isLoadingStatus: true,
+    }));
+
+    setCommentsWithStatus(newComments);
+
+    // Fetch partner status for all comments
+    fetchPartnerStatusBatch(comments);
+  }, [comments, fetchPartnerStatusBatch]);
 
   // Track new comments and scroll to top
   useEffect(() => {
@@ -146,12 +261,37 @@ export function FacebookLiveComments() {
     setPreviousCommentIds(new Set());
     setNewCommentIds(new Set());
     setSearchQuery("");
+    setDisplayLimit(20);
   };
 
-  const filteredComments = comments.filter(comment =>
+  const handleShowInfo = (orderInfo: TPOSOrder | undefined) => {
+    if (orderInfo) {
+      setSelectedOrderInfo(orderInfo);
+      setIsInfoDialogOpen(true);
+    } else {
+      toast({
+        title: "Chưa có thông tin đơn hàng",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLDivElement;
+    const scrollPercentage = (target.scrollTop + target.clientHeight) / target.scrollHeight;
+    
+    // Load more when scrolled 80%
+    if (scrollPercentage > 0.8 && displayLimit < filteredComments.length) {
+      setDisplayLimit(prev => Math.min(prev + 20, filteredComments.length));
+    }
+  }, []);
+
+  const filteredComments = commentsWithStatus.filter(comment =>
     comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const displayedComments = filteredComments.slice(0, displayLimit);
 
   const stats = {
     totalVideos: videos.length,
@@ -360,20 +500,17 @@ export function FacebookLiveComments() {
             </div>
 
             {/* Comments List */}
-            <ScrollArea className="h-[400px] pr-4" ref={scrollRef}>
+            <ScrollArea className="h-[400px] pr-4" ref={scrollRef} onScrollCapture={handleScroll}>
               <div className="space-y-4">
                 {filteredComments.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     {searchQuery ? "Không tìm thấy comment nào" : "Chưa có comment"}
                   </div>
                 ) : (
-                  filteredComments.map((comment) => {
+                  displayedComments.map((comment) => {
                     const isNew = newCommentIds.has(comment.id);
-                    // Generate a simple status based on comment content (for display only)
-                    // Default status is "Khách lạ" (strange customer) for people without data
-                    const hasWarningKeyword = comment.message?.toLowerCase().includes('cảnh báo') || 
-                                             comment.message?.toLowerCase().includes('warning');
-                    const partnerStatus = hasWarningKeyword ? 'warning' : 'stranger';
+                    const status = comment.partnerStatus || 'Khách lạ';
+                    const isWarning = status.toLowerCase().includes('cảnh báo') || status.toLowerCase().includes('warning');
                     
                     return (
                       <Card
@@ -417,17 +554,27 @@ export function FacebookLiveComments() {
                                 <Button size="sm" className="h-7 text-xs">
                                   Tạo đơn hàng
                                 </Button>
-                                <Button size="sm" variant="outline" className="h-7 text-xs">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="h-7 text-xs"
+                                  onClick={() => handleShowInfo(comment.orderInfo)}
+                                >
                                   Thông tin
                                 </Button>
                                 <Badge 
                                   variant="secondary"
-                                  className={partnerStatus === 'warning' 
+                                  className={isWarning
                                     ? 'bg-orange-500 hover:bg-orange-600 text-white' 
                                     : 'bg-gray-500 hover:bg-gray-600 text-white'
                                   }
                                 >
-                                  {partnerStatus === 'warning' ? 'Cảnh báo' : 'Khách lạ'}
+                                  {comment.isLoadingStatus ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                      Đang tải...
+                                    </>
+                                  ) : status}
                                 </Badge>
                                 {comment.like_count > 0 && (
                                   <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
@@ -443,14 +590,84 @@ export function FacebookLiveComments() {
                     );
                   })
                 )}
+                {displayLimit < filteredComments.length && (
+                  <div className="text-center py-4">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                  </div>
+                )}
               </div>
             </ScrollArea>
 
             <div className="text-sm text-muted-foreground text-center">
-              Hiển thị {filteredComments.length} / {comments.length} comments
+              Hiển thị {displayedComments.length} / {filteredComments.length} comments
               {isAutoRefresh && " • Auto-refresh mỗi 10s"}
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Order Info Dialog */}
+      <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Thông tin đơn hàng</DialogTitle>
+            <DialogDescription>
+              Chi tiết đơn hàng từ TPOS
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedOrderInfo && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Mã đơn</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.Code}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Trạng thái</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.StatusText}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Khách hàng</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.Name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Số điện thoại</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.Telephone}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Partner</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.PartnerName}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Partner Status</label>
+                  <Badge variant={selectedOrderInfo.PartnerStatus === 'Normal' ? 'default' : 'destructive'}>
+                    {selectedOrderInfo.PartnerStatusText || selectedOrderInfo.PartnerStatus}
+                  </Badge>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Tổng tiền</label>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedOrderInfo.TotalAmount.toLocaleString('vi-VN')} đ
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Số lượng</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.TotalQuantity}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium">Ghi chú</label>
+                  <p className="text-sm text-muted-foreground">{selectedOrderInfo.Note || 'Không có'}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm font-medium">Ngày tạo</label>
+                  <p className="text-sm text-muted-foreground">
+                    {format(new Date(selectedOrderInfo.DateCreated), 'dd/MM/yyyy HH:mm:ss')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
