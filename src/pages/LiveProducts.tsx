@@ -1222,6 +1222,7 @@ export default function LiveProducts() {
                             groups[key] = {
                               product_code: product.product_code,
                               product_name: product.product_name,
+                              base_product_name: product.product_name, // Track base product name
                               products: [],
                               earliest_created_at: product.created_at
                             };
@@ -1231,15 +1232,17 @@ export default function LiveProducts() {
                           if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
                             groups[key].earliest_created_at = product.created_at;
                           }
-                          // Update with shortest/base product code (product without variant or shortest code)
+                          // Update with base product info (product without variant or shortest code)
                           if (!product.variant || product.variant === '' || 
                               product.product_code.length < groups[key].product_code.length) {
                             groups[key].product_code = product.product_code;
+                            groups[key].base_product_name = product.product_name; // Use base product name
                           }
                           return groups;
                         }, {} as Record<string, {
                           product_code: string;
                           product_name: string;
+                          base_product_name: string;
                           products: LiveProduct[];
                           earliest_created_at?: string;
                         }>);
@@ -1286,7 +1289,7 @@ export default function LiveProducts() {
                                     rowSpan={group.products.length}
                                     className="align-top border-r"
                                   >
-                                    {group.product_name}
+                                    {group.base_product_name}
                                   </TableCell>
                                   <TableCell 
                                     rowSpan={group.products.length}
