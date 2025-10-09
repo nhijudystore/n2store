@@ -95,6 +95,54 @@ export type Database = {
         }
         Relationships: []
       }
+      customers_backup_20251009: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          customer_name: string | null
+          customer_status: string | null
+          email: string | null
+          facebook_id: string | null
+          id: string | null
+          info_status: string | null
+          notes: string | null
+          phone: string | null
+          total_orders: number | null
+          total_spent: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          customer_status?: string | null
+          email?: string | null
+          facebook_id?: string | null
+          id?: string | null
+          info_status?: string | null
+          notes?: string | null
+          phone?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          customer_status?: string | null
+          email?: string | null
+          facebook_id?: string | null
+          id?: string | null
+          info_status?: string | null
+          notes?: string | null
+          phone?: string | null
+          total_orders?: number | null
+          total_spent?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       goods_receiving: {
         Row: {
           created_at: string | null
@@ -561,6 +609,72 @@ export type Database = {
           stock_quantity?: number | null
           supplier_name?: string | null
           tpos_product_id?: number | null
+          variant?: string | null
+        }
+        Relationships: []
+      }
+      products_duplicate_cleanup: {
+        Row: {
+          barcode: string | null
+          base_product_code: string | null
+          category: string | null
+          created_at: string | null
+          id: string | null
+          price_images: string[] | null
+          product_code: string | null
+          product_images: string[] | null
+          product_name: string | null
+          productid_bienthe: number | null
+          purchase_price: number | null
+          selling_price: number | null
+          stock_quantity: number | null
+          supplier_name: string | null
+          tpos_image_url: string | null
+          tpos_product_id: number | null
+          unit: string | null
+          updated_at: string | null
+          variant: string | null
+        }
+        Insert: {
+          barcode?: string | null
+          base_product_code?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string | null
+          price_images?: string[] | null
+          product_code?: string | null
+          product_images?: string[] | null
+          product_name?: string | null
+          productid_bienthe?: number | null
+          purchase_price?: number | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          tpos_image_url?: string | null
+          tpos_product_id?: number | null
+          unit?: string | null
+          updated_at?: string | null
+          variant?: string | null
+        }
+        Update: {
+          barcode?: string | null
+          base_product_code?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string | null
+          price_images?: string[] | null
+          product_code?: string | null
+          product_images?: string[] | null
+          product_name?: string | null
+          productid_bienthe?: number | null
+          purchase_price?: number | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          tpos_image_url?: string | null
+          tpos_product_id?: number | null
+          unit?: string | null
+          updated_at?: string | null
           variant?: string | null
         }
         Relationships: []
