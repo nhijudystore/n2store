@@ -29,6 +29,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { 
   Users, 
@@ -60,16 +61,34 @@ type Customer = {
 
 type CustomerFormData = Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'total_orders' | 'total_spent'>;
 
-const statusColors = {
-  normal: "bg-blue-500/10 text-blue-500",
-  vip: "bg-yellow-500/10 text-yellow-500",
-  blacklist: "bg-red-500/10 text-red-500",
+const statusColors: Record<string, string> = {
+  normal: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+  danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+  vip: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
+  bomb: 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
+  wholesale: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+  close: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
 };
 
-const statusLabels = {
-  normal: "Bình thường",
-  vip: "VIP",
-  blacklist: "Blacklist",
+const statusLabels: Record<string, string> = {
+  normal: 'Bình thường',
+  warning: 'Cảnh báo',
+  danger: 'Nguy hiểm',
+  vip: 'VIP',
+  bomb: 'Bom hàng',
+  wholesale: 'Khách sỉ',
+  close: 'Thân thiết',
+};
+
+const infoStatusLabels: Record<string, string> = {
+  complete: 'Đầy đủ',
+  incomplete: 'Chưa đủ',
+};
+
+const infoStatusColors: Record<string, string> = {
+  complete: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  incomplete: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100',
 };
 
 export default function Customers() {
@@ -432,8 +451,8 @@ export default function Customers() {
               <TableHead>Tên khách hàng</TableHead>
               <TableHead>Liên hệ</TableHead>
               <TableHead>Địa chỉ</TableHead>
-              <TableHead>Trạng thái</TableHead>
-              <TableHead>Thông tin</TableHead>
+              <TableHead>Trạng thái KH</TableHead>
+              <TableHead>Trạng thái TT</TableHead>
               <TableHead className="text-right">Đơn hàng</TableHead>
               <TableHead className="text-right">Tổng chi</TableHead>
               <TableHead className="text-right">Thao tác</TableHead>
@@ -483,14 +502,14 @@ export default function Customers() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusColors[customer.customer_status as keyof typeof statusColors]}>
-                      {statusLabels[customer.customer_status as keyof typeof statusLabels]}
-                    </Badge>
+                    <div className={cn("inline-flex px-2 py-1 rounded-full text-xs font-medium", statusColors[customer.customer_status])}>
+                      {statusLabels[customer.customer_status]}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={customer.info_status === 'complete' ? 'default' : 'secondary'}>
-                      {customer.info_status === 'complete' ? 'Đã có thông tin' : 'Chưa có thông tin'}
-                    </Badge>
+                    <div className={cn("inline-flex px-2 py-1 rounded-full text-xs font-medium", infoStatusColors[customer.info_status || 'incomplete'])}>
+                      {infoStatusLabels[customer.info_status || 'incomplete']}
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">{customer.total_orders}</TableCell>
                   <TableCell className="text-right">

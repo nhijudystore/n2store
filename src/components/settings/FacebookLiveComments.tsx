@@ -86,6 +86,24 @@ export function FacebookLiveComments() {
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
 
+  // Map StatusText to database values
+  const mapStatusText = (statusText: string | null | undefined): string => {
+    if (!statusText) return 'normal';
+    
+    const statusMap: Record<string, string> = {
+      'Bình thường': 'normal',
+      'Bom hàng': 'bomb',
+      'Cảnh báo': 'warning',
+      'Khách sỉ': 'wholesale',
+      'Nguy hiểm': 'danger',
+      'Thân thiết': 'close',
+      'Vip': 'vip',
+      'VIP': 'vip',
+    };
+    
+    return statusMap[statusText] || 'normal';
+  };
+
   // Fetch and process partner status for comments and save to customer database
   const fetchPartnerStatusBatch = useCallback(async (commentsToProcess: FacebookComment[]) => {
     if (!selectedVideo?.objectId || commentsToProcess.length === 0) return;
@@ -113,6 +131,7 @@ export function FacebookLiveComments() {
       // Map comments to orders and collect phone numbers
       const commentOrderMap = new Map<string, TPOSOrder>();
       const phoneNumbers: string[] = [];
+      const commentPhoneMap = new Map<string, string>(); // comment id to phone
 
       for (const comment of commentsToProcess) {
         // Find order by comment ID or user name
@@ -123,15 +142,17 @@ export function FacebookLiveComments() {
 
         if (order) {
           commentOrderMap.set(comment.id, order);
-          if (order.Telephone && !phoneNumbers.includes(order.Telephone)) {
-            phoneNumbers.push(order.Telephone);
+          if (order.Telephone) {
+            commentPhoneMap.set(comment.id, order.Telephone);
+            if (!phoneNumbers.includes(order.Telephone)) {
+              phoneNumbers.push(order.Telephone);
+            }
           }
         }
       }
 
       // Batch fetch partner status (10 at a time)
       const partnerStatusMap = new Map<string, string>();
-      const partnerPhoneMap = new Map<string, string>(); // Map comment name to phone
       
       for (let i = 0; i < phoneNumbers.length; i += 10) {
         const batch = phoneNumbers.slice(i, i + 10);
@@ -149,57 +170,59 @@ export function FacebookLiveComments() {
           const partnerData = await partnerResponse.json();
           const partners = partnerData.value || [];
 
-          // Match partners with comments by name
-          for (const partner of partners) {
-            const matchingComment = commentsToProcess.find(c => 
-              c.from.name.toLowerCase() === partner.Name?.toLowerCase()
-            );
-            if (matchingComment) {
-              if (partner.StatusText) {
-                partnerStatusMap.set(matchingComment.id, partner.StatusText);
-              }
-              if (partner.Phone) {
-                partnerPhoneMap.set(matchingComment.from.name, partner.Phone);
+          // Match partners with comments by name and phone
+          for (const comment of commentsToProcess) {
+            const order = commentOrderMap.get(comment.id);
+            const phone = commentPhoneMap.get(comment.id);
+            
+            if (phone && order) {
+              // Find first matching partner (most recent by DateCreated desc)
+              const matchingPartner = partners.find(
+                (p: any) => p.Name === order.Name && p.Phone === phone
+              );
+              
+              if (matchingPartner?.StatusText) {
+                partnerStatusMap.set(comment.id, matchingPartner.StatusText);
               }
             }
           }
         }
       }
 
-      // Save customers to database
+      // Save all customers to database
       for (const comment of commentsToProcess) {
         const order = commentOrderMap.get(comment.id);
         const partnerStatus = partnerStatusMap.get(comment.id);
-        const phone = partnerPhoneMap.get(comment.from.name) || order?.Telephone;
+        const phone = commentPhoneMap.get(comment.id);
         
-        if (order) {
-          // Check if customer already exists
-          const { data: existingCustomer } = await supabase
-            .from('customers')
-            .select('id, info_status')
-            .eq('phone', phone)
-            .maybeSingle();
-
-          const customerData = {
-            customer_name: order.Name,
-            phone: phone,
-            facebook_id: comment.from.id,
-            customer_status: order.PartnerStatus?.toLowerCase() || 'normal',
-            info_status: partnerStatus ? 'complete' : 'incomplete',
-          };
-
-          if (existingCustomer) {
-            // Update existing customer
-            await supabase
-              .from('customers')
-              .update(customerData)
-              .eq('id', existingCustomer.id);
+        try {
+          if (order && phone) {
+            // Customer with phone and order info
+            await supabase.from('customers').upsert({
+              customer_name: order.Name,
+              phone: phone,
+              facebook_id: comment.from.id,
+              customer_status: mapStatusText(partnerStatus),
+              info_status: partnerStatus ? 'complete' : 'incomplete',
+            }, {
+              onConflict: 'facebook_id',
+              ignoreDuplicates: false
+            });
           } else {
-            // Insert new customer
-            await supabase
-              .from('customers')
-              .insert(customerData);
+            // "Khách lạ" - without complete info
+            await supabase.from('customers').upsert({
+              customer_name: comment.from.name,
+              phone: null,
+              facebook_id: comment.from.id,
+              customer_status: 'normal',
+              info_status: 'incomplete',
+            }, {
+              onConflict: 'facebook_id',
+              ignoreDuplicates: false
+            });
           }
+        } catch (error) {
+          console.error('Error saving customer:', error);
         }
       }
 
@@ -578,6 +601,18 @@ export function FacebookLiveComments() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm">{comment.from?.name}</span>
+                                {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && (
+                                  <Badge 
+                                    variant={
+                                      comment.partnerStatus === 'Bình thường' || comment.partnerStatus === 'Thân thiết' || comment.partnerStatus === 'Vip' || comment.partnerStatus === 'VIP' ? 'default' :
+                                      comment.partnerStatus === 'Cảnh báo' ? 'secondary' :
+                                      'destructive'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {comment.partnerStatus}
+                                  </Badge>
+                                )}
                                 {comment.orderInfo?.Telephone ? (
                                   <Badge variant="outline" className="text-xs">
                                     {comment.orderInfo.Telephone}
