@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, X, Copy, Calendar, Warehouse, RotateCcw } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
-import { VariantSelector } from "./VariantSelector";
+import { VariantDropdownSelector } from "./VariantDropdownSelector";
+import { VariantGeneratorDialog } from "./VariantGeneratorDialog";
 import { SelectProductDialog } from "@/components/products/SelectProductDialog";
+import { useCreateVariantProducts } from "@/hooks/use-create-variant-products";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
 import { cn } from "@/lib/utils";
@@ -108,6 +110,10 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState<number | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isVariantDialogOpen, setIsVariantDialogOpen] = useState(false);
+  const [variantGeneratorIndex, setVariantGeneratorIndex] = useState<number | null>(null);
+
+  const createVariantProducts = useCreateVariantProducts();
 
   // Debounce product names for auto-generating codes
   const debouncedProductNames = useDebounce(
@@ -333,6 +339,83 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const openSelectProduct = (index: number) => {
     setCurrentItemIndex(index);
     setIsSelectProductOpen(true);
+  };
+
+  const handleVariantsGenerated = (
+    index: number,
+    variants: Array<{
+      fullCode: string;
+      variantCode: string;
+      productName: string;
+      variantText: string;
+      hasCollision: boolean;
+    }>
+  ) => {
+    const baseItem = items[index];
+
+    // Extract all individual variant parts and deduplicate
+    const allVariantParts = variants.flatMap(v => 
+      v.variantText.split(',').map(s => s.trim()).filter(Boolean)
+    );
+    const uniqueParts = [...new Set(allVariantParts)];
+    const mergedVariant = uniqueParts.sort().join(', ');
+
+    // Prepare base product data
+    const baseProductData = {
+      product_code: baseItem._tempProductCode.trim().toUpperCase(),
+      product_name: baseItem._tempProductName.trim().toUpperCase(),
+      variant: mergedVariant || null,
+      purchase_price: Number(baseItem._tempUnitPrice) * 1000,
+      selling_price: Number(baseItem._tempSellingPrice) * 1000,
+      supplier_name: supplierName || undefined,
+      stock_quantity: 0,
+      product_images: [...baseItem._tempProductImages],
+      price_images: [...baseItem._tempPriceImages]
+    };
+
+    // Prepare child variants data
+    const childVariantsData = variants.map(v => ({
+      product_code: v.fullCode,
+      base_product_code: baseItem._tempProductCode.trim().toUpperCase(),
+      product_name: v.productName,
+      variant: v.variantText,
+      purchase_price: Number(baseItem._tempUnitPrice) * 1000,
+      selling_price: Number(baseItem._tempSellingPrice) * 1000,
+      supplier_name: supplierName || undefined,
+      product_images: baseItem._tempProductImages,
+      price_images: baseItem._tempPriceImages
+    }));
+
+    // Call mutation to upsert base product and create child variants
+    createVariantProducts.mutate({ 
+      baseProduct: baseProductData,
+      childVariants: childVariantsData
+    });
+  };
+
+  const openVariantGenerator = (index: number) => {
+    const item = items[index];
+    
+    // Validation: Check all required fields
+    const missingFields = [];
+    
+    if (!item._tempProductName.trim()) missingFields.push("Tên sản phẩm");
+    if (!item._tempProductCode.trim()) missingFields.push("Mã sản phẩm");
+    if (!item._tempUnitPrice || Number(item._tempUnitPrice) <= 0) missingFields.push("Giá mua");
+    if (!item._tempSellingPrice || Number(item._tempSellingPrice) <= 0) missingFields.push("Giá bán");
+    if (!item._tempProductImages || item._tempProductImages.length === 0) missingFields.push("Hình ảnh sản phẩm");
+    
+    if (missingFields.length > 0) {
+      toast({
+        title: "Thiếu thông tin",
+        description: `Vui lòng điền: ${missingFields.join(", ")}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setVariantGeneratorIndex(index);
+    setIsVariantDialogOpen(true);
   };
 
   const updateOrderMutation = useMutation({
@@ -652,13 +735,13 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                     <TableHead className="w-16">STT</TableHead>
                     <TableHead className="w-[260px]">Tên sản phẩm</TableHead>
                     <TableHead className="w-[70px]">Mã sản phẩm</TableHead>
-                    <TableHead className="w-[150px]">Biến thể</TableHead>
                     <TableHead className="w-[60px]">SL</TableHead>
                     <TableHead className="w-[90px]">Giá mua (VND)</TableHead>
                     <TableHead className="w-[90px]">Giá bán (VND)</TableHead>
                     <TableHead className="w-[130px]">Thành tiền (VND)</TableHead>
                     <TableHead className="w-[100px]">Hình ảnh sản phẩm</TableHead>
                     <TableHead className="w-[100px]">Hình ảnh Giá mua</TableHead>
+                    <TableHead className="w-[150px]">Biến thể</TableHead>
                     <TableHead className="w-16">Thao tác</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -697,13 +780,6 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           onChange={(e) => updateItem(index, "_tempProductCode", e.target.value)}
                           className="border-0 shadow-none focus-visible:ring-0 p-2 w-[70px] text-xs"
                           maxLength={10}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <VariantSelector
-                          value={item._tempVariant}
-                          onChange={(value) => updateItem(index, "_tempVariant", value)}
-                          className="w-[150px]"
                         />
                       </TableCell>
                       <TableCell>
@@ -751,6 +827,30 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                           onImagesChange={(images) => updateItem(index, "_tempPriceImages", images)}
                           itemIndex={index}
                         />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <VariantDropdownSelector
+                            baseProductCode={item._tempProductCode}
+                            value={item._tempVariant}
+                            onChange={(value) => updateItem(index, "_tempVariant", value)}
+                            onVariantSelect={(data) => {
+                              updateItem(index, "_tempProductCode", data.productCode);
+                              updateItem(index, "_tempProductName", data.productName);
+                              updateItem(index, "_tempVariant", data.variant);
+                            }}
+                            className="flex-1"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            onClick={() => openVariantGenerator(index)}
+                            title="Tạo biến thể tự động"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -850,6 +950,21 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
         onOpenChange={setIsSelectProductOpen}
         onSelect={handleSelectProduct}
       />
+
+      {variantGeneratorIndex !== null && items[variantGeneratorIndex] && (
+        <VariantGeneratorDialog
+          open={isVariantDialogOpen}
+          onOpenChange={setIsVariantDialogOpen}
+          currentItem={{
+            product_code: items[variantGeneratorIndex]._tempProductCode,
+            product_name: items[variantGeneratorIndex]._tempProductName
+          }}
+          onVariantsGenerated={(variants) => {
+            handleVariantsGenerated(variantGeneratorIndex, variants);
+            setVariantGeneratorIndex(null);
+          }}
+        />
+      )}
     </Dialog>
   );
 }
