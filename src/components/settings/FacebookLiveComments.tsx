@@ -251,18 +251,34 @@ export function FacebookLiveComments() {
               {videos.map((video) => (
                 <Card
                   key={video.objectId}
-                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  className="cursor-pointer hover:shadow-lg transition-all overflow-hidden"
                   onClick={() => handleVideoClick(video)}
                 >
+                  {/* Thumbnail */}
+                  <div className="relative aspect-video bg-muted">
+                    {video.thumbnail?.url ? (
+                      <img
+                        src={video.thumbnail.url}
+                        alt={video.title}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Video className="h-12 w-12 text-muted-foreground opacity-30" />
+                      </div>
+                    )}
+                    {video.statusLive === 1 && (
+                      <Badge variant="destructive" className="absolute top-2 right-2">
+                        🔴 LIVE
+                      </Badge>
+                    )}
+                  </div>
+                  
                   <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-base line-clamp-2">
-                        {video.title}
-                      </CardTitle>
-                      {video.statusLive === 1 && (
-                        <Badge variant="destructive" className="shrink-0">LIVE</Badge>
-                      )}
-                    </div>
+                    <CardTitle className="text-base line-clamp-2">
+                      {video.title}
+                    </CardTitle>
                     <CardDescription className="text-xs">
                       {format(new Date(video.channelCreatedTime), 'dd/MM/yyyy HH:mm')}
                     </CardDescription>
