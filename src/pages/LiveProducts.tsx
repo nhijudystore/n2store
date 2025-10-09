@@ -1215,9 +1215,9 @@ export default function LiveProducts() {
                             })
                           : liveProducts;
 
-                        // Group products by product_code only
+                        // Group products by product_name to handle variants with different codes
                         const productGroups = filteredProducts.reduce((groups, product) => {
-                          const key = product.product_code;
+                          const key = product.product_name; // Group by name instead of code
                           if (!groups[key]) {
                             groups[key] = {
                               product_code: product.product_code,
@@ -1230,6 +1230,11 @@ export default function LiveProducts() {
                           // Track earliest created_at for group sorting
                           if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
                             groups[key].earliest_created_at = product.created_at;
+                          }
+                          // Update with shortest/base product code (product without variant or shortest code)
+                          if (!product.variant || product.variant === '' || 
+                              product.product_code.length < groups[key].product_code.length) {
+                            groups[key].product_code = product.product_code;
                           }
                           return groups;
                         }, {} as Record<string, {
