@@ -1247,6 +1247,11 @@ export default function LiveProducts() {
                         });
 
                         return sortedGroups.flatMap((group) => {
+                          // Find base product (one without variant or with product_code matching exactly)
+                          const baseProduct = group.products.find(p => !p.variant || p.variant === '') 
+                            || group.products.find(p => p.product_code === group.product_code)
+                            || group.products[0]; // fallback to first product
+                          
                           // Sort products within group by variant name first, then by created_at
                           const sortedProducts = [...group.products].sort((a, b) => {
                             // Primary sort: variant name (alphabetically)
@@ -1282,9 +1287,9 @@ export default function LiveProducts() {
                                     rowSpan={group.products.length}
                                     className="align-top border-r"
                                   >
-                                    {product.image_url ? (
+                                    {baseProduct.image_url ? (
                                       <img 
-                                        src={product.image_url} 
+                                        src={baseProduct.image_url} 
                                         alt={group.product_name}
                                         className="w-12 h-12 object-cover rounded"
                                       />
