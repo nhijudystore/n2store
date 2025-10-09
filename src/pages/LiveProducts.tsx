@@ -38,7 +38,8 @@ import {
   Upload,
   Store,
   Search,
-  MessageSquare
+  MessageSquare,
+  ShoppingBag
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -1110,6 +1111,10 @@ export default function LiveProducts() {
                   <Package className="h-4 w-4" />
                   Sản phẩm ({liveProducts.length})
                 </TabsTrigger>
+                <TabsTrigger value="hang-le" className="flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4" />
+                  Hàng Lẻ
+                </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
                   Đơn hàng (theo mã đơn)
@@ -1725,6 +1730,19 @@ export default function LiveProducts() {
                 </Card>
               </>
               )}
+            </TabsContent>
+
+            {/* Hàng Lẻ Tab - Empty for future implementation */}
+            <TabsContent value="hang-le" className="space-y-4">
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Hàng Lẻ</h3>
+                  <p className="text-muted-foreground text-center">
+                    Chức năng đang được phát triển
+                  </p>
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
