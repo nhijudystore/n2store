@@ -47,6 +47,26 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
     return 0;
   };
 
+  const downloadTemplate = () => {
+    const template = [
+      {
+        "Mã sản phẩm": "SP001",
+        "Tên sản phẩm": "Sản phẩm mẫu",
+        "Giá bán": 100000,
+        "Giá mua": 80000,
+        "Đơn vị": "Cái",
+        "Nhóm sản phẩm": "Nhóm A",
+        "Mã vạch": "1234567890",
+        "Số lượng tồn": 10
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(template);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    XLSX.writeFile(wb, "template_import_products.xlsx");
+  };
+
   const handleImport = async () => {
     if (!file) {
       toast({
@@ -152,7 +172,18 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
 
         <div className="space-y-4">
           <div>
-            <Label htmlFor="excel-file">Chọn file Excel</Label>
+            <div className="flex items-center justify-between mb-2">
+              <Label htmlFor="excel-file">Chọn file Excel</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={downloadTemplate}
+                disabled={isImporting}
+              >
+                📥 Tải file mẫu
+              </Button>
+            </div>
             <Input
               id="excel-file"
               type="file"
