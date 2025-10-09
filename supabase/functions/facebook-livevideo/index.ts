@@ -16,7 +16,7 @@ serve(async (req) => {
     const url = new URL(req.url);
     const pageId = url.searchParams.get('pageId');
     const limit = url.searchParams.get('limit') || '10';
-    const facebook_Type = url.searchParams.get('facebook_Type') || 'video';
+    const facebook_Type = url.searchParams.get('facebook_Type') || 'page';
 
     if (!pageId) {
       return new Response(
@@ -34,10 +34,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetching Facebook live videos for pageId: ${pageId}, limit: ${limit}`);
+    console.log(`Fetching Facebook live videos for pageId: ${pageId}, limit: ${limit}, facebook_Type: ${facebook_Type}`);
 
     const response = await fetch(
-      `https://tomato.tpos.vn/api/facebook-graph/livevideo?pageId=${pageId}&limit=${limit}&facebook_Type=${facebook_Type}`,
+      `https://tomato.tpos.vn/api/facebook-graph/livevideo?pageid=${pageId}&limit=${limit}&facebook_Type=${facebook_Type}`,
       {
         method: 'GET',
         headers: {
