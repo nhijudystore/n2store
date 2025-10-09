@@ -26,6 +26,7 @@ export function useProductVariants(baseProductCode: string) {
         .eq("base_product_code", baseProductCode)
         .not("variant", "is", null)
         .neq("variant", "")
+        .neq("product_code", baseProductCode)
         .order("variant");
       
       if (error) throw error;
