@@ -1110,10 +1110,6 @@ export default function LiveProducts() {
                   <Package className="h-4 w-4" />
                   Sản phẩm ({liveProducts.length})
                 </TabsTrigger>
-                <TabsTrigger value="individual" className="flex items-center gap-2">
-                  <ListOrdered className="h-4 w-4" />
-                  Hàng Lẻ
-                </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
                   Đơn hàng (theo mã đơn)
@@ -1729,15 +1725,6 @@ export default function LiveProducts() {
                 </Card>
               </>
               )}
-            </TabsContent>
-
-            <TabsContent value="individual" className="space-y-4">
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  <Package className="mx-auto h-12 w-12 mb-2" />
-                  <p>Tab Hàng Lẻ - Chưa có nội dung</p>
-                </CardContent>
-              </Card>
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">
