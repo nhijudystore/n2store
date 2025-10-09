@@ -84,19 +84,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   // Auto-detect supplier from product name
   const detectedSupplier = productName ? detectSupplierFromProductName(productName) : null;
 
-  // Watch product_code field to detect base product code
-  const productCode = form.watch("product_code");
-  
   // Fetch variants from inventory when base product code is entered
   const { data: detectedVariants = [], isLoading: isLoadingVariants } = useProductVariants(baseProductCode);
-
-  // Update base product code when product_code changes
-  useEffect(() => {
-    const trimmedCode = productCode?.trim().toUpperCase() || "";
-    if (trimmedCode && trimmedCode !== baseProductCode) {
-      setBaseProductCode(trimmedCode);
-    }
-  }, [productCode, baseProductCode]);
 
   // Auto-populate variants when detected
   useEffect(() => {
@@ -234,11 +223,13 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       form.setValue("product_name", product.product_name);
       setBaseProductCode(product.product_code);
       setSelectedVariantIds(new Set()); // Reset selection to trigger auto-population
+      setIsVariantsOpen(true); // Auto-open variants section
     } else {
       // Single variant selected - just add that one
       form.setValue("product_code", product.product_code);
       form.setValue("product_name", product.product_name);
       form.setValue("variants", [{ name: product.variant || "", quantity: 1 }]);
+      setBaseProductCode(""); // Clear base product code
     }
     
     // Auto-fill image if available
@@ -251,6 +242,17 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     setShowProductSuggestions(false);
     setProductSearchQuery("");
     toast.success(`Đã chọn: ${product.product_name}`);
+  };
+
+  // Handle blur on product code input to trigger variant loading
+  const handleProductCodeBlur = () => {
+    const productCode = form.getValues("product_code");
+    const trimmedCode = productCode?.trim().toUpperCase() || "";
+    if (trimmedCode && trimmedCode !== baseProductCode) {
+      setBaseProductCode(trimmedCode);
+      setSelectedVariantIds(new Set()); // Reset selection to trigger auto-population
+      setIsVariantsOpen(true); // Auto-open variants section
+    }
   };
 
   // Toggle variant selection
@@ -493,7 +495,10 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                           }
                         }}
                         onBlur={() => {
-                          setTimeout(() => setShowProductSuggestions(false), 200);
+                          setTimeout(() => {
+                            setShowProductSuggestions(false);
+                            handleProductCodeBlur();
+                          }, 200);
                         }}
                       />
                       
