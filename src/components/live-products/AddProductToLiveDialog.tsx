@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ImageIcon, X, Loader2, Warehouse } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
@@ -42,6 +43,7 @@ interface AddProductToLiveDialogProps {
 interface FormData {
   product_code: string;
   product_name: string;
+  note: string;
   variants: { name: string; quantity: number }[];
 }
 
@@ -61,6 +63,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     defaultValues: {
       product_code: "",
       product_name: "",
+      note: "",
       variants: [{ name: "", quantity: 0 }],
     },
   });
@@ -257,6 +260,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
           prepared_quantity: variant.quantity,
           sold_quantity: 0,
           image_url: finalImageUrl,
+          note: data.note.trim() || null,
         });
       }
 
@@ -470,6 +474,25 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                 </div>
               </div>
             </div>
+
+            <FormField
+              control={form.control}
+              name="note"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ghi chú</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Nhập ghi chú cho sản phẩm (không bắt buộc)"
+                      className="resize-none"
+                      rows={3}
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="space-y-3">
               <div className="flex items-center justify-between">

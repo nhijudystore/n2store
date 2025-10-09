@@ -270,6 +270,7 @@ export type Database = {
           image_url: string | null
           live_phase_id: string | null
           live_session_id: string
+          note: string | null
           prepared_quantity: number
           product_code: string
           product_name: string
@@ -283,6 +284,7 @@ export type Database = {
           image_url?: string | null
           live_phase_id?: string | null
           live_session_id: string
+          note?: string | null
           prepared_quantity?: number
           product_code: string
           product_name: string
@@ -296,6 +298,7 @@ export type Database = {
           image_url?: string | null
           live_phase_id?: string | null
           live_session_id?: string
+          note?: string | null
           prepared_quantity?: number
           product_code?: string
           product_name?: string
