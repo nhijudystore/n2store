@@ -63,22 +63,22 @@ type CustomerFormData = Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'tot
 
 const statusColors: Record<string, string> = {
   normal: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-  danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
-  vip: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
   bomb: 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
-  wholesale: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+  wholesale: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  danger: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
   close: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
+  vip: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
 };
 
 const statusLabels: Record<string, string> = {
   normal: 'Bình thường',
-  warning: 'Cảnh báo',
-  danger: 'Nguy hiểm',
-  vip: 'VIP',
   bomb: 'Bom hàng',
+  warning: 'Cảnh báo',
   wholesale: 'Khách sỉ',
+  danger: 'Nguy hiểm',
   close: 'Thân thiết',
+  vip: 'VIP',
 };
 
 const infoStatusLabels: Record<string, string> = {
@@ -253,8 +253,12 @@ export default function Customers() {
   const stats = {
     total: customers.length,
     normal: customers.filter(c => c.customer_status === "normal").length,
+    warning: customers.filter(c => c.customer_status === "warning").length,
+    danger: customers.filter(c => c.customer_status === "danger").length,
     vip: customers.filter(c => c.customer_status === "vip").length,
-    blacklist: customers.filter(c => c.customer_status === "blacklist").length,
+    bomb: customers.filter(c => c.customer_status === "bomb").length,
+    wholesale: customers.filter(c => c.customer_status === "wholesale").length,
+    close: customers.filter(c => c.customer_status === "close").length,
   };
 
   return (
@@ -326,8 +330,12 @@ export default function Customers() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="normal">Bình thường</SelectItem>
+                      <SelectItem value="bomb">Bom hàng</SelectItem>
+                      <SelectItem value="warning">Cảnh báo</SelectItem>
+                      <SelectItem value="wholesale">Khách sỉ</SelectItem>
+                      <SelectItem value="danger">Nguy hiểm</SelectItem>
+                      <SelectItem value="close">Thân thiết</SelectItem>
                       <SelectItem value="vip">VIP</SelectItem>
-                      <SelectItem value="blacklist">Blacklist</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -378,11 +386,11 @@ export default function Customers() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Tổng khách hàng</p>
+              <p className="text-sm text-muted-foreground">Tổng KH</p>
               <p className="text-2xl font-bold">{stats.total}</p>
             </div>
             <Users className="w-8 h-8 text-muted-foreground" />
@@ -394,7 +402,25 @@ export default function Customers() {
               <p className="text-sm text-muted-foreground">Bình thường</p>
               <p className="text-2xl font-bold">{stats.normal}</p>
             </div>
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Cảnh báo</p>
+              <p className="text-2xl font-bold">{stats.warning}</p>
+            </div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Nguy hiểm</p>
+              <p className="text-2xl font-bold">{stats.danger}</p>
+            </div>
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
           </div>
         </Card>
         <Card className="p-4">
@@ -403,16 +429,34 @@ export default function Customers() {
               <p className="text-sm text-muted-foreground">VIP</p>
               <p className="text-2xl font-bold">{stats.vip}</p>
             </div>
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Blacklist</p>
-              <p className="text-2xl font-bold">{stats.blacklist}</p>
+              <p className="text-sm text-muted-foreground">Bom hàng</p>
+              <p className="text-2xl font-bold">{stats.bomb}</p>
             </div>
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-red-600"></div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Khách sỉ</p>
+              <p className="text-2xl font-bold">{stats.wholesale}</p>
+            </div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Thân thiết</p>
+              <p className="text-2xl font-bold">{stats.close}</p>
+            </div>
+            <div className="w-3 h-3 rounded-full bg-cyan-500"></div>
           </div>
         </Card>
       </div>
@@ -436,8 +480,12 @@ export default function Customers() {
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
               <SelectItem value="normal">Bình thường</SelectItem>
+              <SelectItem value="bomb">Bom hàng</SelectItem>
+              <SelectItem value="warning">Cảnh báo</SelectItem>
+              <SelectItem value="wholesale">Khách sỉ</SelectItem>
+              <SelectItem value="danger">Nguy hiểm</SelectItem>
+              <SelectItem value="close">Thân thiết</SelectItem>
               <SelectItem value="vip">VIP</SelectItem>
-              <SelectItem value="blacklist">Blacklist</SelectItem>
             </SelectContent>
           </Select>
         </div>
