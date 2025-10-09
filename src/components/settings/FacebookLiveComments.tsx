@@ -369,25 +369,67 @@ export function FacebookLiveComments() {
                 ) : (
                   filteredComments.map((comment) => {
                     const isNew = newCommentIds.has(comment.id);
+                    // Generate a simple status based on comment content (for display only)
+                    const hasWarningKeyword = comment.message?.toLowerCase().includes('cảnh báo') || 
+                                             comment.message?.toLowerCase().includes('warning');
+                    const partnerStatus = hasWarningKeyword ? 'warning' : 'normal';
+                    
                     return (
                       <Card
                         key={comment.id}
                         className={isNew ? "border-primary bg-primary/5 animate-in fade-in slide-in-from-bottom-2" : ""}
                       >
                         <CardContent className="pt-4">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <div className="font-semibold text-sm">
-                                {comment.from?.name}
-                                {isNew && (
-                                  <Badge variant="default" className="ml-2">✨ MỚI</Badge>
-                                )}
+                          <div className="flex items-start gap-3">
+                            {/* Avatar placeholder with badge */}
+                            <div className="relative flex-shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold">
+                                {comment.from?.name?.charAt(0) || '?'}
                               </div>
-                              <p className="text-sm mt-1">{comment.message}</p>
-                              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                                <span>{format(new Date(comment.created_time), 'HH:mm dd/MM/yyyy')}</span>
+                              <Badge 
+                                variant="destructive" 
+                                className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                              >
+                                {Math.floor(Math.random() * 50) + 20}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-sm">{comment.from?.name}</span>
+                                {comment.from?.id && (
+                                  <Badge variant="outline" className="text-xs">
+                                    #{comment.from.id.slice(-8)}
+                                  </Badge>
+                                )}
+                                {isNew && (
+                                  <Badge variant="default" className="text-xs">✨ MỚI</Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground ml-auto">
+                                  {format(new Date(comment.created_time), 'dd/MM/yyyy HH:mm')}
+                                </span>
+                              </div>
+                              
+                              <p className="text-sm mt-1.5 break-words">{comment.message}</p>
+                              
+                              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                <Button size="sm" className="h-7 text-xs">
+                                  Tạo đơn hàng
+                                </Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs">
+                                  Thông tin
+                                </Button>
+                                <Badge 
+                                  variant={partnerStatus === 'warning' ? 'secondary' : 'default'}
+                                  className={partnerStatus === 'warning' 
+                                    ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                                    : 'bg-green-500 hover:bg-green-600 text-white'
+                                  }
+                                >
+                                  {partnerStatus === 'warning' ? 'Cảnh báo' : 'Bình thường'}
+                                </Badge>
                                 {comment.like_count > 0 && (
-                                  <span className="flex items-center gap-1">
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
                                     <Heart className="h-3 w-3" />
                                     {comment.like_count}
                                   </span>
