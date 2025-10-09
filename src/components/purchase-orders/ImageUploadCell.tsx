@@ -113,12 +113,11 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
   return (
     <div 
       ref={cellRef}
-      className={`flex flex-col gap-2 min-h-[60px] p-2 rounded border-2 transition-colors outline-none ${
+      className={`flex flex-col gap-2 min-h-[60px] p-2 rounded border-2 transition-colors ${
         isFocused ? 'border-primary bg-muted/20' : 'border-transparent'
       }`}
-      tabIndex={0}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
+      onMouseEnter={() => setIsFocused(true)}
+      onMouseLeave={() => setIsFocused(false)}
     >
       {/* Image previews */}
       <div className="flex flex-wrap gap-1">
@@ -154,7 +153,7 @@ export function ImageUploadCell({ images, onImagesChange, itemIndex }: ImageUplo
               <ImageIcon className="w-4 h-4 text-muted-foreground" />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Ctrl+V để dán ảnh
+              Di chuột vào và Ctrl+V
             </p>
           </div>
         )}
