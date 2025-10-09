@@ -19,23 +19,11 @@ Deno.serve(async (req) => {
 
     console.log('Fetching orders for postId:', postId);
 
-    // Get bearer token from Supabase
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    );
-
-    const { data: tokenData, error: tokenError } = await supabaseClient
-      .from('settings')
-      .select('value')
-      .eq('key', 'tpos_bearer_token')
-      .single();
-
-    if (tokenError || !tokenData?.value) {
-      throw new Error('TPOS bearer token not found in settings');
+    const bearerToken = Deno.env.get('FACEBOOK_BEARER_TOKEN');
+    if (!bearerToken) {
+      console.error('FACEBOOK_BEARER_TOKEN not configured');
+      throw new Error('Facebook bearer token not configured');
     }
-
-    const bearerToken = tokenData.value;
 
     const url = `https://tomato.tpos.vn/odata/SaleOnline_Order/ODataService.GetOrdersByPostId?PostId=${postId}&&%24top=${top}&%24orderby=DateCreated+desc&%24count=true`;
 

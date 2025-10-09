@@ -25,7 +25,7 @@ serve(async (req) => {
       );
     }
 
-    const bearerToken = Deno.env.get('TPOS_BEARER_TOKEN');
+    const bearerToken = Deno.env.get('FACEBOOK_BEARER_TOKEN');
     if (!bearerToken) {
       console.error('TPOS_BEARER_TOKEN not configured');
       return new Response(
