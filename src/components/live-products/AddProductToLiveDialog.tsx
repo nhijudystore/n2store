@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ImageIcon, X, Loader2, Warehouse, Package } from "lucide-react";
+import { ImageIcon, X, Loader2, Warehouse, Package, ChevronDown } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
 import { generateProductCode } from "@/lib/product-code-generator";
 import { useVariantDetector } from "@/hooks/use-variant-detector";
@@ -34,6 +34,7 @@ import { generateProductName, generateVariantCode } from "@/lib/variant-code-gen
 import { Store } from "lucide-react";
 import { useProductVariants } from "@/hooks/use-product-variants";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -60,6 +61,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
   const [baseProductCode, setBaseProductCode] = useState<string>("");
   const [selectedVariantIds, setSelectedVariantIds] = useState<Set<string>>(new Set());
+  const [isVariantsOpen, setIsVariantsOpen] = useState(false);
   const uploadAreaRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -561,78 +563,88 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
             )}
 
             {detectedVariants.length > 0 && (
-              <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Package className="w-4 h-4 text-primary" />
-                    <span className="font-medium text-sm">
-                      Biến thể từ kho
-                    </span>
-                    <Badge variant="secondary" className="text-xs">
-                      {selectedVariantIds.size}/{detectedVariants.length}
-                    </Badge>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleSelectAll}
-                    className="h-7 text-xs"
-                  >
-                    {selectedVariantIds.size === detectedVariants.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
-                  </Button>
-                </div>
-
-                <div className="grid gap-2 max-h-60 overflow-y-auto">
-                  {detectedVariants.map((variant) => {
-                    const isSelected = selectedVariantIds.has(variant.id);
-                    const currentVariants = form.watch("variants");
-                    const formVariant = currentVariants.find(v => v.name === variant.variant);
-                    
-                    return (
-                      <div
-                        key={variant.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${
-                          isSelected ? "bg-primary/5 border-primary/20" : "bg-background"
-                        }`}
-                      >
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleVariantSelection(variant.id, variant)}
-                        />
-                        
-                        {(variant.product_images?.[0] || variant.tpos_image_url) && (
-                          <img
-                            src={variant.product_images?.[0] || variant.tpos_image_url || ""}
-                            alt={variant.variant}
-                            className="w-10 h-10 object-cover rounded border"
-                          />
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">
-                            {variant.variant}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            Tồn: {variant.stock_quantity}
-                          </div>
-                        </div>
-                        
-                        {isSelected && (
-                          <Input
-                            type="number"
-                            min="1"
-                            value={formVariant?.quantity || 1}
-                            onChange={(e) => updateVariantQuantity(variant.variant, parseInt(e.target.value) || 1)}
-                            className="w-20 h-8 text-center"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        )}
+              <Collapsible open={isVariantsOpen} onOpenChange={setIsVariantsOpen}>
+                <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                  <CollapsibleTrigger asChild>
+                    <div className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <ChevronDown className={`w-4 h-4 text-primary transition-transform ${isVariantsOpen ? '' : '-rotate-90'}`} />
+                        <Package className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-sm">
+                          Biến thể từ kho
+                        </span>
+                        <Badge variant="secondary" className="text-xs">
+                          {selectedVariantIds.size}/{detectedVariants.length}
+                        </Badge>
                       </div>
-                    );
-                  })}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectAll();
+                        }}
+                        className="h-7 text-xs"
+                      >
+                        {selectedVariantIds.size === detectedVariants.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                      </Button>
+                    </div>
+                  </CollapsibleTrigger>
+
+                  <CollapsibleContent>
+                    <div className="grid gap-2 max-h-60 overflow-y-auto pt-2">
+                      {detectedVariants.map((variant) => {
+                        const isSelected = selectedVariantIds.has(variant.id);
+                        const currentVariants = form.watch("variants");
+                        const formVariant = currentVariants.find(v => v.name === variant.variant);
+                        
+                        return (
+                          <div
+                            key={variant.id}
+                            className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${
+                              isSelected ? "bg-primary/5 border-primary/20" : "bg-background"
+                            }`}
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleVariantSelection(variant.id, variant)}
+                            />
+                            
+                            {(variant.product_images?.[0] || variant.tpos_image_url) && (
+                              <img
+                                src={variant.product_images?.[0] || variant.tpos_image_url || ""}
+                                alt={variant.variant}
+                                className="w-10 h-10 object-cover rounded border"
+                              />
+                            )}
+                            
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">
+                                {variant.variant}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                Tồn: {variant.stock_quantity}
+                              </div>
+                            </div>
+                            
+                            {isSelected && (
+                              <Input
+                                type="number"
+                                min="1"
+                                value={formVariant?.quantity || 1}
+                                onChange={(e) => updateVariantQuantity(variant.variant, parseInt(e.target.value) || 1)}
+                                className="w-20 h-8 text-center"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CollapsibleContent>
                 </div>
-              </div>
+              </Collapsible>
             )}
 
             <div>
