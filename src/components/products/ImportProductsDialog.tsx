@@ -47,6 +47,13 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
     return 0;
   };
 
+  const cleanProductName = (productName: string, productCode: string): string => {
+    // Xóa [mã sản phẩm] ở đầu tên nếu có
+    // VD: "[LSET690X1] 1509 A10 SET ÁO" → "1509 A10 SET ÁO"
+    const pattern = new RegExp(`^\\[${productCode}\\]\\s*`, 'i');
+    return productName.replace(pattern, '').trim();
+  };
+
   const downloadTemplate = () => {
     const template = [
       {
@@ -110,9 +117,12 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
 
         const isExisting = existingCodes.has(productCode);
 
+        const rawProductName = row["Tên sản phẩm"]?.toString().trim() || "Chưa có tên";
+        const cleanedProductName = cleanProductName(rawProductName, productCode);
+
         const productData = {
           product_code: productCode,
-          product_name: row["Tên sản phẩm"]?.toString().trim() || "Chưa có tên",
+          product_name: cleanedProductName,
           selling_price: parsePrice(row["Giá bán"]),
           purchase_price: parsePrice(row["Giá mua"]),
           unit: row["Đơn vị"]?.toString().trim() || "Cái",
