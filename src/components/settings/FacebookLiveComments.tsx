@@ -400,6 +400,13 @@ export function FacebookLiveComments() {
     }
   };
 
+  const filteredComments = commentsWithStatus.filter(comment =>
+    comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const displayedComments = filteredComments.slice(0, displayLimit);
+
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     const target = e.target as HTMLDivElement;
     const scrollPercentage = (target.scrollTop + target.clientHeight) / target.scrollHeight;
@@ -408,14 +415,7 @@ export function FacebookLiveComments() {
     if (scrollPercentage > 0.8 && displayLimit < filteredComments.length) {
       setDisplayLimit(prev => Math.min(prev + 20, filteredComments.length));
     }
-  }, []);
-
-  const filteredComments = commentsWithStatus.filter(comment =>
-    comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const displayedComments = filteredComments.slice(0, displayLimit);
+  }, [displayLimit, filteredComments.length]);
 
   const stats = {
     totalVideos: videos.length,
