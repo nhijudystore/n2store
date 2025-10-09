@@ -44,7 +44,9 @@ export function FacebookLiveComments() {
         throw new Error(error.error || 'Failed to fetch videos');
       }
 
-      return await response.json() as FacebookVideo[];
+      const result = await response.json();
+      // API returns { data: [...] } structure, extract the array
+      return (Array.isArray(result) ? result : result.data || []) as FacebookVideo[];
     },
     enabled: false,
   });
@@ -71,7 +73,9 @@ export function FacebookLiveComments() {
         throw new Error(error.error || 'Failed to fetch comments');
       }
 
-      return await response.json() as FacebookComment[];
+      const result = await response.json();
+      // API returns array directly or { data: [...] } structure
+      return (Array.isArray(result) ? result : result.data || []) as FacebookComment[];
     },
     enabled: !!selectedVideo && !!pageId,
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
