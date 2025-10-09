@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ImageIcon, X, Loader2, Warehouse, Package, ChevronDown } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
-import { generateProductCode } from "@/lib/product-code-generator";
+import { generateProductCode, getNextNACode } from "@/lib/product-code-generator";
 import { useVariantDetector } from "@/hooks/use-variant-detector";
 import { VariantDetectionBadge } from "@/components/products/VariantDetectionBadge";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -361,23 +361,28 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       // SCENARIO B: Manual add (no inventory match)
       else {
         for (const variant of data.variants) {
-          const productCode = data.product_code.trim() || null;
+          let productCode = data.product_code.trim();
+          
+          // Nếu không có mã, tự động generate mã N/A
+          if (!productCode) {
+            productCode = await getNextNACode();
+            toast.info(`Tự động tạo mã: ${productCode}`);
+          }
+          
           const productName = data.product_name.trim() || null;
           const variantName = variant.name.trim() || null;
           
           // Check for duplicates
-          if (productCode) {
-            const { data: existingProducts, error: checkError } = await supabase
-              .from("live_products")
-              .select("id")
-              .eq("live_phase_id", phaseId)
-              .eq("product_code", productCode);
+          const { data: existingProducts, error: checkError } = await supabase
+            .from("live_products")
+            .select("id")
+            .eq("live_phase_id", phaseId)
+            .eq("product_code", productCode);
 
-            if (checkError) throw checkError;
+          if (checkError) throw checkError;
 
-            if (existingProducts && existingProducts.length > 0) {
-              throw new Error(`Sản phẩm "${productCode}" đã tồn tại trong phiên live này`);
-            }
+          if (existingProducts && existingProducts.length > 0) {
+            throw new Error(`Sản phẩm "${productCode}" đã tồn tại trong phiên live này`);
           }
           
           insertData.push({
@@ -463,7 +468,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
-                    <FormLabel>Mã sản phẩm</FormLabel>
+                    <FormLabel>Mã sản phẩm (để trống sẽ tự tạo mã N/A)</FormLabel>
                     <Button
                       type="button"
                       variant="ghost"
@@ -478,7 +483,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                   <FormControl>
                     <div className="relative">
                       <Input 
-                        placeholder="Nhập mã/tên SP để tìm kiếm..."
+                        placeholder="Nhập mã SP hoặc để trống tự tạo N/A..."
                         {...field}
                         onChange={(e) => {
                           field.onChange(e);

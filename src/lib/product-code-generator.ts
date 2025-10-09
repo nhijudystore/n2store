@@ -255,6 +255,56 @@ export async function generateProductCodeFromMax(
 }
 
 /**
+ * Get next available N/A code
+ * @returns Next N/A code (e.g., 'N/A', 'N/A1', 'N/A2'...)
+ */
+export async function getNextNACode(): Promise<string> {
+  try {
+    const { data, error } = await supabase
+      .from("live_products")
+      .select("product_code")
+      .like("product_code", "N/A%")
+      .order("product_code", { ascending: false });
+    
+    if (error) throw error;
+    
+    // Nếu chưa có N/A nào, trả về "N/A"
+    if (!data || data.length === 0) {
+      return "N/A";
+    }
+    
+    // Parse tất cả các số và tìm max
+    let maxNumber = 0;
+    let hasBaseNA = false;
+    
+    data.forEach(item => {
+      if (item.product_code === "N/A") {
+        hasBaseNA = true;
+      }
+      const match = item.product_code.match(/^N\/A(\d+)$/);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxNumber) {
+          maxNumber = num;
+        }
+      }
+    });
+    
+    // Nếu chưa có "N/A" thuần, trả về "N/A"
+    if (!hasBaseNA) {
+      return "N/A";
+    }
+    
+    // Nếu đã có "N/A", bắt đầu từ N/A1
+    const nextNumber = maxNumber + 1;
+    return `N/A${nextNumber}`;
+  } catch (error) {
+    console.error("Error getting next N/A code:", error);
+    return "N/A";
+  }
+}
+
+/**
  * Generate product code based on product name
  * @param productName - Product name to generate code from
  * @returns Generated product code (e.g., 'N126' or 'P45')
