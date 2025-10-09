@@ -6,6 +6,9 @@ export interface ProductVariant {
   product_code: string;
   product_name: string;
   variant: string;
+  product_images: string[] | null;
+  tpos_image_url: string | null;
+  stock_quantity: number;
 }
 
 export function useProductVariants(baseProductCode: string) {
@@ -18,10 +21,11 @@ export function useProductVariants(baseProductCode: string) {
       
       const { data, error } = await supabase
         .from("products")
-        .select("id, product_code, product_name, variant")
-        .ilike("product_code", `${baseProductCode}%`)
+        .select("id, product_code, product_name, variant, product_images, tpos_image_url, stock_quantity")
+        .eq("base_product_code", baseProductCode)
         .not("variant", "is", null)
-        .order("product_code");
+        .neq("product_code", baseProductCode)
+        .order("variant");
       
       if (error) throw error;
       return (data || []) as ProductVariant[];

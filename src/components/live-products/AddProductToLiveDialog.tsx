@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { ImageIcon, X, Loader2, Warehouse } from "lucide-react";
+import { ImageIcon, X, Loader2, Warehouse, Package } from "lucide-react";
 import { compressImage } from "@/lib/image-utils";
 import { generateProductCode } from "@/lib/product-code-generator";
 import { useVariantDetector } from "@/hooks/use-variant-detector";
@@ -32,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { detectVariantsFromText } from "@/lib/variant-detector";
 import { generateProductName, generateVariantCode } from "@/lib/variant-code-generator";
 import { Store } from "lucide-react";
+import { useProductVariants } from "@/hooks/use-product-variants";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AddProductToLiveDialogProps {
   open: boolean;
@@ -56,6 +58,8 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
   const debouncedSearch = useDebounce(productSearchQuery, 300);
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [isSelectProductOpen, setIsSelectProductOpen] = useState(false);
+  const [baseProductCode, setBaseProductCode] = useState<string>("");
+  const [selectedVariantIds, setSelectedVariantIds] = useState<Set<string>>(new Set());
   const uploadAreaRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
 
@@ -77,6 +81,60 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   // Auto-detect supplier from product name
   const detectedSupplier = productName ? detectSupplierFromProductName(productName) : null;
+
+  // Watch product_code field to detect base product code
+  const productCode = form.watch("product_code");
+  
+  // Fetch variants from inventory when base product code is entered
+  const { data: detectedVariants = [], isLoading: isLoadingVariants } = useProductVariants(baseProductCode);
+
+  // Update base product code when product_code changes
+  useEffect(() => {
+    const trimmedCode = productCode?.trim().toUpperCase() || "";
+    if (trimmedCode && trimmedCode !== baseProductCode) {
+      setBaseProductCode(trimmedCode);
+    }
+  }, [productCode, baseProductCode]);
+
+  // Auto-populate variants when detected
+  useEffect(() => {
+    if (detectedVariants.length > 0 && selectedVariantIds.size === 0) {
+      // Auto-select all variants
+      const allIds = new Set(detectedVariants.map(v => v.id));
+      setSelectedVariantIds(allIds);
+      
+      // Auto-populate form with all variants (quantity = 1)
+      const variantData = detectedVariants.map(v => ({
+        name: v.variant,
+        quantity: 1
+      }));
+      form.setValue("variants", variantData);
+      
+      // Set image from first variant if available
+      if (!imageUrl && detectedVariants[0]) {
+        const firstVariant = detectedVariants[0];
+        if (firstVariant.product_images?.[0]) {
+          setImageUrl(firstVariant.product_images[0]);
+        } else if (firstVariant.tpos_image_url) {
+          setImageUrl(firstVariant.tpos_image_url);
+        }
+      }
+      
+      toast.success(`Tìm thấy ${detectedVariants.length} biến thể`);
+    }
+  }, [detectedVariants, selectedVariantIds.size]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setBaseProductCode("");
+      setSelectedVariantIds(new Set());
+      setImageUrl("");
+      setProductSearchQuery("");
+      setShowProductSuggestions(false);
+      form.reset();
+    }
+  }, [open]);
 
   // Fetch product suggestions from inventory
   const { data: suggestedProducts = [] } = useQuery({
@@ -165,8 +223,21 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
 
   // Handle product selection from suggestions or dialog
   const handleSelectProduct = (product: any) => {
-    form.setValue("product_code", product.product_code);
-    form.setValue("product_name", product.product_name);
+    // Check if this is a base product (has base_product_code equal to product_code or no variant)
+    const isBaseProduct = !product.variant || product.base_product_code === product.product_code;
+    
+    if (isBaseProduct) {
+      // Set base product code to trigger variant loading
+      form.setValue("product_code", product.product_code);
+      form.setValue("product_name", product.product_name);
+      setBaseProductCode(product.product_code);
+      setSelectedVariantIds(new Set()); // Reset selection to trigger auto-population
+    } else {
+      // Single variant selected - just add that one
+      form.setValue("product_code", product.product_code);
+      form.setValue("product_name", product.product_name);
+      form.setValue("variants", [{ name: product.variant || "", quantity: 1 }]);
+    }
     
     // Auto-fill image if available
     if (product.product_images?.[0]) {
@@ -178,6 +249,65 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
     setShowProductSuggestions(false);
     setProductSearchQuery("");
     toast.success(`Đã chọn: ${product.product_name}`);
+  };
+
+  // Toggle variant selection
+  const toggleVariantSelection = (variantId: string, variant: any) => {
+    const newSelected = new Set(selectedVariantIds);
+    
+    if (newSelected.has(variantId)) {
+      newSelected.delete(variantId);
+    } else {
+      newSelected.add(variantId);
+    }
+    
+    setSelectedVariantIds(newSelected);
+    
+    // Update form variants based on selection
+    const currentVariants = form.getValues("variants");
+    const variantIndex = currentVariants.findIndex(v => v.name === variant.variant);
+    
+    if (newSelected.has(variantId)) {
+      // Add variant if not already in form
+      if (variantIndex === -1) {
+        form.setValue("variants", [...currentVariants, { name: variant.variant, quantity: 1 }]);
+      }
+    } else {
+      // Remove variant from form
+      if (variantIndex !== -1) {
+        form.setValue("variants", currentVariants.filter((_, i) => i !== variantIndex));
+      }
+    }
+  };
+
+  // Select/deselect all variants
+  const toggleSelectAll = () => {
+    if (selectedVariantIds.size === detectedVariants.length) {
+      // Deselect all
+      setSelectedVariantIds(new Set());
+      form.setValue("variants", [{ name: "", quantity: 0 }]);
+    } else {
+      // Select all
+      const allIds = new Set(detectedVariants.map(v => v.id));
+      setSelectedVariantIds(allIds);
+      const variantData = detectedVariants.map(v => ({
+        name: v.variant,
+        quantity: 1
+      }));
+      form.setValue("variants", variantData);
+    }
+  };
+
+  // Update variant quantity
+  const updateVariantQuantity = (variantName: string, quantity: number) => {
+    const currentVariants = form.getValues("variants");
+    const variantIndex = currentVariants.findIndex(v => v.name === variantName);
+    
+    if (variantIndex !== -1) {
+      const updatedVariants = [...currentVariants];
+      updatedVariants[variantIndex].quantity = quantity;
+      form.setValue("variants", updatedVariants);
+    }
   };
 
   const addProductMutation = useMutation({
@@ -421,6 +551,89 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
                 </FormItem>
               )}
             />
+
+            {/* Auto-detected variants section */}
+            {isLoadingVariants && baseProductCode && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đang tìm biến thể...</span>
+              </div>
+            )}
+
+            {detectedVariants.length > 0 && (
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-sm">
+                      Biến thể từ kho
+                    </span>
+                    <Badge variant="secondary" className="text-xs">
+                      {selectedVariantIds.size}/{detectedVariants.length}
+                    </Badge>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSelectAll}
+                    className="h-7 text-xs"
+                  >
+                    {selectedVariantIds.size === detectedVariants.length ? "Bỏ chọn tất cả" : "Chọn tất cả"}
+                  </Button>
+                </div>
+
+                <div className="grid gap-2 max-h-60 overflow-y-auto">
+                  {detectedVariants.map((variant) => {
+                    const isSelected = selectedVariantIds.has(variant.id);
+                    const currentVariants = form.watch("variants");
+                    const formVariant = currentVariants.find(v => v.name === variant.variant);
+                    
+                    return (
+                      <div
+                        key={variant.id}
+                        className={`flex items-center gap-3 p-2 rounded-lg border transition-colors ${
+                          isSelected ? "bg-primary/5 border-primary/20" : "bg-background"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleVariantSelection(variant.id, variant)}
+                        />
+                        
+                        {(variant.product_images?.[0] || variant.tpos_image_url) && (
+                          <img
+                            src={variant.product_images?.[0] || variant.tpos_image_url || ""}
+                            alt={variant.variant}
+                            className="w-10 h-10 object-cover rounded border"
+                          />
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm truncate">
+                            {variant.variant}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Tồn: {variant.stock_quantity}
+                          </div>
+                        </div>
+                        
+                        {isSelected && (
+                          <Input
+                            type="number"
+                            min="1"
+                            value={formVariant?.quantity || 1}
+                            onChange={(e) => updateVariantQuantity(variant.variant, parseInt(e.target.value) || 1)}
+                            className="w-20 h-8 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div>
               <FormLabel>Hình ảnh sản phẩm</FormLabel>
