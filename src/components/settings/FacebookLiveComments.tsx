@@ -266,7 +266,9 @@ export function FacebookLiveComments() {
             
             if (existingCustomer) {
               // Customer already in database - use existing data
-              const statusText = existingCustomer.info_status === 'complete' 
+              // Show customer status if they have a phone (meaning we have their info)
+              const hasCompleteInfo = !!existingCustomer.phone;
+              const statusText = (existingCustomer.info_status === 'complete' || hasCompleteInfo)
                 ? existingCustomer.customer_status 
                 : 'Cần thêm TT';
               
