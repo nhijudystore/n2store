@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search } from "lucide-react";
 import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment } from "@/types/facebook";
@@ -19,8 +19,10 @@ export function FacebookLiveComments() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [previousCommentCount, setPreviousCommentCount] = useState(0);
+  const [previousCommentIds, setPreviousCommentIds] = useState<Set<string>>(new Set());
+  const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   // Fetch videos
   const { data: videos = [], isLoading: videosLoading, refetch: refetchVideos } = useQuery({
@@ -81,39 +83,68 @@ export function FacebookLiveComments() {
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
 
-  // Track new comments
+  // Track new comments and scroll to top
   useEffect(() => {
-    if (comments.length > previousCommentCount && previousCommentCount > 0) {
-      toast.success(`${comments.length - previousCommentCount} comment mới!`);
+    if (comments.length === 0) return;
+    
+    const currentIds = new Set(comments.map(c => c.id));
+    const newIds = new Set<string>();
+    
+    if (previousCommentIds.size > 0) {
+      currentIds.forEach(id => {
+        if (!previousCommentIds.has(id)) {
+          newIds.add(id);
+        }
+      });
+      
+      if (newIds.size > 0) {
+        setNewCommentIds(newIds);
+        toast({
+          title: `🔔 ${newIds.size} comment mới!`,
+        });
+        
+        // Scroll to top to show new comments
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = 0;
+        }
+        
+        // Clear new badges after 3 seconds
+        setTimeout(() => {
+          setNewCommentIds(new Set());
+        }, 3000);
+      }
     }
-    setPreviousCommentCount(comments.length);
-  }, [comments.length]);
-
-  // Auto scroll to bottom when new comments arrive
-  useEffect(() => {
-    if (scrollRef.current && isAutoRefresh) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [comments, isAutoRefresh]);
+    
+    setPreviousCommentIds(currentIds);
+  }, [comments, toast]);
 
   const handleLoadVideos = async () => {
     if (!pageId) {
-      toast.error("Vui lòng nhập Page ID");
+      toast({
+        title: "Vui lòng nhập Page ID",
+        variant: "destructive",
+      });
       return;
     }
     
     try {
       await refetchVideos();
-      toast.success("Đã tải videos thành công!");
+      toast({
+        title: "Đã tải videos thành công!",
+      });
     } catch (error: any) {
-      toast.error("Lỗi khi tải videos: " + error.message);
+      toast({
+        title: "Lỗi khi tải videos: " + error.message,
+        variant: "destructive",
+      });
     }
   };
 
   const handleVideoClick = (video: FacebookVideo) => {
     setSelectedVideo(video);
     setIsCommentsOpen(true);
-    setPreviousCommentCount(0);
+    setPreviousCommentIds(new Set());
+    setNewCommentIds(new Set());
     setSearchQuery("");
   };
 
@@ -125,11 +156,9 @@ export function FacebookLiveComments() {
   const stats = {
     totalVideos: videos.length,
     liveVideos: videos.filter(v => v.statusLive === 1).length,
-    totalComments: videos.reduce((sum, v) => sum + v.countComment, 0),
-    totalReactions: videos.reduce((sum, v) => sum + v.countReaction, 0),
+    totalComments: videos.reduce((sum, v) => sum + (v.countComment || 0), 0),
+    totalReactions: videos.reduce((sum, v) => sum + (v.countReaction || 0), 0),
   };
-
-  const newCommentsCount = comments.length - previousCommentCount;
 
   return (
     <div className="space-y-6">
@@ -293,9 +322,9 @@ export function FacebookLiveComments() {
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Refresh
               </Button>
-              {newCommentsCount > 0 && (
+              {newCommentIds.size > 0 && (
                 <Badge variant="default" className="ml-auto">
-                  {newCommentsCount} mới
+                  {newCommentIds.size} mới
                 </Badge>
               )}
             </div>
@@ -319,8 +348,8 @@ export function FacebookLiveComments() {
                     {searchQuery ? "Không tìm thấy comment nào" : "Chưa có comment"}
                   </div>
                 ) : (
-                  filteredComments.map((comment, index) => {
-                    const isNew = index >= previousCommentCount;
+                  filteredComments.map((comment) => {
+                    const isNew = newCommentIds.has(comment.id);
                     return (
                       <Card
                         key={comment.id}
@@ -332,7 +361,7 @@ export function FacebookLiveComments() {
                               <div className="font-semibold text-sm">
                                 {comment.from?.name}
                                 {isNew && (
-                                  <Badge variant="default" className="ml-2">NEW</Badge>
+                                  <Badge variant="default" className="ml-2">✨ MỚI</Badge>
                                 )}
                               </div>
                               <p className="text-sm mt-1">{comment.message}</p>
