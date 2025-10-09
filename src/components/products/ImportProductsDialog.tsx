@@ -23,7 +23,25 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
   const parsePrice = (value: any): number => {
     if (typeof value === "number") return value;
     if (typeof value === "string") {
-      const cleaned = value.replace(/[,.\s]/g, "");
+      // Xóa khoảng trắng
+      let cleaned = value.trim().replace(/\s/g, "");
+      
+      // Nếu có dấu chấm hoặc phẩy ở 3 ký tự cuối → dấu thập phân
+      // VD: 123,45 hoặc 123.45 → giữ lại dấu cuối
+      const lastComma = cleaned.lastIndexOf(',');
+      const lastDot = cleaned.lastIndexOf('.');
+      
+      if (lastComma > -1 && lastComma > cleaned.length - 4) {
+        // Dấu phẩy ở cuối (1-3 số sau dấu) → dấu thập phân
+        cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+      } else if (lastDot > -1 && lastDot > cleaned.length - 4) {
+        // Dấu chấm ở cuối (1-3 số sau dấu) → dấu thập phân
+        cleaned = cleaned.replace(/,/g, '');
+      } else {
+        // Không có dấu ở cuối hoặc có > 3 số sau dấu → dấu phân cách hàng nghìn
+        cleaned = cleaned.replace(/[,.]/g, '');
+      }
+      
       return parseFloat(cleaned) || 0;
     }
     return 0;
@@ -51,12 +69,13 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
       // Get existing product codes
       const { data: existingProducts } = await supabase
         .from("products")
-        .select("product_code")
+        .select("product_code, id")
         .range(0, 9999);
 
       const existingCodes = new Set(existingProducts?.map((p) => p.product_code) || []);
 
       let insertedCount = 0;
+      let updatedCount = 0;
       let skippedCount = 0;
 
       for (let i = 0; i < jsonData.length; i++) {
@@ -69,12 +88,7 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
           continue;
         }
 
-        // Skip if product code already exists
-        if (existingCodes.has(productCode)) {
-          skippedCount++;
-          setProgress(((i + 1) / jsonData.length) * 100);
-          continue;
-        }
+        const isExisting = existingCodes.has(productCode);
 
         const productData = {
           product_code: productCode,
@@ -87,11 +101,22 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
           stock_quantity: parseInt(row["Số lượng tồn"]?.toString() || "0") || 0,
         };
 
-        const { error } = await supabase.from("products").insert(productData);
+        // UPSERT: Tự động insert nếu mới, update nếu đã tồn tại
+        const { error } = await supabase
+          .from("products")
+          .upsert(productData, { 
+            onConflict: 'product_code',
+            ignoreDuplicates: false // Bắt buộc cập nhật nếu trùng
+          });
 
         if (!error) {
-          insertedCount++;
+          if (isExisting) {
+            updatedCount++;
+          } else {
+            insertedCount++;
+          }
         } else {
+          console.error(`Lỗi dòng ${i + 1}:`, error);
           skippedCount++;
         }
 
@@ -100,7 +125,7 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
 
       toast({
         title: "Import thành công",
-        description: `Đã thêm ${insertedCount} sản phẩm mới, bỏ qua ${skippedCount} sản phẩm`,
+        description: `Đã thêm ${insertedCount} sản phẩm mới, cập nhật ${updatedCount} sản phẩm, bỏ qua ${skippedCount} dòng`,
       });
 
       onSuccess();
@@ -139,7 +164,7 @@ export function ImportProductsDialog({ open, onOpenChange, onSuccess }: ImportPr
               Cột cần có: Mã sản phẩm, Tên sản phẩm, Giá bán, Giá mua, Đơn vị, Nhóm sản phẩm, Mã vạch, Số lượng tồn
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              ⚠️ Sản phẩm đã tồn tại (trùng mã) sẽ được BỎ QUA
+              ✅ Sản phẩm đã tồn tại (trùng mã) sẽ được <strong>CẬP NHẬT</strong> giá và thông tin
             </p>
           </div>
 
