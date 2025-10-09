@@ -354,6 +354,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
               sold_quantity: 0,
               image_url: imageUrl || matchedProduct.tpos_image_url || null,
               note: data.note.trim() || null,
+              product_type: 'hang_dat',
             });
           }
         }
@@ -396,6 +397,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
             sold_quantity: 0,
             image_url: imageUrl || null,
             note: data.note.trim() || null,
+            product_type: 'hang_dat',
           });
         }
       }

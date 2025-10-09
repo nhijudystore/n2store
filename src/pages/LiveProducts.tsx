@@ -88,6 +88,8 @@ interface LiveProduct {
   sold_quantity: number;
   image_url?: string;
   created_at?: string;
+  note?: string | null;
+  product_type?: 'hang_dat' | 'hang_le' | 'hang_so_luong';
 }
 
 interface LiveOrder {
@@ -292,7 +294,7 @@ export default function LiveProducts() {
   });
 
   // Fetch live products for selected phase (or all phases if "all" selected)
-  const { data: liveProducts = [] } = useQuery({
+  const { data: allLiveProducts = [] } = useQuery({
     queryKey: ["live-products", selectedPhase, selectedSession],
     queryFn: async () => {
       if (!selectedPhase) return [];
@@ -355,6 +357,11 @@ export default function LiveProducts() {
     },
     enabled: !!selectedPhase && !!selectedSession,
   });
+
+  // Filter products by type
+  const liveProducts = allLiveProducts.filter(p => !p.product_type || p.product_type === 'hang_dat');
+  const productsHangDat = liveProducts;
+  const productsHangLe = allLiveProducts.filter(p => p.product_type === 'hang_le');
 
   // Fetch live orders for selected phase (or all phases if "all" selected)
   const { data: liveOrders = [] } = useQuery({
@@ -782,6 +789,45 @@ export default function LiveProducts() {
     }
   };
 
+  // Mutation chuyển sang Hàng Lẻ
+  const changeToHangLeMutation = useMutation({
+    mutationFn: async (productIds: string[]) => {
+      const { error } = await supabase
+        .from('live_products')
+        .update({ product_type: 'hang_le' })
+        .in('id', productIds);
+      
+      if (error) throw error;
+      return productIds.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['live-products'] });
+      toast.success(`Đã chuyển ${count} sản phẩm sang Hàng Lẻ`);
+    },
+    onError: (error) => {
+      toast.error(`Lỗi: ${error.message}`);
+    }
+  });
+
+  // Mutation chuyển về Hàng Đặt
+  const changeToHangDatMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      const { error } = await supabase
+        .from('live_products')
+        .update({ product_type: 'hang_dat' })
+        .eq('id', productId);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['live-products'] });
+      toast.success('Đã chuyển về Hàng Đặt');
+    },
+    onError: (error) => {
+      toast.error(`Lỗi: ${error.message}`);
+    }
+  });
+
   const handleSyncTposOrders = async () => {
     setIsSyncingTpos(true);
     setTposSyncResult(null);
@@ -1109,11 +1155,11 @@ export default function LiveProducts() {
               <TabsList>
                 <TabsTrigger value="products" className="flex items-center gap-2">
                   <Package className="h-4 w-4" />
-                  Sản phẩm ({liveProducts.length})
+                  Sản phẩm ({productsHangDat.length})
                 </TabsTrigger>
                 <TabsTrigger value="hang-le" className="flex items-center gap-2">
                   <ShoppingBag className="h-4 w-4" />
-                  Hàng Lẻ
+                  Hàng Lẻ ({productsHangLe.length})
                 </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
                   <ShoppingCart className="h-4 w-4" />
@@ -1209,9 +1255,9 @@ export default function LiveProducts() {
                     </TableHeader>
                     <TableBody>
                       {(() => {
-                        // Filter products based on search
+                        // Filter products based on search - only show hang_dat
                         const filteredProducts = productSearch.trim()
-                          ? liveProducts.filter(product => {
+                          ? productsHangDat.filter(product => {
                               const searchLower = productSearch.toLowerCase();
                               return (
                                 product.product_code.toLowerCase().includes(searchLower) ||
@@ -1219,7 +1265,7 @@ export default function LiveProducts() {
                                 (product.variant?.toLowerCase() || "").includes(searchLower)
                               );
                             })
-                          : liveProducts;
+                          : productsHangDat;
 
                         // Group products by base_product_code (or unique key for manual products)
                         const productGroups = filteredProducts.reduce((groups, product) => {
@@ -1452,9 +1498,22 @@ export default function LiveProducts() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      onClick={() => {
+                                        const productIds = group.products.map(p => p.id);
+                                        changeToHangLeMutation.mutate(productIds);
+                                      }}
+                                      disabled={selectedPhase === "all"}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể" : "Chuyển sang Hàng Lẻ"}
+                                    >
+                                      <ShoppingBag className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
                                       onClick={() => handleEditProduct(product)}
                                       disabled={selectedPhase === "all"}
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : ""}
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : "Chỉnh sửa"}
                                     >
                                       <Edit className="h-4 w-4" />
                                     </Button>
@@ -1463,8 +1522,8 @@ export default function LiveProducts() {
                                       size="sm"
                                       onClick={() => handleDeleteAllVariants(group.product_code, group.product_name)}
                                       disabled={selectedPhase === "all"}
-                                      className="text-red-600 hover:text-red-700"
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : ""}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : "Xóa tất cả"}
                                     >
                                       <Trash2 className="h-4 w-4" />
                                     </Button>
@@ -1732,17 +1791,181 @@ export default function LiveProducts() {
               )}
             </TabsContent>
 
-            {/* Hàng Lẻ Tab - Empty for future implementation */}
+            {/* Hàng Lẻ Tab */}
             <TabsContent value="hang-le" className="space-y-4">
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Hàng Lẻ</h3>
-                  <p className="text-muted-foreground text-center">
-                    Chức năng đang được phát triển
-                  </p>
-                </CardContent>
-              </Card>
+              {!selectedPhase ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    <ShoppingBag className="mx-auto h-12 w-12 mb-4" />
+                    <p>Vui lòng chọn phiên live để xem hàng lẻ</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Tìm kiếm hàng lẻ..."
+                        value={productSearch}
+                        onChange={(e) => setProductSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={handleRefreshProducts}>
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <Card>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Mã SP</TableHead>
+                          <TableHead>Tên sản phẩm</TableHead>
+                          <TableHead>Hình ảnh</TableHead>
+                          <TableHead>Biến thể</TableHead>
+                          <TableHead className="text-center">SL chuẩn bị</TableHead>
+                          <TableHead className="text-center">SL đã bán</TableHead>
+                          <TableHead>Mã đơn hàng</TableHead>
+                          <TableHead className="text-center">Thao tác</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(() => {
+                          const filteredHangLe = productSearch.trim()
+                            ? productsHangLe.filter(product => {
+                                const searchLower = productSearch.toLowerCase();
+                                return (
+                                  product.product_code.toLowerCase().includes(searchLower) ||
+                                  product.product_name.toLowerCase().includes(searchLower) ||
+                                  (product.variant?.toLowerCase() || "").includes(searchLower)
+                                );
+                              })
+                            : productsHangLe;
+
+                          if (filteredHangLe.length === 0) {
+                            return (
+                              <TableRow>
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                  {productSearch.trim() ? "Không tìm thấy sản phẩm" : "Chưa có hàng lẻ"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          }
+
+                          return filteredHangLe.map(product => {
+                            const productOrders = ordersWithProducts.filter(
+                              order => order.live_product_id === product.id
+                            );
+
+                            return (
+                              <TableRow key={product.id}>
+                                <TableCell className="font-medium">{product.product_code}</TableCell>
+                                <TableCell>{product.product_name}</TableCell>
+                                <TableCell>
+                                  {product.image_url ? (
+                                    <img 
+                                      src={product.image_url} 
+                                      alt={product.product_name} 
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                      <Package className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell>{product.variant || "-"}</TableCell>
+                                <TableCell className="text-center">{product.prepared_quantity}</TableCell>
+                                <TableCell className="text-center">{product.sold_quantity}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1">
+                                    {productOrders.map(order => {
+                                      const isOversell = calculateIsOversell(product.id, order.id, allLiveProducts, ordersWithProducts);
+                                      const badgeColor = order.customer_status === "vip" ? "bg-yellow-100 text-yellow-800" : "";
+                                      
+                                      return (
+                                        <TooltipProvider key={order.id}>
+                                          <Tooltip>
+                                            <TooltipTrigger asChild>
+                                              <Badge
+                                                variant="secondary"
+                                                className={`text-xs cursor-pointer hover:scale-105 transition-transform ${badgeColor}`}
+                                                onClick={() => {
+                                                  const aggregatedProduct = {
+                                                    product_code: product.product_code,
+                                                    product_name: product.product_name,
+                                                    live_product_id: order.live_product_id,
+                                                    total_quantity: order.quantity,
+                                                    orders: [order]
+                                                  };
+                                                  handleEditOrderItem(aggregatedProduct);
+                                                }}
+                                              >
+                                                {isOversell && <AlertTriangle className="h-3 w-3 mr-1" />}
+                                                {order.quantity === 1 ? order.order_code : `${order.order_code} x${order.quantity}`}
+                                              </Badge>
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p>{isOversell ? "⚠️ Đơn quá số" : `Đơn: ${order.order_code} - SL: ${order.quantity}`}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      );
+                                    })}
+                                    {selectedPhase !== "all" && (
+                                      <QuickAddOrder 
+                                        productId={product.id}
+                                        phaseId={selectedPhase}
+                                        sessionId={selectedSession}
+                                        availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                      />
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <div className="flex items-center justify-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => changeToHangDatMutation.mutate(product.id)}
+                                      disabled={selectedPhase === "all"}
+                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể" : "Chuyển về Hàng Đặt"}
+                                    >
+                                      <Package className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditProduct(product)}
+                                      disabled={selectedPhase === "all"}
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể" : "Chỉnh sửa"}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteProduct(product.id)}
+                                      disabled={selectedPhase === "all"}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể" : "Xóa"}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          });
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="orders" className="space-y-4">

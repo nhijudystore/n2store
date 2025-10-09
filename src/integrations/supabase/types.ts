@@ -275,6 +275,7 @@ export type Database = {
           prepared_quantity: number
           product_code: string
           product_name: string
+          product_type: Database["public"]["Enums"]["product_type_enum"]
           sold_quantity: number
           updated_at: string
           variant: string | null
@@ -290,6 +291,7 @@ export type Database = {
           prepared_quantity?: number
           product_code: string
           product_name: string
+          product_type?: Database["public"]["Enums"]["product_type_enum"]
           sold_quantity?: number
           updated_at?: string
           variant?: string | null
@@ -305,6 +307,7 @@ export type Database = {
           prepared_quantity?: number
           product_code?: string
           product_name?: string
+          product_type?: Database["public"]["Enums"]["product_type_enum"]
           sold_quantity?: number
           updated_at?: string
           variant?: string | null
@@ -751,7 +754,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      product_type_enum: "hang_dat" | "hang_le" | "hang_so_luong"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -878,6 +881,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      product_type_enum: ["hang_dat", "hang_le", "hang_so_luong"],
+    },
   },
 } as const
