@@ -69,6 +69,14 @@ const statusColors: Record<string, string> = {
   'Nguy hiểm': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
   'Thân thiết': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
   'VIP': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
+  // Support old English values for backward compatibility
+  'normal': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  'bomb': 'bg-red-200 text-red-900 dark:bg-red-800 dark:text-red-100',
+  'warning': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
+  'wholesale': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
+  'danger': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+  'close': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100',
+  'vip': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
 };
 
 const statusLabels: Record<string, string> = {
@@ -79,6 +87,28 @@ const statusLabels: Record<string, string> = {
   'Nguy hiểm': 'Nguy hiểm',
   'Thân thiết': 'Thân thiết',
   'VIP': 'VIP',
+  // Support old English values for backward compatibility
+  'normal': 'Bình thường',
+  'bomb': 'Bom hàng',
+  'warning': 'Cảnh báo',
+  'wholesale': 'Khách sỉ',
+  'danger': 'Nguy hiểm',
+  'close': 'Thân thiết',
+  'vip': 'VIP',
+};
+
+// Convert old English status to Vietnamese
+const convertStatusToVietnamese = (status: string): string => {
+  const map: Record<string, string> = {
+    'normal': 'Bình thường',
+    'bomb': 'Bom hàng',
+    'warning': 'Cảnh báo',
+    'wholesale': 'Khách sỉ',
+    'danger': 'Nguy hiểm',
+    'close': 'Thân thiết',
+    'vip': 'VIP',
+  };
+  return map[status] || status;
 };
 
 const infoStatusLabels: Record<string, string> = {
@@ -231,7 +261,7 @@ export default function Customers() {
       email: "",
       address: "",
       notes: "",
-      customer_status: "normal",
+      customer_status: "Bình thường",
       info_status: "incomplete",
       facebook_id: "",
     });
@@ -244,21 +274,24 @@ export default function Customers() {
       customer.phone?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "all" || customer.customer_status === statusFilter;
+    // Match status - support both Vietnamese and English values
+    const matchesStatus = statusFilter === "all" || 
+      customer.customer_status === statusFilter ||
+      convertStatusToVietnamese(customer.customer_status) === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate stats
+  // Calculate stats (support both Vietnamese and English status)
   const stats = {
     total: customers.length,
-    normal: customers.filter(c => c.customer_status === "normal").length,
-    warning: customers.filter(c => c.customer_status === "warning").length,
-    danger: customers.filter(c => c.customer_status === "danger").length,
-    vip: customers.filter(c => c.customer_status === "vip").length,
-    bomb: customers.filter(c => c.customer_status === "bomb").length,
-    wholesale: customers.filter(c => c.customer_status === "wholesale").length,
-    close: customers.filter(c => c.customer_status === "close").length,
+    normal: customers.filter(c => c.customer_status === "normal" || c.customer_status === "Bình thường").length,
+    warning: customers.filter(c => c.customer_status === "warning" || c.customer_status === "Cảnh báo").length,
+    danger: customers.filter(c => c.customer_status === "danger" || c.customer_status === "Nguy hiểm").length,
+    vip: customers.filter(c => c.customer_status === "vip" || c.customer_status === "VIP").length,
+    bomb: customers.filter(c => c.customer_status === "bomb" || c.customer_status === "Bom hàng").length,
+    wholesale: customers.filter(c => c.customer_status === "wholesale" || c.customer_status === "Khách sỉ").length,
+    close: customers.filter(c => c.customer_status === "close" || c.customer_status === "Thân thiết").length,
   };
 
   return (
@@ -329,13 +362,13 @@ export default function Customers() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="normal">Bình thường</SelectItem>
-                      <SelectItem value="bomb">Bom hàng</SelectItem>
-                      <SelectItem value="warning">Cảnh báo</SelectItem>
-                      <SelectItem value="wholesale">Khách sỉ</SelectItem>
-                      <SelectItem value="danger">Nguy hiểm</SelectItem>
-                      <SelectItem value="close">Thân thiết</SelectItem>
-                      <SelectItem value="vip">VIP</SelectItem>
+                      <SelectItem value="Bình thường">Bình thường</SelectItem>
+                      <SelectItem value="Bom hàng">Bom hàng</SelectItem>
+                      <SelectItem value="Cảnh báo">Cảnh báo</SelectItem>
+                      <SelectItem value="Khách sỉ">Khách sỉ</SelectItem>
+                      <SelectItem value="Nguy hiểm">Nguy hiểm</SelectItem>
+                      <SelectItem value="Thân thiết">Thân thiết</SelectItem>
+                      <SelectItem value="VIP">VIP</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -479,13 +512,13 @@ export default function Customers() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tất cả</SelectItem>
-              <SelectItem value="normal">Bình thường</SelectItem>
-              <SelectItem value="bomb">Bom hàng</SelectItem>
-              <SelectItem value="warning">Cảnh báo</SelectItem>
-              <SelectItem value="wholesale">Khách sỉ</SelectItem>
-              <SelectItem value="danger">Nguy hiểm</SelectItem>
-              <SelectItem value="close">Thân thiết</SelectItem>
-              <SelectItem value="vip">VIP</SelectItem>
+              <SelectItem value="Bình thường">Bình thường</SelectItem>
+              <SelectItem value="Bom hàng">Bom hàng</SelectItem>
+              <SelectItem value="Cảnh báo">Cảnh báo</SelectItem>
+              <SelectItem value="Khách sỉ">Khách sỉ</SelectItem>
+              <SelectItem value="Nguy hiểm">Nguy hiểm</SelectItem>
+              <SelectItem value="Thân thiết">Thân thiết</SelectItem>
+              <SelectItem value="VIP">VIP</SelectItem>
             </SelectContent>
           </Select>
         </div>
