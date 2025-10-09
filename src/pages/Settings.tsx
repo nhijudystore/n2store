@@ -18,6 +18,7 @@ import { uploadToTPOS, TPOSProductItem } from "@/lib/tpos-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VariantTestTool } from "@/components/settings/VariantTestTool";
 import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
+import { FacebookLiveComments } from "@/components/settings/FacebookLiveComments";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -1670,6 +1671,8 @@ const Settings = () => {
           </div>
         </CardContent>
       </Card>
+
+      <FacebookLiveComments />
 
       <VariantTestTool />
     </div>
