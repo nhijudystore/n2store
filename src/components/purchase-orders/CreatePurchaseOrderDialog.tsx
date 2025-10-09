@@ -412,10 +412,30 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     // Call mutation to upsert base product and create child variants
     createVariantProducts.mutate({ 
       baseProduct: baseProductData,
-      childVariants: childVariantsData
+      childVariants: childVariantsData,
+      onSuccessCallback: () => {
+        // Reset dòng về trạng thái ban đầu
+        const emptyItem: PurchaseOrderItem = {
+          product_id: null,
+          quantity: 1,
+          notes: "",
+          _tempProductName: "",
+          _tempVariant: "",
+          _tempProductCode: "",
+          _tempUnitPrice: "",
+          _tempSellingPrice: "",
+          _tempTotalPrice: 0,
+          _tempProductImages: [],
+          _tempPriceImages: []
+        };
+        
+        setItems(prev => {
+          const newItems = [...prev];
+          newItems[index] = emptyItem;
+          return newItems;
+        });
+      }
     });
-
-    // Giữ nguyên dòng hiện tại (KHÔNG xóa, KHÔNG tạo dòng mới, KHÔNG update variant field)
   };
 
   const openVariantGenerator = (index: number) => {

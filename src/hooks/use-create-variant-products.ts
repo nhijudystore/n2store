@@ -29,6 +29,7 @@ interface ChildVariantData {
 interface CreateVariantInput {
   baseProduct: BaseProductData;
   childVariants: ChildVariantData[];
+  onSuccessCallback?: () => void;
 }
 
 // Helper function to merge and deduplicate variants
@@ -138,7 +139,7 @@ export function useCreateVariantProducts() {
         childrenSkipped: childVariants.length - childrenCreated
       };
     },
-    onSuccess: ({ baseAction, baseProduct, childrenCreated, childrenSkipped }) => {
+    onSuccess: ({ baseAction, baseProduct, childrenCreated, childrenSkipped }, variables) => {
       const baseActionText = baseAction === 'created' ? 'tạo' : 'cập nhật';
       const messages = [`Đã ${baseActionText} sản phẩm gốc: ${baseProduct}`];
       
@@ -155,6 +156,11 @@ export function useCreateVariantProducts() {
       });
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["products-select"] });
+      
+      // Gọi callback nếu có
+      if (variables.onSuccessCallback) {
+        variables.onSuccessCallback();
+      }
     },
     onError: (error: Error) => {
       toast({
