@@ -463,6 +463,54 @@ export type Database = {
         }
         Relationships: []
       }
+      products_cleanup_backup: {
+        Row: {
+          deleted_at: string | null
+          id: string
+          price_images: string[] | null
+          product_code: string
+          product_images: string[] | null
+          product_name: string
+          purchase_price: number | null
+          reason: string | null
+          selling_price: number | null
+          stock_quantity: number | null
+          supplier_name: string | null
+          tpos_product_id: number | null
+          variant: string | null
+        }
+        Insert: {
+          deleted_at?: string | null
+          id: string
+          price_images?: string[] | null
+          product_code: string
+          product_images?: string[] | null
+          product_name: string
+          purchase_price?: number | null
+          reason?: string | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          tpos_product_id?: number | null
+          variant?: string | null
+        }
+        Update: {
+          deleted_at?: string | null
+          id?: string
+          price_images?: string[] | null
+          product_code?: string
+          product_images?: string[] | null
+          product_name?: string
+          purchase_price?: number | null
+          reason?: string | null
+          selling_price?: number | null
+          stock_quantity?: number | null
+          supplier_name?: string | null
+          tpos_product_id?: number | null
+          variant?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
