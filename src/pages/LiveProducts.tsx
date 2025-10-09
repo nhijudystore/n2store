@@ -18,6 +18,7 @@ import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
+import { FacebookLiveComments } from "@/components/settings/FacebookLiveComments";
 import { 
   Plus, 
   Calendar,
@@ -2219,25 +2220,9 @@ export default function LiveProducts() {
               />
             </TabsContent>
 
-            {/* Test Comment Feature Tab */}
+            {/* Facebook Live Comments Feature Tab */}
             <TabsContent value="test-comment" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Test Tính Năng Comment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Tính năng đang được phát triển</h3>
-                    <p className="text-muted-foreground">
-                      Nội dung sẽ được thêm vào sau
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <FacebookLiveComments />
             </TabsContent>
           </Tabs>
         </>
