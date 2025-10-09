@@ -37,7 +37,7 @@ serve(async (req) => {
     console.log(`Fetching comments for pageId: ${pageId}, postId: ${postId}, limit: ${limit}`);
 
     const response = await fetch(
-      `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&postId=${postId}&limit=${limit}`,
+      `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&facebook_type=Page&postId=${postId}&limit=${limit}&order=reverse_chronological`,
       {
         method: 'GET',
         headers: {
