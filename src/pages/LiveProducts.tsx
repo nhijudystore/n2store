@@ -38,7 +38,6 @@ import {
   Upload,
   Store,
   Search,
-  MessageSquare,
   ShoppingBag
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1177,10 +1176,6 @@ export default function LiveProducts() {
                   <Store className="h-4 w-4" />
                   Thống kê NCC
                 </TabsTrigger>
-                <TabsTrigger value="test-comment" className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Test Tính Năng Comment
-                </TabsTrigger>
               </TabsList>
 
               <div className="flex gap-2">
@@ -2217,27 +2212,6 @@ export default function LiveProducts() {
                 sessionId={selectedSession}
                 phaseId={selectedPhase}
               />
-            </TabsContent>
-
-            {/* Test Comment Feature Tab */}
-            <TabsContent value="test-comment" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Test Tính Năng Comment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Tính năng đang được phát triển</h3>
-                    <p className="text-muted-foreground">
-                      Nội dung sẽ được thêm vào sau
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </>
