@@ -218,30 +218,38 @@ export function FacebookLiveComments() {
         const phone = commentPhoneMap.get(comment.id);
         
         try {
-          if (order && phone) {
-            // New customer with phone and order info
-            await supabase.from('customers').upsert({
-              customer_name: order.Name,
-              phone: phone,
-              facebook_id: comment.from.id,
-              customer_status: mapStatusText(partnerStatus),
-              info_status: partnerStatus ? 'complete' : 'incomplete',
-            }, {
-              onConflict: 'facebook_id',
-              ignoreDuplicates: false
-            });
+          const customerData = order && phone ? {
+            customer_name: order.Name,
+            phone: phone,
+            facebook_id: comment.from.id,
+            customer_status: mapStatusText(partnerStatus),
+            info_status: partnerStatus ? 'complete' : 'incomplete',
+          } : {
+            customer_name: comment.from.name,
+            phone: null,
+            facebook_id: comment.from.id,
+            customer_status: 'normal',
+            info_status: 'incomplete',
+          };
+
+          // Check if customer already exists
+          const { data: existing } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('facebook_id', comment.from.id)
+            .maybeSingle();
+
+          if (existing) {
+            // Update existing customer
+            await supabase
+              .from('customers')
+              .update(customerData)
+              .eq('facebook_id', comment.from.id);
           } else {
-            // New "Khách lạ" - without complete info
-            await supabase.from('customers').upsert({
-              customer_name: comment.from.name,
-              phone: null,
-              facebook_id: comment.from.id,
-              customer_status: 'normal',
-              info_status: 'incomplete',
-            }, {
-              onConflict: 'facebook_id',
-              ignoreDuplicates: false
-            });
+            // Insert new customer
+            await supabase
+              .from('customers')
+              .insert(customerData);
           }
         } catch (error) {
           console.error('Error saving customer:', error);
