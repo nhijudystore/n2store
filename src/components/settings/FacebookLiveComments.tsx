@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment } from "@/types/facebook";
 
 export function FacebookLiveComments() {
-  const [pageId, setPageId] = useState("");
+  const [pageId, setPageId] = useState("117267091364524");
   const [limit, setLimit] = useState("10");
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
