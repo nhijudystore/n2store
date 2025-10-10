@@ -21,6 +21,7 @@ import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUp
 import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
 import { FetchTPOSProductsDialog } from "@/components/settings/FetchTPOSProductsDialog";
+import { GetTPOSProductTool } from "@/components/settings/GetTPOSProductTool";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -1696,6 +1697,8 @@ const Settings = () => {
           </Button>
         </CardContent>
       </Card>
+
+      <GetTPOSProductTool />
 
       <BarcodeScannerSettings />
 
