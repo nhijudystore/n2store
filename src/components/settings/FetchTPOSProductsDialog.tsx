@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, CheckCircle, Loader2 } from "lucide-react";
+import { Download, CheckCircle, Loader2, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -224,7 +224,7 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
         ) : (
           <>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox 
                     checked={selectedProducts.size === tposProducts.length && tposProducts.length > 0}
@@ -232,9 +232,41 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
                   />
                   <span className="text-sm font-medium">Chọn tất cả</span>
                 </div>
-                <Badge variant="secondary">
-                  {tposProducts.length} sản phẩm
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Select value={selectedCount} onValueChange={setSelectedCount} disabled={isFetching}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="50">50 sản phẩm</SelectItem>
+                      <SelectItem value="100">100 sản phẩm</SelectItem>
+                      <SelectItem value="200">200 sản phẩm</SelectItem>
+                      <SelectItem value="500">500 sản phẩm</SelectItem>
+                      <SelectItem value="1000">1000 sản phẩm</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    onClick={handleFetchProducts}
+                    disabled={isFetching}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {isFetching ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                        Đang cập nhật...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-3 w-3 mr-2" />
+                        Cập nhật
+                      </>
+                    )}
+                  </Button>
+                  <Badge variant="secondary">
+                    {tposProducts.length} sản phẩm
+                  </Badge>
+                </div>
               </div>
 
               <ScrollArea className="h-[400px] w-full rounded-md border">
