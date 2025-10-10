@@ -37,6 +37,7 @@ interface Product {
   price_images?: string[];
   tpos_image_url?: string;
   tpos_product_id?: number;
+  base_product_code?: string;
 }
 
 interface ProductListProps {
@@ -208,10 +209,15 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
                     </div>
                     {product.variant && (
                       <div className="text-xs text-muted-foreground">
-                      {product.variant}
-                    </div>
-                  )}
-                </div>
+                        {product.variant}
+                      </div>
+                    )}
+                    {product.base_product_code && (
+                      <div className="text-xs text-muted-foreground">
+                        Base: {product.base_product_code}
+                      </div>
+                    )}
+                  </div>
                 <ProductImage 
                   productId={product.id}
                   productCode={product.product_code}
@@ -358,6 +364,7 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
               <TableHead>Mã SP</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
               <TableHead>Variant</TableHead>
+              <TableHead>Base</TableHead>
               <TableHead>Giá bán</TableHead>
               <TableHead>Giá mua</TableHead>
               <TableHead>Tồn kho</TableHead>
@@ -389,6 +396,7 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
                 <TableCell className="font-medium">{product.product_code}</TableCell>
                 <TableCell>{product.product_name}</TableCell>
                 <TableCell className="text-muted-foreground">{product.variant || "-"}</TableCell>
+                <TableCell className="text-muted-foreground text-xs">{product.base_product_code || "-"}</TableCell>
                 <TableCell>{formatVND(product.selling_price)}</TableCell>
                 <TableCell>{formatVND(product.purchase_price)}</TableCell>
                 <TableCell>
