@@ -9,6 +9,7 @@ interface TPOSProduct {
   Id: number;
   DefaultCode: string;
   Name: string;
+  Variant?: string;
   BasePrice: number;
   ListPrice: number;
   Image?: string;
@@ -45,8 +46,8 @@ Deno.serve(async (req) => {
       throw new Error('No active TPOS token found');
     }
 
-    // Fetch products from TPOS (without Variant and StandardPrice fields that don't exist)
-    const tposUrl = `https://tomato.tpos.vn/odata/ProductTemplate?$top=${top}&$skip=${skip}&$orderby=Id desc&$select=Id,DefaultCode,Name,BasePrice,ListPrice,Image,OnHand,Barcode,CategoryName`;
+    // Fetch products from TPOS
+    const tposUrl = `https://tomato.tpos.vn/odata/Product?$top=${top}&$skip=${skip}&$orderby=DateCreated desc`;
     
     console.log('Calling TPOS API:', tposUrl);
 
@@ -80,10 +81,9 @@ Deno.serve(async (req) => {
           Id: p.Id,
           DefaultCode: p.DefaultCode,
           Name: p.Name,
-          Variant: null,
+          Variant: p.Variant || null,
           BasePrice: p.BasePrice || 0,
           ListPrice: p.ListPrice || 0,
-          StandardPrice: 0,
           Image: p.Image || null,
           OnHand: p.OnHand || 0,
           Barcode: p.Barcode || null,
