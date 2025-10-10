@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.fetch-partner-status]
 verify_jwt = false
+
+[functions.fetch-tpos-products]
+verify_jwt = false

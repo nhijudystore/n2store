@@ -20,6 +20,7 @@ import { VariantTestTool } from "@/components/settings/VariantTestTool";
 import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
 import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
+import { FetchTPOSProductsDialog } from "@/components/settings/FetchTPOSProductsDialog";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -79,6 +80,7 @@ const Settings = () => {
   const [singleUploadResult, setSingleUploadResult] = useState<any>(null);
   const [isSingleResultOpen, setIsSingleResultOpen] = useState(false);
   const [isSimpleUploadOpen, setIsSimpleUploadOpen] = useState(false);
+  const [isFetchTPOSDialogOpen, setIsFetchTPOSDialogOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -1673,11 +1675,44 @@ const Settings = () => {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5" />
+            Lấy sản phẩm từ TPOS
+          </CardTitle>
+          <CardDescription>
+            Import sản phẩm từ TPOS về hệ thống nội bộ với số lượng tùy chọn
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button
+            onClick={() => setIsFetchTPOSDialogOpen(true)}
+            variant="default"
+            className="w-full"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Mở công cụ lấy sản phẩm
+          </Button>
+        </CardContent>
+      </Card>
+
       <BarcodeScannerSettings />
 
       <VariantTestTool />
 
       <BarcodeProductTest />
+
+      <FetchTPOSProductsDialog
+        open={isFetchTPOSDialogOpen}
+        onOpenChange={setIsFetchTPOSDialogOpen}
+        onSuccess={() => {
+          toast({
+            title: "✅ Thành công",
+            description: "Đã đồng bộ sản phẩm từ TPOS",
+          });
+        }}
+      />
     </div>
   );
 };
