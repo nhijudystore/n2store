@@ -615,6 +615,62 @@ export default function LiveProducts() {
     enabled: !!selectedPhase && !!selectedSession,
   });
 
+  // Real-time subscriptions for live data updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_sessions'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["live-sessions"] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_phases'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["live-phases", selectedSession] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_products'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase, selectedSession] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'live_orders'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase, selectedSession] });
+          queryClient.invalidateQueries({ queryKey: ["orders-with-products", selectedPhase, selectedSession] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedSession, selectedPhase, queryClient]);
+
   // Delete order item mutation (delete single product from order)
   const deleteOrderItemMutation = useMutation({
     mutationFn: async ({ orderId, productId, quantity }: { orderId: string; productId: string; quantity: number }) => {
