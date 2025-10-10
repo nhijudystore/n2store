@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,18 @@ export function BarcodeProductTest() {
   const [testProducts, setTestProducts] = useState<TestProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Auto focus input khi component mount và sau mỗi lần tìm kiếm
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Focus lại input sau khi tìm kiếm xong
+  useEffect(() => {
+    if (!isSearching) {
+      inputRef.current?.focus();
+    }
+  }, [isSearching]);
 
   const handleBarcodeSearch = async (code: string) => {
     if (!code.trim()) return;
