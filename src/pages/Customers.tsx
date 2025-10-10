@@ -186,7 +186,7 @@ export default function Customers() {
   const [pageSize, setPageSize] = useState(50);
   const [totalCustomersCount, setTotalCustomersCount] = useState(0);
 
-  const [selectedIds, setSelectedIds] = new useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isImportCustomersDialogOpen, setIsImportCustomersDialogOpen] = useState(false);
 
@@ -242,13 +242,13 @@ export default function Customers() {
       console.log(`[Customers Page] Fetching allCustomersNeedingFetch with limit: ${limit}`); // Add this log
       const { data, error } = await supabase
         .from("customers")
-        .select("id, idkh, info_status")
+        .select("*")
         .not("idkh", "is", null)
         .neq("info_status", "synced_tpos")
         .limit(limit); // Apply the limit here
       
       if (error) throw error;
-      return data as Pick<Customer, 'id' | 'idkh' | 'info_status'>[];
+      return data as Customer[];
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
@@ -459,7 +459,7 @@ export default function Customers() {
   };
 
   const confirmBulkDelete = async () => {
-    const idsToDelete = Array.from(selectedIds);
+    const idsToDelete: string[] = Array.from(selectedIds);
     await bulkDeleteMutation.mutateAsync(idsToDelete);
     setIsDeleteDialogOpen(false);
   };
@@ -523,7 +523,8 @@ export default function Customers() {
     setBatchFetchFailedCount(0);
 
     const idkhsToFetch = customersToProcess.map(c => c.idkh);
-    const { data: session } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
     if (!session) {
       toast.error("Bạn chưa đăng nhập.");
       setIsBatchFetching(false);
@@ -564,7 +565,7 @@ export default function Customers() {
           if (result.data) {
             const customer = customersToProcess.find(c => c.idkh === result.idkh);
             if (customer) {
-              const updates = {
+              const updates: Partial<Customer> = {
                 id: customer.id,
                 idkh: customer.idkh,
                 customer_name: result.data.Name || customer.customer_name,
@@ -573,7 +574,7 @@ export default function Customers() {
                 address: result.data.Addresses?.[0]?.Address || customer.address,
                 notes: result.data.Note || customer.notes,
                 customer_status: mapStatusText(result.data.StatusText),
-                info_status: 'synced_tpos',
+                info_status: 'synced_tpos' as const,
               };
               customersToUpsertBatch.push(updates);
             } else {

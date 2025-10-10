@@ -18,7 +18,7 @@ import { uploadToTPOS, TPOSProductItem } from "@/lib/tpos-api";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { VariantTestTool } from "@/components/settings/VariantTestTool";
 import { SimpleProductUploadDialog } from "@/components/settings/SimpleProductUploadDialog";
-import { FacebookLiveComments } from "@/components/settings/FacebookLiveComments";
+import FacebookLiveComments from "@/components/settings/FacebookLiveComments";
 import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
 

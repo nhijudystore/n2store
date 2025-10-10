@@ -22,6 +22,7 @@ interface ViewReceivingDialogProps {
 export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivingDialogProps) {
   const [receivingData, setReceivingData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && orderId) {
@@ -31,6 +32,7 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
 
   const fetchReceivingData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const { data, error } = await supabase
         .from('goods_receiving')
@@ -38,16 +40,24 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
           *,
           items:goods_receiving_items(
             *,
-            purchase_order_item:purchase_order_items(product_images)
+            purchase_order_item:purchase_order_items(
+              product_id,
+              products(product_images)
+            )
           )
         `)
         .eq('purchase_order_id', orderId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) {
+        setError('Không tìm thấy dữ liệu kiểm hàng');
+        return;
+      }
       setReceivingData(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching receiving data:', error);
+      setError(error.message || 'Có lỗi xảy ra khi tải dữ liệu');
     } finally {
       setLoading(false);
     }
@@ -92,8 +102,6 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
     }
   };
 
-  if (!receivingData && !loading) return null;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -110,6 +118,11 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
         {loading ? (
           <div className="text-center py-8 text-muted-foreground">
             Đang tải dữ liệu...
+          </div>
+        ) : error ? (
+          <div className="text-center py-8 text-red-500">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+            <p>{error}</p>
           </div>
         ) : receivingData ? (
           <div className="space-y-4">
@@ -171,9 +184,9 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
                     {receivingData.items?.map((item: any) => (
                       <tr key={item.id} className={getRowClassName(item)}>
                         <td className="p-3">
-                          {item.purchase_order_item?.product_images?.[0] ? (
+                          {item.purchase_order_item?.products?.product_images?.[0] ? (
                             <img 
-                              src={item.purchase_order_item.product_images[0]} 
+                              src={item.purchase_order_item.products.product_images[0]} 
                               alt={item.product_name}
                               className="w-16 h-16 object-cover rounded border"
                             />
@@ -215,7 +228,11 @@ export function ViewReceivingDialog({ open, onOpenChange, orderId }: ViewReceivi
               </Button>
             </div>
           </div>
-        ) : null}
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            Không có dữ liệu
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

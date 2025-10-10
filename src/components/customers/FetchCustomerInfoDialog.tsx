@@ -276,7 +276,7 @@ export function FetchCustomerInfoDialog({
           if (
             (supabaseValue === null ||
               supabaseValue === "" ||
-              supabaseValue === 0) &&
+              (typeof supabaseValue === 'number' && supabaseValue === 0)) &&
             tposValue !== null &&
             tposValue !== ""
           ) {
@@ -374,7 +374,7 @@ export function FetchCustomerInfoDialog({
                       !overwriteMode &&
                       (supabaseValue === null ||
                         supabaseValue === "" ||
-                        supabaseValue === 0);
+                        (typeof supabaseValue === 'number' && supabaseValue === 0));
 
                     return (
                       <TableRow

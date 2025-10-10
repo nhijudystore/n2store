@@ -18,7 +18,7 @@ import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
-import { FacebookLiveComments } from "@/components/settings/FacebookLiveComments";
+import FacebookLiveComments from "@/components/settings/FacebookLiveComments";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
 import { 
   Plus, 
