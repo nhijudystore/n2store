@@ -8,6 +8,7 @@ import { Trash2, Barcode } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ProductImage } from "@/components/products/ProductImage";
+import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
 
 interface TestProduct {
   id: string;
@@ -24,72 +25,25 @@ interface TestProduct {
 }
 
 export function BarcodeProductTest() {
-  const [barcode, setBarcode] = useState("");
   const [testProducts, setTestProducts] = useState<TestProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const barcodeBufferRef = useRef<string>("");
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { enabledPage } = useBarcodeScanner();
 
-  // Global keyboard listener để bắt barcode scan ở bất kỳ đâu
+  // Lắng nghe barcode-scanned event - chỉ hoạt động khi enabledPage là 'settings-test'
   useEffect(() => {
-    const handleGlobalKeyPress = (e: KeyboardEvent) => {
-      // Bỏ qua nếu đang focus vào textarea, input khác, hoặc contentEditable
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'TEXTAREA' ||
-        (target.tagName === 'INPUT' && target !== inputRef.current) ||
-        target.isContentEditable
-      ) {
-        return;
-      }
+    if (enabledPage !== 'settings-test') return;
 
-      // Bỏ qua các phím điều khiển (trừ Enter)
-      if (e.key.length > 1 && e.key !== 'Enter') {
-        return;
-      }
-
-      // Nếu là Enter, xử lý barcode đã scan
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        if (barcodeBufferRef.current.trim().length > 0) {
-          handleBarcodeSearch(barcodeBufferRef.current.trim());
-          barcodeBufferRef.current = "";
-        }
-        return;
-      }
-
-      // Thêm ký tự vào buffer
-      barcodeBufferRef.current += e.key;
-      setBarcode(barcodeBufferRef.current);
-
-      // Clear timeout cũ
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      // Set timeout mới - nếu 200ms không có ký tự nào nữa, reset buffer
-      // (barcode scanner quét rất nhanh, < 100ms giữa các ký tự)
-      timeoutRef.current = setTimeout(() => {
-        // Nếu buffer không kết thúc bằng Enter sau 200ms, có thể là gõ tay
-        // Giữ nguyên buffer để người dùng có thể nhấn Enter thủ công
-      }, 200);
+    const handleBarcodeScanned = (event: CustomEvent) => {
+      const code = event.detail.code;
+      handleBarcodeSearch(code);
     };
 
-    window.addEventListener('keydown', handleGlobalKeyPress);
+    window.addEventListener('barcode-scanned' as any, handleBarcodeScanned as any);
 
     return () => {
-      window.removeEventListener('keydown', handleGlobalKeyPress);
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      window.removeEventListener('barcode-scanned' as any, handleBarcodeScanned as any);
     };
-  }, []);
-
-  // Auto focus input khi component mount
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  }, [enabledPage]);
 
   const handleBarcodeSearch = async (code: string) => {
     if (!code.trim()) return;
@@ -127,26 +81,14 @@ export function BarcodeProductTest() {
             return [newProduct, ...currentProducts];
           }
         });
-        
-        // Reset barcode input và buffer
-        setBarcode("");
-        barcodeBufferRef.current = "";
       } else {
         toast.error(`Không tìm thấy sản phẩm với mã: ${code}`);
-        setBarcode("");
-        barcodeBufferRef.current = "";
       }
     } catch (error: any) {
       console.error("Search error:", error);
       toast.error("Lỗi tìm kiếm sản phẩm");
     } finally {
       setIsSearching(false);
-    }
-  };
-
-  const handleManualSearch = () => {
-    if (barcode.trim()) {
-      handleBarcodeSearch(barcode.trim());
     }
   };
 
@@ -176,29 +118,24 @@ export function BarcodeProductTest() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Hiển thị barcode đang được quét */}
-        <div className="flex gap-2 items-center">
-          <div className="flex-1 p-3 bg-muted rounded-lg border-2 border-dashed">
-            <div className="text-xs text-muted-foreground mb-1">Mã đang quét:</div>
-            <div className="font-mono text-lg font-bold">
-              {barcode || <span className="text-muted-foreground">Chờ quét barcode...</span>}
-            </div>
-            {isSearching && (
-              <div className="text-xs text-blue-600 mt-1">Đang tìm kiếm...</div>
-            )}
+        {/* Status badge */}
+        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+          <div className="flex items-center gap-2">
+            <Barcode className="h-4 w-4" />
+            <span className="text-sm font-medium">Trạng thái quét barcode:</span>
           </div>
-          <Button 
-            onClick={handleManualSearch}
-            disabled={!barcode.trim() || isSearching}
-            size="lg"
-          >
-            {isSearching ? "Đang tìm..." : "Tìm thủ công"}
-          </Button>
+          {enabledPage === 'settings-test' ? (
+            <Badge variant="default" className="bg-green-600">Đang bật</Badge>
+          ) : (
+            <Badge variant="secondary">Đang tắt - Bật trong Cài Đặt Quét Barcode</Badge>
+          )}
         </div>
 
-        <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
-          <strong>💡 Hướng dẫn:</strong> Chỉ cần quét barcode bằng máy quét - hệ thống tự động nhận diện và thêm sản phẩm (không cần click chuột)
-        </div>
+        {enabledPage === 'settings-test' && (
+          <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+            <strong>💡 Chế độ hoạt động:</strong> Quét barcode ở bất kỳ đâu sẽ tự động thêm sản phẩm vào bảng này
+          </div>
+        )}
 
         {/* Thống kê */}
         <div className="grid grid-cols-3 gap-4">

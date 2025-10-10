@@ -19,6 +19,7 @@ import { FullScreenProductView } from "@/components/live-products/FullScreenProd
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { FacebookLiveComments } from "@/components/settings/FacebookLiveComments";
+import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
 import { 
   Plus, 
   Calendar,
@@ -240,6 +241,94 @@ export default function LiveProducts() {
   const [productSearch, setProductSearch] = useState("");
   
   const queryClient = useQueryClient();
+  const { enabledPage } = useBarcodeScanner();
+
+  // Barcode scanner listener - chỉ hoạt động khi enabledPage là 'live-products'
+  useEffect(() => {
+    if (enabledPage !== 'live-products') return;
+
+    const handleBarcodeScanned = async (event: CustomEvent) => {
+      const code = event.detail.code;
+      
+      // Kiểm tra xem có session và phase được chọn không
+      if (!selectedSession || !selectedPhase || selectedPhase === 'all') {
+        toast.error("Vui lòng chọn session và phase cụ thể để thêm sản phẩm");
+        return;
+      }
+
+      try {
+        // Tìm sản phẩm trong kho theo product_code
+        const { data: productData, error: productError } = await supabase
+          .from("products")
+          .select("*")
+          .eq("product_code", code.trim())
+          .maybeSingle();
+
+        if (productError) throw productError;
+
+        if (!productData) {
+          toast.error(`Không tìm thấy sản phẩm với mã: ${code}`);
+          return;
+        }
+
+        // Kiểm tra xem sản phẩm đã có trong live products chưa
+        const { data: existingLiveProduct, error: checkError } = await supabase
+          .from("live_products")
+          .select("*")
+          .eq("live_phase_id", selectedPhase)
+          .eq("product_code", productData.product_code)
+          .maybeSingle();
+
+        if (checkError && checkError.code !== 'PGRST116') throw checkError;
+
+        if (existingLiveProduct) {
+          // Đã có rồi, tăng prepared_quantity
+          const { error: updateError } = await supabase
+            .from("live_products")
+            .update({ 
+              prepared_quantity: existingLiveProduct.prepared_quantity + 1 
+            })
+            .eq("id", existingLiveProduct.id);
+
+          if (updateError) throw updateError;
+
+          toast.success(`Đã tăng SL chuẩn bị: ${productData.product_name} (${existingLiveProduct.prepared_quantity + 1})`);
+        } else {
+          // Chưa có, thêm mới
+          const { error: insertError } = await supabase
+            .from("live_products")
+            .insert({
+              live_session_id: selectedSession,
+              live_phase_id: selectedPhase,
+              product_code: productData.product_code,
+              product_name: productData.product_name,
+              variant: productData.variant,
+              base_product_code: productData.base_product_code,
+              prepared_quantity: 1,
+              sold_quantity: 0,
+              image_url: productData.tpos_image_url || null,
+              product_type: 'hang_dat',
+            });
+
+          if (insertError) throw insertError;
+
+          toast.success(`Đã thêm sản phẩm: ${productData.product_name}`);
+        }
+
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase, selectedSession] });
+      } catch (error: any) {
+        console.error("Barcode add product error:", error);
+        toast.error("Lỗi thêm sản phẩm: " + error.message);
+      }
+    };
+
+    window.addEventListener('barcode-scanned' as any, handleBarcodeScanned as any);
+
+    return () => {
+      window.removeEventListener('barcode-scanned' as any, handleBarcodeScanned as any);
+    };
+  }, [enabledPage, selectedSession, selectedPhase, queryClient]);
 
   // Persist state changes to localStorage
   useEffect(() => {
