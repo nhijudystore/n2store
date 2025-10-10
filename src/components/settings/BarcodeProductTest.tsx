@@ -106,24 +106,27 @@ export function BarcodeProductTest() {
       if (error) throw error;
 
       if (data) {
-        // Kiểm tra xem sản phẩm đã có trong danh sách test chưa
-        const existingIndex = testProducts.findIndex(p => p.product_code === data.product_code);
-        
-        if (existingIndex >= 0) {
-          // Nếu đã có, tăng quantity lên 1
-          const updated = [...testProducts];
-          updated[existingIndex].quantity += 1;
-          setTestProducts(updated);
-          toast.success(`Đã tăng số lượng: ${data.product_name} (x${updated[existingIndex].quantity})`);
-        } else {
-          // Nếu chưa có, thêm mới với quantity = 1
-          const newProduct: TestProduct = {
-            ...data,
-            quantity: 1,
-          };
-          setTestProducts([newProduct, ...testProducts]);
-          toast.success(`Đã thêm: ${data.product_name}`);
-        }
+        // Sử dụng functional update để tránh stale state
+        setTestProducts((currentProducts) => {
+          // Kiểm tra xem sản phẩm đã có trong danh sách test chưa
+          const existingIndex = currentProducts.findIndex(p => p.product_code === data.product_code);
+          
+          if (existingIndex >= 0) {
+            // Nếu đã có, tăng quantity lên 1
+            const updated = [...currentProducts];
+            updated[existingIndex].quantity += 1;
+            toast.success(`Đã tăng số lượng: ${data.product_name} (x${updated[existingIndex].quantity})`);
+            return updated;
+          } else {
+            // Nếu chưa có, thêm mới với quantity = 1
+            const newProduct: TestProduct = {
+              ...data,
+              quantity: 1,
+            };
+            toast.success(`Đã thêm: ${data.product_name}`);
+            return [newProduct, ...currentProducts];
+          }
+        });
         
         // Reset barcode input và buffer
         setBarcode("");
