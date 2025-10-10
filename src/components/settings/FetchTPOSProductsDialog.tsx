@@ -39,6 +39,7 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
+  const [rawResponse, setRawResponse] = useState<any>(null);
   const { toast } = useToast();
 
   const handleFetchProducts = async () => {
@@ -58,6 +59,7 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
       }
 
       setTposProducts(data.products || []);
+      setRawResponse(data);
       toast({
         title: "✅ Lấy sản phẩm thành công",
         description: `Đã lấy ${data.products?.length || 0} sản phẩm từ TPOS`,
@@ -322,6 +324,17 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
                   </TableBody>
                 </Table>
               </ScrollArea>
+
+              {rawResponse && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">JSON Response từ TPOS:</label>
+                  <ScrollArea className="h-[200px] w-full rounded-md border bg-muted p-4">
+                    <pre className="text-xs">
+                      {JSON.stringify(rawResponse, null, 2)}
+                    </pre>
+                  </ScrollArea>
+                </div>
+              )}
 
               {isImporting && (
                 <div className="space-y-2">
