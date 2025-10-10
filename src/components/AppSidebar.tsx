@@ -7,7 +7,8 @@ import {
   Warehouse,
   Search,
   History,
-  Users
+  Users,
+  MessageSquare
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -43,6 +44,11 @@ const menuItems = [
     title: "Báo Cáo Livestream",
     url: "/livestream-reports",
     icon: BarChart3,
+  },
+  {
+    title: "Facebook Live",
+    url: "/facebook-live-comments",
+    icon: MessageSquare,
   },
 ];
 

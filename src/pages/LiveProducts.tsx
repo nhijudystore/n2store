@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -18,7 +18,6 @@ import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
-import FacebookLiveComments from "@/components/settings/FacebookLiveComments";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
 import { 
   Plus, 
@@ -2481,7 +2480,15 @@ export default function LiveProducts() {
 
             {/* Facebook Live Comments Feature Tab */}
             <TabsContent value="test-comment" className="space-y-4">
-              <FacebookLiveComments />
+              <Card>
+                <CardHeader>
+                  <CardTitle>Facebook Live Comments</CardTitle>
+                  <CardDescription>
+                    Tính năng đã được chuyển sang trang riêng. 
+                    Vui lòng sử dụng menu bên trái để truy cập.
+                  </CardDescription>
+                </CardHeader>
+              </Card>
             </TabsContent>
           </Tabs>
         </>
