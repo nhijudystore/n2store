@@ -50,95 +50,50 @@ export type Database = {
       customers: {
         Row: {
           address: string | null
-          created_at: string
+          created_at: string | null
           customer_name: string
           customer_status: string
           email: string | null
           facebook_id: string | null
           id: string
-          info_status: string | null
+          idkh: string
+          info_status: Database["public"]["Enums"]["customer_info_status_enum"]
           notes: string | null
           phone: string | null
-          total_orders: number | null
-          total_spent: number | null
-          updated_at: string
-        }
-        Insert: {
-          address?: string | null
-          created_at?: string
-          customer_name: string
-          customer_status?: string
-          email?: string | null
-          facebook_id?: string | null
-          id?: string
-          info_status?: string | null
-          notes?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-          updated_at?: string
-        }
-        Update: {
-          address?: string | null
-          created_at?: string
-          customer_name?: string
-          customer_status?: string
-          email?: string | null
-          facebook_id?: string | null
-          id?: string
-          info_status?: string | null
-          notes?: string | null
-          phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      customers_backup_20251009: {
-        Row: {
-          address: string | null
-          created_at: string | null
-          customer_name: string | null
-          customer_status: string | null
-          email: string | null
-          facebook_id: string | null
-          id: string | null
-          info_status: string | null
-          notes: string | null
-          phone: string | null
-          total_orders: number | null
-          total_spent: number | null
+          total_orders: number
+          total_spent: number
           updated_at: string | null
         }
         Insert: {
           address?: string | null
           created_at?: string | null
-          customer_name?: string | null
-          customer_status?: string | null
+          customer_name: string
+          customer_status?: string
           email?: string | null
           facebook_id?: string | null
-          id?: string | null
-          info_status?: string | null
+          id?: string
+          idkh?: string
+          info_status?: Database["public"]["Enums"]["customer_info_status_enum"]
           notes?: string | null
           phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
+          total_orders?: number
+          total_spent?: number
           updated_at?: string | null
         }
         Update: {
           address?: string | null
           created_at?: string | null
-          customer_name?: string | null
-          customer_status?: string | null
+          customer_name?: string
+          customer_status?: string
           email?: string | null
           facebook_id?: string | null
-          id?: string | null
-          info_status?: string | null
+          id?: string
+          idkh?: string
+          info_status?: Database["public"]["Enums"]["customer_info_status_enum"]
           notes?: string | null
           phone?: string | null
-          total_orders?: number | null
-          total_spent?: number | null
+          total_orders?: number
+          total_spent?: number
           updated_at?: string | null
         }
         Relationships: []
@@ -914,8 +869,13 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: number
       }
+      upsert_customers_deduped: {
+        Args: { payload: Json }
+        Returns: Json
+      }
     }
     Enums: {
+      customer_info_status_enum: "incomplete" | "complete" | "synced_tpos"
       product_type_enum: "hang_dat" | "hang_le" | "hang_so_luong"
     }
     CompositeTypes: {
@@ -1044,6 +1004,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      customer_info_status_enum: ["incomplete", "complete", "synced_tpos"],
       product_type_enum: ["hang_dat", "hang_le", "hang_so_luong"],
     },
   },
