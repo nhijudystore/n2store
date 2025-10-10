@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Download, Loader2, CheckSquare, Square } from "lucide-react";
+import { Upload, Download, Loader2, CheckSquare, Square, Copy, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadToTPOS, generateTPOSExcel, type TPOSProductItem } from "@/lib/tpos-api";
 import { createTPOSVariants } from "@/lib/tpos-variant-creator";
@@ -16,6 +16,9 @@ import { getVariantType, generateColorCode } from "@/lib/variant-attributes";
 import { detectVariantsFromText } from "@/lib/variant-detector";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 import { useQuery } from "@tanstack/react-query";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ExportTPOSDialogProps {
   open: boolean;
@@ -31,6 +34,8 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
   const [currentStep, setCurrentStep] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(items.map(item => item.id)));
   const [imageFilter, setImageFilter] = useState<"all" | "with-images" | "without-images" | "uploaded-tpos" | "not-uploaded-tpos">("all");
+  const [uploadResult, setUploadResult] = useState<any>(null);
+  const [isJsonOpen, setIsJsonOpen] = useState(false);
 
   // Filter items based on image filter
   const filteredItems = useMemo(() => {
@@ -928,6 +933,17 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       setProgress(100);
       setCurrentStep("Hoàn thành!");
 
+      // Save upload result for display
+      const finalResult = {
+        totalSuccess,
+        totalFailed,
+        itemsWithoutVariants: itemsWithoutVariants.length,
+        itemsWithVariants: itemsWithVariants.length,
+        errors: allErrors,
+        timestamp: new Date().toISOString()
+      };
+      setUploadResult(finalResult);
+
       // Show results
       toast({
         title: totalFailed === 0 ? "🎉 Upload thành công!" : "⚠️ Upload hoàn tất",
@@ -969,7 +985,6 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
       });
 
       onSuccess?.();
-      onOpenChange(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("❌ Upload error:", errorMessage);
@@ -1070,6 +1085,52 @@ export function ExportTPOSDialog({ open, onOpenChange, items, onSuccess }: Expor
                 ⏳ Đang xử lý {selectedItems.length} sản phẩm. Vui lòng không đóng cửa sổ này...
               </p>
             </div>
+          )}
+
+          {/* Upload Result JSON */}
+          {uploadResult && (
+            <Collapsible open={isJsonOpen} onOpenChange={setIsJsonOpen}>
+              <Card className="border-dashed border-green-600">
+                <CollapsibleTrigger className="w-full">
+                  <CardHeader className="hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-base">Chi tiết JSON Response</CardTitle>
+                      {isJsonOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Upload Result:</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(JSON.stringify(uploadResult, null, 2));
+                          toast({
+                            title: "Đã sao chép",
+                            description: "JSON đã được sao chép vào clipboard",
+                          });
+                        }}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[300px] w-full rounded-md border bg-muted p-4">
+                      <pre className="text-xs">
+                        {JSON.stringify(uploadResult, null, 2)}
+                      </pre>
+                    </ScrollArea>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
 
           {/* Preview Table */}
