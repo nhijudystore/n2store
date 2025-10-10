@@ -593,10 +593,8 @@ export async function getProductDetail(productId: number): Promise<any> {
   
   await randomDelay(200, 600);
 
-  const expand = 'UOM,UOMCateg,Categ,UOMPO,POSCateg,Taxes,SupplierTaxes,Product_Teams,Images,UOMView,Distributor,Importer,Producer,OriginCountry,ProductVariants($expand=UOM,Categ,UOMPO,POSCateg,AttributeValues),AttributeLines,UOMLines($expand=UOM),ComboProducts,ProductSupplierInfos';
-
-  // Use GetViewV2 endpoint with filter instead of direct access
-  const url = `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=Id eq ${productId}&$expand=${expand}`;
+  // GetViewV2 doesn't support complex expand - fetch without expand or with basic ones
+  const url = `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=Id eq ${productId}`;
   
   console.log(`📡 [TPOS] Calling: ${url}`);
 
