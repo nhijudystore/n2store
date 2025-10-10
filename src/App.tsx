@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { BarcodeScannerProvider } from "@/contexts/BarcodeScannerContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Products from "./pages/Products";
@@ -31,87 +32,89 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
-      <TooltipProvider>
-        <AuthProvider>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout>
-                  <PurchaseOrders />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/purchase-orders" element={
-              <ProtectedRoute>
-                <Layout>
-                  <PurchaseOrders />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/products" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Products />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/live-products" element={
-              <ProtectedRoute>
-                <Layout>
-                  <LiveProducts />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/livestream-reports" element={
-              <ProtectedRoute>
-                <Layout>
-                  <LivestreamReports />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/goods-receiving" element={
-              <ProtectedRoute>
-                <Layout>
-                  <GoodsReceiving />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/search-products" element={
-              <ProtectedRoute>
-                <Layout>
-                  <SearchProducts />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Settings />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/activity-log" element={
-              <ProtectedRoute>
-                <Layout>
-                  <ActivityLog />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/customers" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Customers />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster />
-          <Sonner />
-        </AuthProvider>
-      </TooltipProvider>
+      <BarcodeScannerProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseOrders />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/purchase-orders" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseOrders />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/products" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Products />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/live-products" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LiveProducts />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/livestream-reports" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <LivestreamReports />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/goods-receiving" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <GoodsReceiving />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/search-products" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SearchProducts />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/settings" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Settings />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/activity-log" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ActivityLog />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/customers" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Customers />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+            <Toaster />
+            <Sonner />
+          </AuthProvider>
+        </TooltipProvider>
+      </BarcodeScannerProvider>
     </BrowserRouter>
   </QueryClientProvider>
 );
