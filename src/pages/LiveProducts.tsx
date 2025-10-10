@@ -286,13 +286,30 @@ export default function LiveProducts() {
 
         if (variantsError) throw variantsError;
 
-        if (!variants || variants.length === 0) {
-          toast.error("Không tìm thấy biến thể nào");
+        // Nếu không tìm thấy biến thể, sử dụng chính sản phẩm được quét
+        let productsToAdd = variants && variants.length > 0 ? variants : [];
+
+        if (productsToAdd.length === 0) {
+          // Không có biến thể → Lấy chính sản phẩm được quét
+          const { data: singleProduct, error: singleError } = await supabase
+            .from("products")
+            .select("*")
+            .eq("product_code", code.trim())
+            .maybeSingle();
+          
+          if (singleError) throw singleError;
+          if (singleProduct) {
+            productsToAdd = [singleProduct];
+          }
+        }
+
+        if (productsToAdd.length === 0) {
+          toast.error("Không tìm thấy sản phẩm hoặc biến thể nào");
           return;
         }
 
         // 4. Kiểm tra tất cả biến thể đã có trong live_products chưa
-        const variantCodes = variants.map(v => v.product_code);
+        const variantCodes = productsToAdd.map(v => v.product_code);
         const { data: existingProducts, error: existingError } = await supabase
           .from("live_products")
           .select("id, product_code, prepared_quantity")
@@ -309,7 +326,7 @@ export default function LiveProducts() {
         const toInsert = [];
         const toUpdate = [];
 
-        for (const variant of variants) {
+        for (const variant of productsToAdd) {
           const existing = existingMap.get(variant.product_code);
           
           if (existing) {
@@ -356,7 +373,7 @@ export default function LiveProducts() {
         // 7. Toast thông báo
         const insertedCount = toInsert.length;
         const updatedCount = toUpdate.length;
-        const variantNames = variants.map(v => v.product_code).join(", ");
+        const variantNames = productsToAdd.map(v => v.product_code).join(", ");
 
         if (insertedCount > 0 && updatedCount > 0) {
           toast.success(
