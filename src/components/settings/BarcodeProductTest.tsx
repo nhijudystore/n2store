@@ -28,18 +28,68 @@ export function BarcodeProductTest() {
   const [testProducts, setTestProducts] = useState<TestProduct[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const barcodeBufferRef = useRef<string>("");
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Auto focus input khi component mount và sau mỗi lần tìm kiếm
+  // Global keyboard listener để bắt barcode scan ở bất kỳ đâu
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Bỏ qua nếu đang focus vào textarea, input khác, hoặc contentEditable
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === 'TEXTAREA' ||
+        (target.tagName === 'INPUT' && target !== inputRef.current) ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      // Bỏ qua các phím điều khiển (trừ Enter)
+      if (e.key.length > 1 && e.key !== 'Enter') {
+        return;
+      }
+
+      // Nếu là Enter, xử lý barcode đã scan
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (barcodeBufferRef.current.trim().length > 0) {
+          handleBarcodeSearch(barcodeBufferRef.current.trim());
+          barcodeBufferRef.current = "";
+        }
+        return;
+      }
+
+      // Thêm ký tự vào buffer
+      barcodeBufferRef.current += e.key;
+      setBarcode(barcodeBufferRef.current);
+
+      // Clear timeout cũ
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      // Set timeout mới - nếu 200ms không có ký tự nào nữa, reset buffer
+      // (barcode scanner quét rất nhanh, < 100ms giữa các ký tự)
+      timeoutRef.current = setTimeout(() => {
+        // Nếu buffer không kết thúc bằng Enter sau 200ms, có thể là gõ tay
+        // Giữ nguyên buffer để người dùng có thể nhấn Enter thủ công
+      }, 200);
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyPress);
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyPress);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Auto focus input khi component mount
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  // Focus lại input sau khi tìm kiếm xong
-  useEffect(() => {
-    if (!isSearching) {
-      inputRef.current?.focus();
-    }
-  }, [isSearching]);
 
   const handleBarcodeSearch = async (code: string) => {
     if (!code.trim()) return;
@@ -75,13 +125,13 @@ export function BarcodeProductTest() {
           toast.success(`Đã thêm: ${data.product_name}`);
         }
         
-        // Reset barcode input và focus lại
+        // Reset barcode input và buffer
         setBarcode("");
-        inputRef.current?.focus();
+        barcodeBufferRef.current = "";
       } else {
         toast.error(`Không tìm thấy sản phẩm với mã: ${code}`);
         setBarcode("");
-        inputRef.current?.focus();
+        barcodeBufferRef.current = "";
       }
     } catch (error: any) {
       console.error("Search error:", error);
@@ -91,9 +141,9 @@ export function BarcodeProductTest() {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleBarcodeSearch(barcode);
+  const handleManualSearch = () => {
+    if (barcode.trim()) {
+      handleBarcodeSearch(barcode.trim());
     }
   };
 
@@ -123,24 +173,28 @@ export function BarcodeProductTest() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Input quét barcode */}
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
-            placeholder="Quét hoặc nhập mã sản phẩm..."
-            value={barcode}
-            onChange={(e) => setBarcode(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={isSearching}
-            className="flex-1"
-            autoFocus
-          />
+        {/* Hiển thị barcode đang được quét */}
+        <div className="flex gap-2 items-center">
+          <div className="flex-1 p-3 bg-muted rounded-lg border-2 border-dashed">
+            <div className="text-xs text-muted-foreground mb-1">Mã đang quét:</div>
+            <div className="font-mono text-lg font-bold">
+              {barcode || <span className="text-muted-foreground">Chờ quét barcode...</span>}
+            </div>
+            {isSearching && (
+              <div className="text-xs text-blue-600 mt-1">Đang tìm kiếm...</div>
+            )}
+          </div>
           <Button 
-            onClick={() => handleBarcodeSearch(barcode)}
+            onClick={handleManualSearch}
             disabled={!barcode.trim() || isSearching}
+            size="lg"
           >
-            {isSearching ? "Đang tìm..." : "Tìm"}
+            {isSearching ? "Đang tìm..." : "Tìm thủ công"}
           </Button>
+        </div>
+
+        <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+          <strong>💡 Hướng dẫn:</strong> Chỉ cần quét barcode bằng máy quét - hệ thống tự động nhận diện và thêm sản phẩm (không cần click chuột)
         </div>
 
         {/* Thống kê */}
