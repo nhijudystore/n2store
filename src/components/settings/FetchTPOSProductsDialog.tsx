@@ -20,6 +20,7 @@ interface TPOSProduct {
   Variant?: string | null;
   BasePrice: number;
   ListPrice: number;
+  StandardPrice?: number;
   Image?: string | null;
   OnHand: number;
   Barcode?: string | null;
@@ -117,12 +118,15 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
       const tposProduct = productsToImport[i];
       
       try {
+        // Use StandardPrice for purchase price if available, otherwise fallback to BasePrice
+        const purchasePrice = tposProduct.StandardPrice || tposProduct.BasePrice || 0;
+        
         const productData = {
           product_code: tposProduct.DefaultCode,
           product_name: tposProduct.Name,
           variant: tposProduct.Variant || null,
           selling_price: tposProduct.ListPrice || 0,
-          purchase_price: tposProduct.BasePrice || 0,
+          purchase_price: purchasePrice,
           unit: 'Cái',
           stock_quantity: tposProduct.OnHand || 0,
           barcode: tposProduct.Barcode || null,
@@ -285,8 +289,9 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {tposProducts.map((product) => {
+                  {tposProducts.map((product) => {
                       const supplierName = detectSupplierFromProductName(product.Name);
+                      const purchasePrice = product.StandardPrice || product.BasePrice || 0;
                       return (
                         <TableRow key={product.Id}>
                           <TableCell>
@@ -311,7 +316,7 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
                             {product.Variant || '-'}
                           </TableCell>
                           <TableCell className="text-right">{formatVND(product.ListPrice)}</TableCell>
-                          <TableCell className="text-right">{formatVND(product.BasePrice)}</TableCell>
+                          <TableCell className="text-right">{formatVND(purchasePrice)}</TableCell>
                           <TableCell className="text-right">{product.OnHand || 0}</TableCell>
                           <TableCell className="text-muted-foreground">
                             {supplierName || '-'}
