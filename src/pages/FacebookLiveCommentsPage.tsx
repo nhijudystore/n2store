@@ -405,6 +405,16 @@ export default function FacebookLiveCommentsPage() {
     }
   }, [comments, ordersData, debouncedFetchStatus]);
 
+  // Count comments per user
+  const userCommentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    comments.forEach(comment => {
+      const userId = comment.from.id;
+      counts.set(userId, (counts.get(userId) || 0) + 1);
+    });
+    return counts;
+  }, [comments]);
+
   // Merge comments with status
   const commentsWithStatus = useMemo((): CommentWithStatus[] => {
     return comments.map((comment) => {
@@ -757,9 +767,9 @@ export default function FacebookLiveCommentsPage() {
                               </div>
                               <Badge 
                                 variant="destructive" 
-                                className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px]"
+                                className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-semibold"
                               >
-                                {Math.floor(Math.random() * 50) + 20}
+                                {userCommentCounts.get(comment.from.id) || 0}
                               </Badge>
                             </div>
                             
