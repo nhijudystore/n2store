@@ -45,11 +45,6 @@ const menuItems = [
     url: "/livestream-reports",
     icon: BarChart3,
   },
-  {
-    title: "Facebook Live",
-    url: "/facebook-live-comments",
-    icon: MessageSquare,
-  },
 ];
 
 const adminItems = [
@@ -62,6 +57,11 @@ const adminItems = [
     title: "Kho Khách Hàng",
     url: "/customers",
     icon: Users,
+  },
+  {
+    title: "Facebook Live",
+    url: "/facebook-live-comments",
+    icon: MessageSquare,
   },
   {
     title: "Tìm Kiếm SP",
