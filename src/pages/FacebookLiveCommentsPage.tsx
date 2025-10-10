@@ -44,6 +44,7 @@ export default function FacebookLiveCommentsPage() {
   const [customerStatusMap, setCustomerStatusMap] = useState<Map<string, any>>(new Map());
   const [isLoadingCustomerStatus, setIsLoadingCustomerStatus] = useState(false);
   const fetchInProgress = useRef(false);
+  const customerStatusMapRef = useRef<Map<string, any>>(new Map());
 
   // Fetch videos (giữ nguyên code cũ - đang hoạt động)
   const { data: videos = [], isLoading: videosLoading, refetch: refetchVideos } = useQuery({
@@ -197,7 +198,7 @@ export default function FacebookLiveCommentsPage() {
       const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
 
       // Initialize newStatusMap with existing Supabase data
-      const newStatusMap = new Map(customerStatusMap);
+      const newStatusMap = new Map(customerStatusMapRef.current);
       existingCustomers.forEach(customer => {
         const hasCompleteInfoInDB = !!customer.phone && customer.info_status === 'complete';
         const statusText = hasCompleteInfoInDB
@@ -367,7 +368,8 @@ export default function FacebookLiveCommentsPage() {
         console.log('[Fetch] No customers with valid facebook_id to upsert.');
       }
 
-      // Update state
+      // Update state and ref
+      customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
 
     } catch (error) {
@@ -380,7 +382,7 @@ export default function FacebookLiveCommentsPage() {
       fetchInProgress.current = false;
       setIsLoadingCustomerStatus(false);
     }
-  }, [selectedVideo, customerStatusMap, toast, ordersData]);
+  }, [toast]);
 
   // Debounced version
   const debouncedFetchStatus = useMemo(
@@ -392,16 +394,16 @@ export default function FacebookLiveCommentsPage() {
   useEffect(() => {
     if (!comments.length || !ordersData.length) return;
 
-    // Filter comments that don't have status yet
+    // Filter comments that don't have status yet using ref
     const commentsNeedingStatus = comments.filter(
-      c => !customerStatusMap.has(c.from.id)
+      c => !customerStatusMapRef.current.has(c.from.id)
     );
 
     if (commentsNeedingStatus.length > 0) {
       console.log('[Effect] Found', commentsNeedingStatus.length, 'comments needing status');
       debouncedFetchStatus(commentsNeedingStatus, ordersData);
     }
-  }, [comments, ordersData, customerStatusMap, debouncedFetchStatus]);
+  }, [comments, ordersData, debouncedFetchStatus]);
 
   // Merge comments with status
   const commentsWithStatus = useMemo((): CommentWithStatus[] => {
