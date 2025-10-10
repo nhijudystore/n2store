@@ -944,17 +944,54 @@ export default function LiveProducts() {
   // Mutation chuyển sang Hàng Lẻ
   const changeToHangLeMutation = useMutation({
     mutationFn: async (productIds: string[]) => {
-      const { error } = await supabase
-        .from('live_products')
-        .update({ product_type: 'hang_le' })
-        .in('id', productIds);
+      // 1. Kiểm tra từng sản phẩm xem có đơn hàng không
+      const { data: ordersData } = await supabase
+        .from('live_orders')
+        .select('live_product_id')
+        .in('live_product_id', productIds);
       
-      if (error) throw error;
-      return productIds.length;
+      const productIdsWithOrders = new Set(
+        (ordersData || []).map(order => order.live_product_id)
+      );
+      
+      // 2. Chia thành 2 nhóm: có đơn và không có đơn
+      const productsToConvert = productIds.filter(id => productIdsWithOrders.has(id));
+      const productsToDelete = productIds.filter(id => !productIdsWithOrders.has(id));
+      
+      // 3. Chuyển sang Hàng Lẻ cho các sản phẩm có đơn
+      if (productsToConvert.length > 0) {
+        const { error: updateError } = await supabase
+          .from('live_products')
+          .update({ product_type: 'hang_le' })
+          .in('id', productsToConvert);
+        
+        if (updateError) throw updateError;
+      }
+      
+      // 4. Xóa các sản phẩm không có đơn
+      if (productsToDelete.length > 0) {
+        const { error: deleteError } = await supabase
+          .from('live_products')
+          .delete()
+          .in('id', productsToDelete);
+        
+        if (deleteError) throw deleteError;
+      }
+      
+      return { converted: productsToConvert.length, deleted: productsToDelete.length };
     },
-    onSuccess: (count) => {
+    onSuccess: ({ converted, deleted }) => {
       queryClient.invalidateQueries({ queryKey: ['live-products'] });
-      toast.success(`Đã chuyển ${count} sản phẩm sang Hàng Lẻ`);
+      
+      if (converted > 0 && deleted > 0) {
+        toast.success(`Đã chuyển ${converted} biến thể có đơn sang Hàng Lẻ, xóa ${deleted} biến thể không có đơn`);
+      } else if (converted > 0) {
+        toast.success(`Đã chuyển ${converted} biến thể sang Hàng Lẻ`);
+      } else if (deleted > 0) {
+        toast.success(`Đã xóa ${deleted} biến thể không có đơn`);
+      } else {
+        toast.info('Không có thay đổi nào');
+      }
     },
     onError: (error) => {
       toast.error(`Lỗi: ${error.message}`);
