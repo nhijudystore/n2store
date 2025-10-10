@@ -47,15 +47,19 @@ Deno.serve(async (req) => {
     }
 
     // Fetch products from TPOS
-    const tposUrl = `https://tomato.tpos.vn/odata/Product?$top=${top}&$skip=${skip}&$orderby=DateCreated desc&$expand=Category`;
+    const tposUrl = `https://tomato.tpos.vn/odata/Product?$top=${top}&$skip=${skip}&$orderby=DateCreated desc`;
     
     console.log('Calling TPOS API:', tposUrl);
 
     const response = await fetch(tposUrl, {
       headers: {
-        'Authorization': `Bearer ${tokenData.bearer_token}`,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'accept': 'application/json, text/plain, */*',
+        'accept-language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+        'authorization': `Bearer ${tokenData.bearer_token}`,
+        'content-type': 'application/json;charset=UTF-8',
+        'origin': 'https://tomato.tpos.vn',
+        'referer': 'https://tomato.tpos.vn/',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
 
