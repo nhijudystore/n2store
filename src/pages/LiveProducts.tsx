@@ -257,66 +257,120 @@ export default function LiveProducts() {
       }
 
       try {
-        // Tìm sản phẩm trong kho theo product_code
-        const { data: productData, error: productError } = await supabase
+        // 1. Tìm sản phẩm được quét
+        const { data: scannedProduct, error: productError } = await supabase
           .from("products")
-          .select("*")
+          .select("product_code, base_product_code")
           .eq("product_code", code.trim())
           .maybeSingle();
 
         if (productError) throw productError;
 
-        if (!productData) {
-          toast.error(`Không tìm thấy sản phẩm với mã: ${code}`);
+        if (!scannedProduct) {
+          toast.error(`Không tìm thấy sản phẩm: ${code}`);
           return;
         }
 
-        // Kiểm tra xem sản phẩm đã có trong live products chưa
-        const { data: existingLiveProduct, error: checkError } = await supabase
-          .from("live_products")
+        // 2. Xác định base_product_code
+        const baseCode = scannedProduct.base_product_code || scannedProduct.product_code;
+
+        // 3. Lấy TẤT CẢ biến thể (loại trừ sản phẩm gốc mặc định)
+        const { data: variants, error: variantsError } = await supabase
+          .from("products")
           .select("*")
-          .eq("live_phase_id", selectedPhase)
-          .eq("product_code", productData.product_code)
-          .maybeSingle();
+          .eq("base_product_code", baseCode)
+          .not("variant", "is", null)
+          .neq("variant", "")
+          .neq("product_code", baseCode);
 
-        if (checkError && checkError.code !== 'PGRST116') throw checkError;
+        if (variantsError) throw variantsError;
 
-        if (existingLiveProduct) {
-          // Đã có rồi, tăng prepared_quantity
-          const { error: updateError } = await supabase
-            .from("live_products")
-            .update({ 
-              prepared_quantity: existingLiveProduct.prepared_quantity + 1 
-            })
-            .eq("id", existingLiveProduct.id);
-
-          if (updateError) throw updateError;
-
-          toast.success(`Đã tăng SL chuẩn bị: ${productData.product_name} (${existingLiveProduct.prepared_quantity + 1})`);
-        } else {
-          // Chưa có, thêm mới
-          const { error: insertError } = await supabase
-            .from("live_products")
-            .insert({
-              live_session_id: selectedSession,
-              live_phase_id: selectedPhase,
-              product_code: productData.product_code,
-              product_name: productData.product_name,
-              variant: productData.variant,
-              base_product_code: productData.base_product_code,
-              prepared_quantity: 1,
-              sold_quantity: 0,
-              image_url: productData.tpos_image_url || null,
-              product_type: 'hang_dat',
-            });
-
-          if (insertError) throw insertError;
-
-          toast.success(`Đã thêm sản phẩm: ${productData.product_name}`);
+        if (!variants || variants.length === 0) {
+          toast.error("Không tìm thấy biến thể nào");
+          return;
         }
 
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase, selectedSession] });
+        // 4. Kiểm tra tất cả biến thể đã có trong live_products chưa
+        const variantCodes = variants.map(v => v.product_code);
+        const { data: existingProducts, error: existingError } = await supabase
+          .from("live_products")
+          .select("id, product_code, prepared_quantity")
+          .eq("live_phase_id", selectedPhase)
+          .in("product_code", variantCodes);
+
+        if (existingError) throw existingError;
+
+        const existingMap = new Map(
+          (existingProducts || []).map(p => [p.product_code, p])
+        );
+
+        // 5. Chuẩn bị batch insert và update
+        const toInsert = [];
+        const toUpdate = [];
+
+        for (const variant of variants) {
+          const existing = existingMap.get(variant.product_code);
+          
+          if (existing) {
+            // Tăng số lượng
+            toUpdate.push({
+              id: existing.id,
+              prepared_quantity: existing.prepared_quantity + 1
+            });
+          } else {
+            // Thêm mới
+            toInsert.push({
+              live_session_id: selectedSession,
+              live_phase_id: selectedPhase,
+              product_code: variant.product_code,
+              product_name: variant.product_name,
+              variant: variant.variant,
+              base_product_code: variant.base_product_code,
+              prepared_quantity: 1,
+              sold_quantity: 0,
+              image_url: variant.tpos_image_url || null,
+              product_type: 'hang_dat',
+            });
+          }
+        }
+
+        // 6. Thực hiện batch operations
+        if (toInsert.length > 0) {
+          const { error: insertError } = await supabase
+            .from("live_products")
+            .insert(toInsert);
+          if (insertError) throw insertError;
+        }
+
+        if (toUpdate.length > 0) {
+          for (const update of toUpdate) {
+            const { error: updateError } = await supabase
+              .from("live_products")
+              .update({ prepared_quantity: update.prepared_quantity })
+              .eq("id", update.id);
+            if (updateError) throw updateError;
+          }
+        }
+
+        // 7. Toast thông báo
+        const insertedCount = toInsert.length;
+        const updatedCount = toUpdate.length;
+        const variantNames = variants.map(v => v.product_code).join(", ");
+
+        if (insertedCount > 0 && updatedCount > 0) {
+          toast.success(
+            `✅ Đã thêm ${insertedCount} biến thể mới, tăng số lượng ${updatedCount} biến thể có sẵn (${variantNames})`
+          );
+        } else if (insertedCount > 0) {
+          toast.success(`✅ Đã thêm ${insertedCount} biến thể: ${variantNames}`);
+        } else {
+          toast.success(`✅ Đã tăng số lượng ${updatedCount} biến thể: ${variantNames}`);
+        }
+
+        // 8. Refresh data
+        queryClient.invalidateQueries({ 
+          queryKey: ["live-products", selectedPhase, selectedSession] 
+        });
       } catch (error: any) {
         console.error("Barcode add product error:", error);
         toast.error("Lỗi thêm sản phẩm: " + error.message);
