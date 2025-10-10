@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
+import { getProductImageUrl } from "@/lib/tpos-image-loader";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { getTPOSHeaders, getActiveTPOSToken } from "@/lib/tpos-config";
@@ -328,7 +329,7 @@ export default function LiveProducts() {
               base_product_code: variant.base_product_code,
               prepared_quantity: 1,
               sold_quantity: 0,
-              image_url: variant.tpos_image_url || null,
+              image_url: getProductImageUrl(variant.product_images, variant.tpos_image_url),
               product_type: 'hang_dat',
             });
           }
