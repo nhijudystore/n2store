@@ -118,8 +118,8 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
       const tposProduct = productsToImport[i];
       
       try {
-        // Use StandardPrice for purchase price if available, otherwise fallback to BasePrice
-        const purchasePrice = tposProduct.StandardPrice || tposProduct.BasePrice || 0;
+        // Use BasePrice for purchase price since StandardPrice doesn't exist
+        const purchasePrice = tposProduct.BasePrice || 0;
         
         const productData = {
           product_code: tposProduct.DefaultCode,
@@ -291,7 +291,7 @@ export function FetchTPOSProductsDialog({ open, onOpenChange, onSuccess }: Fetch
                   <TableBody>
                   {tposProducts.map((product) => {
                       const supplierName = detectSupplierFromProductName(product.Name);
-                      const purchasePrice = product.StandardPrice || product.BasePrice || 0;
+                      const purchasePrice = product.BasePrice || 0;
                       return (
                         <TableRow key={product.Id}>
                           <TableCell>
