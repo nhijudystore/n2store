@@ -51,7 +51,7 @@ type Customer = {
   address: string | null;
   notes: string | null;
   customer_status: string;
-  info_status: string;
+  info_status: 'complete' | 'incomplete' | 'synced_tpos';
   total_orders: number;
   total_spent: number;
   facebook_id: string | null;

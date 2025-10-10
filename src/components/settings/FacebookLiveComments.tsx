@@ -227,18 +227,24 @@ export function FacebookLiveComments() {
         const phone = commentPhoneMap.get(comment.id);
         
         try {
-          const customerData = order && phone ? {
+          const customerData: {
+            customer_name: string;
+            phone: string | null;
+            facebook_id: string;
+            customer_status: string;
+            info_status: 'complete' | 'incomplete' | 'synced_tpos';
+          } = order && phone ? {
             customer_name: order.Name,
             phone: phone,
             facebook_id: comment.from.id,
             customer_status: mapStatusText(partnerStatus),
-            info_status: partnerStatus ? 'complete' : 'incomplete',
+            info_status: partnerStatus ? 'complete' as const : 'incomplete' as const,
           } : {
             customer_name: comment.from.name,
             phone: null,
             facebook_id: comment.from.id,
             customer_status: 'Bình thường',
-            info_status: 'incomplete',
+            info_status: 'incomplete' as const,
           };
 
           // Check if customer already exists

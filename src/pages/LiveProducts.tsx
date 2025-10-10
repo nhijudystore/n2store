@@ -617,8 +617,10 @@ export default function LiveProducts() {
 
   // Real-time subscriptions for live data updates
   useEffect(() => {
+    if (!selectedSession || !selectedPhase) return;
+
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel('live-products-changes')
       .on(
         'postgres_changes',
         {
@@ -635,7 +637,8 @@ export default function LiveProducts() {
         {
           event: '*',
           schema: 'public',
-          table: 'live_phases'
+          table: 'live_phases',
+          filter: `live_session_id=eq.${selectedSession}`
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["live-phases", selectedSession] });
@@ -646,7 +649,8 @@ export default function LiveProducts() {
         {
           event: '*',
           schema: 'public',
-          table: 'live_products'
+          table: 'live_products',
+          filter: `live_session_id=eq.${selectedSession}`
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["live-products", selectedPhase, selectedSession] });
@@ -657,7 +661,8 @@ export default function LiveProducts() {
         {
           event: '*',
           schema: 'public',
-          table: 'live_orders'
+          table: 'live_orders',
+          filter: `live_session_id=eq.${selectedSession}`
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ["live-orders", selectedPhase, selectedSession] });
@@ -669,7 +674,7 @@ export default function LiveProducts() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedSession, selectedPhase, queryClient]);
+  }, [selectedSession, selectedPhase]);
 
   // Delete order item mutation (delete single product from order)
   const deleteOrderItemMutation = useMutation({
