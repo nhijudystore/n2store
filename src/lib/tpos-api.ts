@@ -589,23 +589,38 @@ export async function getProductDetail(productId: number): Promise<any> {
     throw new Error("TPOS Bearer Token not found");
   }
   
-  console.log(`🔎 [TPOS] Fetching product detail: ${productId}`);
+  console.log(`🔎 [TPOS] Fetching product detail for ID: ${productId}`);
   
   await randomDelay(200, 600);
 
   const expand = 'UOM,UOMCateg,Categ,UOMPO,POSCateg,Taxes,SupplierTaxes,Product_Teams,Images,UOMView,Distributor,Importer,Producer,OriginCountry,ProductVariants($expand=UOM,Categ,UOMPO,POSCateg,AttributeValues),AttributeLines,UOMLines($expand=UOM),ComboProducts,ProductSupplierInfos';
 
-  const response = await fetch(`${TPOS_CONFIG.API_BASE}(${productId})?$expand=${expand}`, {
+  // Use GetViewV2 endpoint with filter instead of direct access
+  const url = `${TPOS_CONFIG.API_BASE}/ODataService.GetViewV2?$filter=Id eq ${productId}&$expand=${expand}`;
+  
+  console.log(`📡 [TPOS] Calling: ${url}`);
+
+  const response = await fetch(url, {
     method: "GET",
     headers: getTPOSHeaders(token),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error(`❌ [TPOS] Failed to fetch product ${productId}:`, errorText);
     throw new Error(`Failed to fetch product detail: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  const products = data.value || data;
+  
+  if (!products || products.length === 0) {
+    throw new Error(`Product with ID ${productId} not found in TPOS`);
+  }
+
+  console.log(`✅ [TPOS] Successfully fetched product ${productId}:`, products[0].Name || products[0].Code);
+  
+  return products[0];
 }
 
 /**
