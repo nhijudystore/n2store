@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch products from TPOS with StandardPrice for purchase price
-    const tposUrl = `https://tomato.tpos.vn/odata/ProductTemplates?$top=${top}&$skip=${skip}&$orderby=Id desc&$select=Id,DefaultCode,Name,Variant,BasePrice,ListPrice,StandardPrice,Image,OnHand,Barcode,CategoryName`;
+    const tposUrl = `https://tomato.tpos.vn/odata/ProductTemplate?$top=${top}&$skip=${skip}&$orderby=Id desc&$select=Id,DefaultCode,Name,Variant,BasePrice,ListPrice,StandardPrice,Image,OnHand,Barcode,CategoryName`;
     
     console.log('Calling TPOS API:', tposUrl);
 
