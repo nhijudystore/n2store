@@ -13,13 +13,16 @@ import { ImportTPOSIdsDialog } from "@/components/products/ImportTPOSIdsDialog";
 import { SupplierStats } from "@/components/products/SupplierStats";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useIsAdmin } from "@/hooks/use-user-role";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { ShieldAlert } from "lucide-react";
 
 export default function Products() {
   const isMobile = useIsMobile();
+  const { isAdmin, isLoading: isLoadingRole } = useIsAdmin();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
@@ -144,16 +147,24 @@ export default function Products() {
     <div className="min-h-screen bg-background">
       <div className={`${isMobile ? "p-4 space-y-4" : "p-8 space-y-6"}`}>
         {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="bg-primary/10 p-3 rounded-lg">
-            <Package className="h-6 w-6 text-primary" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-primary/10 p-3 rounded-lg">
+              <Package className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Kho Sản Phẩm</h1>
+              <p className="text-sm text-muted-foreground">
+                Quản lý tồn kho và thông tin sản phẩm
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">Kho Sản Phẩm</h1>
-            <p className="text-sm text-muted-foreground">
-              Quản lý tồn kho và thông tin sản phẩm
-            </p>
-          </div>
+          {!isLoadingRole && !isAdmin && (
+            <Badge variant="secondary" className="gap-2">
+              <ShieldAlert className="h-3 w-3" />
+              Chỉ xem
+            </Badge>
+          )}
         </div>
 
         {/* Stats - Always show for entire database */}
@@ -202,50 +213,52 @@ export default function Products() {
                   )}
                 </div>
 
-                <div className={`flex gap-2 ${isMobile ? "w-full flex-wrap" : ""}`}>
-                  <Button
-                    onClick={() => updateSuppliersMutation.mutate()}
-                    variant="secondary"
-                    size={isMobile ? "sm" : "default"}
-                    className={isMobile ? "flex-1 text-xs" : ""}
-                    disabled={updateSuppliersMutation.isPending}
-                  >
-                    <Store className="h-4 w-4 mr-2" />
-                    {updateSuppliersMutation.isPending ? "Đang cập nhật..." : "Cập nhật NCC"}
-                  </Button>
-                  <Button
-                    onClick={() => setIsAlertDialogOpen(true)}
-                    variant="destructive"
-                    size={isMobile ? "sm" : "default"}
-                    className={isMobile ? "flex-1 text-xs" : ""}
-                    disabled={isClearing}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    {isClearing ? "Đang xóa..." : "Xóa TPOS IDs"}
-                  </Button>
-                  <Button
-                    onClick={() => setIsImportTPOSIdsDialogOpen(true)}
-                    variant="outline"
-                    size={isMobile ? "sm" : "default"}
-                    className={isMobile ? "flex-1 text-xs" : ""}
-                  >
-                    Import TPOS IDs
-                  </Button>
-                  <Button
-                    onClick={() => setIsImportDialogOpen(true)}
-                    variant="outline"
-                    size={isMobile ? "sm" : "default"}
-                    className={isMobile ? "flex-1 text-xs" : ""}
-                  >
-                    Import Excel
-                  </Button>
-                  <Button
-                    onClick={() => setIsCreateDialogOpen(true)}
-                    className={isMobile ? "flex-1" : ""}
-                  >
-                    Thêm SP
-                  </Button>
-                </div>
+                {isAdmin && (
+                  <div className={`flex gap-2 ${isMobile ? "w-full flex-wrap" : ""}`}>
+                    <Button
+                      onClick={() => updateSuppliersMutation.mutate()}
+                      variant="secondary"
+                      size={isMobile ? "sm" : "default"}
+                      className={isMobile ? "flex-1 text-xs" : ""}
+                      disabled={updateSuppliersMutation.isPending}
+                    >
+                      <Store className="h-4 w-4 mr-2" />
+                      {updateSuppliersMutation.isPending ? "Đang cập nhật..." : "Cập nhật NCC"}
+                    </Button>
+                    <Button
+                      onClick={() => setIsAlertDialogOpen(true)}
+                      variant="destructive"
+                      size={isMobile ? "sm" : "default"}
+                      className={isMobile ? "flex-1 text-xs" : ""}
+                      disabled={isClearing}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {isClearing ? "Đang xóa..." : "Xóa TPOS IDs"}
+                    </Button>
+                    <Button
+                      onClick={() => setIsImportTPOSIdsDialogOpen(true)}
+                      variant="outline"
+                      size={isMobile ? "sm" : "default"}
+                      className={isMobile ? "flex-1 text-xs" : ""}
+                    >
+                      Import TPOS IDs
+                    </Button>
+                    <Button
+                      onClick={() => setIsImportDialogOpen(true)}
+                      variant="outline"
+                      size={isMobile ? "sm" : "default"}
+                      className={isMobile ? "flex-1 text-xs" : ""}
+                    >
+                      Import Excel
+                    </Button>
+                    <Button
+                      onClick={() => setIsCreateDialogOpen(true)}
+                      className={isMobile ? "flex-1" : ""}
+                    >
+                      Thêm SP
+                    </Button>
+                  </div>
+                )}
               </div>
               
               <div className="text-sm text-muted-foreground">
@@ -262,6 +275,7 @@ export default function Products() {
               isLoading={isLoading}
               onRefetch={refetch}
               supplierFilter={supplierFilter}
+              isAdmin={isAdmin}
             />
           </TabsContent>
 

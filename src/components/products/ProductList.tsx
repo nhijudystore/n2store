@@ -45,9 +45,10 @@ interface ProductListProps {
   isLoading: boolean;
   onRefetch: () => void;
   supplierFilter?: string | null;
+  isAdmin: boolean;
 }
 
-export function ProductList({ products, isLoading, onRefetch, supplierFilter }: ProductListProps) {
+export function ProductList({ products, isLoading, onRefetch, supplierFilter, isAdmin }: ProductListProps) {
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -161,7 +162,7 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
   if (isMobile) {
     return (
       <>
-        {selectedIds.size > 0 && (
+        {isAdmin && selectedIds.size > 0 && (
           <Card className="p-4 mb-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">
@@ -195,11 +196,13 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
             <Card key={product.id} className={`p-4 ${isHighlighted ? "ring-2 ring-primary" : ""}`}>
               <div className="space-y-3">
                 <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={selectedIds.has(product.id)}
-                    onCheckedChange={() => toggleSelect(product.id)}
-                    className="mt-1"
-                  />
+                  {isAdmin && (
+                    <Checkbox
+                      checked={selectedIds.has(product.id)}
+                      onCheckedChange={() => toggleSelect(product.id)}
+                      className="mt-1"
+                    />
+                  )}
                   <div className="flex-1">
                     <div className="font-semibold text-foreground">
                       {product.product_name}
@@ -254,26 +257,28 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingProduct(product)}
-                    className="flex-1"
-                  >
-                    <Pencil className="h-3 w-3 mr-1" />
-                    Sửa
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeletingProduct(product)}
-                    className="flex-1"
-                  >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Xóa
-                  </Button>
-                </div>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingProduct(product)}
+                      className="flex-1"
+                    >
+                      <Pencil className="h-3 w-3 mr-1" />
+                      Sửa
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeletingProduct(product)}
+                      className="flex-1"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Xóa
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
           )})}
@@ -323,7 +328,7 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
 
   return (
     <>
-      {selectedIds.size > 0 && (
+      {isAdmin && selectedIds.size > 0 && (
         <Card className="p-4 mb-4">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">
@@ -354,12 +359,14 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-12">
-                <Checkbox
-                  checked={selectedIds.size === products.length && products.length > 0}
-                  onCheckedChange={toggleSelectAll}
-                />
-              </TableHead>
+              {isAdmin && (
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedIds.size === products.length && products.length > 0}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+              )}
               <TableHead>Hình ảnh</TableHead>
               <TableHead>Mã SP</TableHead>
               <TableHead>Tên sản phẩm</TableHead>
@@ -370,7 +377,7 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
               <TableHead>Tồn kho</TableHead>
               <TableHead>Nhóm</TableHead>
               <TableHead>NCC</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
+              {isAdmin && <TableHead className="text-right">Thao tác</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -378,12 +385,14 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
               const isHighlighted = supplierFilter && product.supplier_name === supplierFilter;
               return (
               <TableRow key={product.id} className={isHighlighted ? "bg-primary/5" : ""}>
-                <TableCell>
-                  <Checkbox
-                    checked={selectedIds.has(product.id)}
-                    onCheckedChange={() => toggleSelect(product.id)}
-                  />
-                </TableCell>
+                {isAdmin && (
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedIds.has(product.id)}
+                      onCheckedChange={() => toggleSelect(product.id)}
+                    />
+                  </TableCell>
+                )}
                 <TableCell>
                   <ProductImage 
                     productId={product.id}
@@ -406,24 +415,26 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter }: 
                 </TableCell>
                 <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                 <TableCell className="text-muted-foreground">{product.supplier_name || "-"}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setEditingProduct(product)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeletingProduct(product)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
+                {isAdmin && (
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingProduct(product)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingProduct(product)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                )}
               </TableRow>
             )})}
           </TableBody>
