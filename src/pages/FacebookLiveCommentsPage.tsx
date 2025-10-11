@@ -19,6 +19,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, Code, ChevronDown, ChevronUp, Copy } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -706,14 +707,19 @@ export default function FacebookLiveCommentsPage() {
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <div className="flex-1">
-              <Input
-                placeholder="Nhập Facebook Page ID"
-                value={pageId}
-                onChange={(e) => setPageId(e.target.value)}
-              />
-              {pageId === "117267091364524" && (
-                <p className="text-sm text-muted-foreground mt-1">Fanpage NhiJudyHouse</p>
-              )}
+              <Select value={pageId} onValueChange={setPageId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn fanpage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="117267091364524">
+                    Fanpage NhiJudyHouse
+                  </SelectItem>
+                  <SelectItem value="193642490509664">
+                    Fanpage NhiJudy Nè
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="w-32">
               <Input
