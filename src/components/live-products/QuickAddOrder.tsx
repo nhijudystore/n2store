@@ -78,16 +78,26 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     return new Set(existingOrders.map(order => order.order_code));
   }, [existingOrders]);
 
-  // Filter out used comments and group by session_index
+  // Group orders by session_index and filter out individual used comments
   const groupedOrders = React.useMemo(() => {
     const groups = new Map<string, typeof pendingOrders>();
     pendingOrders.forEach(order => {
-      if (order.session_index && !usedOrderCodes.has(order.session_index)) {
-        const existing = groups.get(order.session_index) || [];
-        groups.set(order.session_index, [...existing, order]);
+      if (order.session_index) {
+        // Only add this order if its session_index hasn't been used yet
+        if (!usedOrderCodes.has(order.session_index)) {
+          const existing = groups.get(order.session_index) || [];
+          groups.set(order.session_index, [...existing, order]);
+        }
       }
     });
-    return groups;
+    // Only keep sessionIndexes that still have comments
+    const filteredGroups = new Map<string, typeof pendingOrders>();
+    groups.forEach((orders, sessionIndex) => {
+      if (orders.length > 0) {
+        filteredGroups.set(sessionIndex, orders);
+      }
+    });
+    return filteredGroups;
   }, [pendingOrders, usedOrderCodes]);
 
   const uniqueSessionIndexes = Array.from(groupedOrders.keys());
