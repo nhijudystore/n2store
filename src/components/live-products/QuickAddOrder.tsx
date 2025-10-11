@@ -294,9 +294,9 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                     >
                       <span className="font-medium">{order.session_index}</span>
                       <span className="mx-1">-</span>
-                      <span className="font-medium truncate">{order.name || '(không có tên)'}</span>
+                      <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
                       <span className="mx-1">-</span>
-                      <span className="flex-1 truncate text-muted-foreground">
+                      <span className="flex-1 truncate">
                         {order.comment || '(không có comment)'}
                       </span>
                     </CommandItem>
