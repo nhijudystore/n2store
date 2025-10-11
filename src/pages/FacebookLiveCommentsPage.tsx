@@ -214,19 +214,14 @@ export default function FacebookLiveCommentsPage() {
       return await response.json();
     },
     getNextPageParam: (lastPage) => {
-      const nextPageCursor = lastPage.paging?.cursors?.after || (lastPage.paging?.next ? new URL(lastPage.paging.next).searchParams.get('after') : null);
-
-      if (!nextPageCursor) {
+      // Chỉ dừng khi không có nextPageCursor hoặc page rỗng
+      if (!lastPage.data || lastPage.data.length === 0) {
         return undefined;
       }
 
-      // Check for duplicates to prevent infinite loops
-      const lastPageIds = new Set(lastPage.data.map((c: FacebookComment) => c.id));
-      const allExistingIds = allCommentIdsRef.current;
-      const isDuplicatePage = [...lastPageIds].every((id: string) => allExistingIds.has(id));
+      const nextPageCursor = lastPage.paging?.cursors?.after || (lastPage.paging?.next ? new URL(lastPage.paging.next).searchParams.get('after') : null);
 
-      if (isDuplicatePage && allExistingIds.size > 0) {
-        console.warn("Duplicate page detected, stopping fetch.");
+      if (!nextPageCursor) {
         return undefined;
       }
 
