@@ -1,16 +1,29 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook } from "lucide-react";
+import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, Code, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 // Helper: Debounce function
 function debounce<T extends (...args: any[]) => any>(
@@ -32,12 +45,11 @@ export default function FacebookLiveCommentsPage() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [previousCommentIds, setPreviousCommentIds] = useState<Set<string>>(new Set());
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
   const [selectedOrderInfo, setSelectedOrderInfo] = useState<TPOSOrder | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
-  const [displayLimit, setDisplayLimit] = useState(20);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const allCommentIdsRef = useRef<Set<string>>(new Set());
   const { toast } = useToast();
 
   // New optimized states
@@ -46,7 +58,97 @@ export default function FacebookLiveCommentsPage() {
   const fetchInProgress = useRef(false);
   const customerStatusMapRef = useRef<Map<string, any>>(new Map());
 
-  // Fetch videos (giữ nguyên code cũ - đang hoạt động)
+  // New states for debug search
+  const [videosDebugSearch, setVideosDebugSearch] = useState("");
+  const [commentsDebugSearch, setCommentsDebugSearch] = useState("");
+  const [ordersDebugSearch, setOrdersDebugSearch] = useState("");
+  const [statusMapDebugSearch, setStatusMapDebugSearch] = useState("");
+  const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
+
+  // New states for create order response
+  const [createOrderResponse, setCreateOrderResponse] = useState<{ data: any; payload: any } | null>(null);
+  const [isCreateOrderResponseOpen, setIsCreateOrderResponseOpen] = useState(false);
+  
+  // New state for confirmation dialog
+  const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<FacebookComment | null>(null);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Đã sao chép",
+      description: "JSON đã được sao chép vào clipboard",
+    });
+  };
+
+  const createOrderMutation = useMutation({
+    mutationFn: async ({ comment, video }: { comment: FacebookComment; video: FacebookVideo }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("User not authenticated");
+
+      const response = await fetch(
+        `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/create-tpos-order-from-comment`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ comment, video }),
+        }
+      );
+
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(JSON.stringify(responseData));
+      }
+
+      return responseData;
+    },
+    onSuccess: (data) => {
+      setCreateOrderResponse({ data: data.response, payload: data.payload });
+      setIsCreateOrderResponseOpen(true);
+      toast({
+        title: "Tạo đơn hàng thành công!",
+        description: `Đơn hàng ${data.response.Code} đã được tạo.`,
+      });
+      // Refetch orders to update the UI
+      queryClient.invalidateQueries({ queryKey: ["tpos-orders", selectedVideo?.objectId] });
+    },
+    onError: (error: any) => {
+      let errorData;
+      try {
+        errorData = JSON.parse(error.message);
+      } catch (e) {
+        errorData = { error: error.message };
+      }
+
+      toast({
+        title: "Lỗi tạo đơn hàng",
+        description: errorData.error || "Có lỗi không xác định",
+        variant: "destructive",
+      });
+      setCreateOrderResponse({ data: { error: errorData.error }, payload: errorData.payload });
+      setIsCreateOrderResponseOpen(true);
+    },
+  });
+
+  const handleCreateOrderClick = (comment: FacebookComment) => {
+    if (comment.orderInfo) {
+      setConfirmCreateOrderComment(comment);
+    } else {
+      if (!selectedVideo) return;
+      createOrderMutation.mutate({ comment, video: selectedVideo });
+    }
+  };
+
+  const confirmCreateOrder = () => {
+    if (confirmCreateOrderComment && selectedVideo) {
+      createOrderMutation.mutate({ comment: confirmCreateOrderComment, video: selectedVideo });
+    }
+    setConfirmCreateOrderComment(null);
+  };
+
+  // Fetch videos
   const { data: videos = [], isLoading: videosLoading, refetch: refetchVideos } = useQuery({
     queryKey: ['facebook-videos', pageId, limit],
     queryFn: async () => {
@@ -74,13 +176,25 @@ export default function FacebookLiveCommentsPage() {
     enabled: false,
   });
 
-  // Fetch comments (giữ nguyên code cũ)
-  const { data: comments = [], refetch: refetchComments } = useQuery({
+  // Fetch comments with infinite scroll
+  const {
+    data: commentsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetch: refetchComments,
+    isLoading: commentsLoading,
+  } = useInfiniteQuery({
     queryKey: ['facebook-comments', pageId, selectedVideo?.objectId],
-    queryFn: async () => {
-      if (!pageId || !selectedVideo?.objectId) return [];
+    queryFn: async ({ pageParam }) => {
+      if (!pageId || !selectedVideo?.objectId) return { data: [], paging: {} };
       
-      const url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=500`;
+      const order = selectedVideo.statusLive === 1 ? 'reverse_chronological' : 'chronological';
+      
+      let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=100&order=${order}`;
+      if (pageParam) {
+        url += `&after=${pageParam}`;
+      }
       
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -96,14 +210,43 @@ export default function FacebookLiveCommentsPage() {
         throw new Error(error.error || 'Failed to fetch comments');
       }
 
-      const result = await response.json();
-      return (Array.isArray(result) ? result : result.data || []) as FacebookComment[];
+      return await response.json();
     },
+    getNextPageParam: (lastPage) => {
+      const nextPageCursor = lastPage.paging?.cursors?.after || (lastPage.paging?.next ? new URL(lastPage.paging.next).searchParams.get('after') : null);
+
+      if (!nextPageCursor) {
+        return undefined;
+      }
+
+      // Check for duplicates to prevent infinite loops
+      const lastPageIds = new Set(lastPage.data.map((c: FacebookComment) => c.id));
+      const allExistingIds = allCommentIdsRef.current;
+      const isDuplicatePage = [...lastPageIds].every(id => allExistingIds.has(id));
+
+      if (isDuplicatePage && allExistingIds.size > 0) {
+        console.warn("Duplicate page detected, stopping fetch.");
+        return undefined;
+      }
+
+      return nextPageCursor;
+    },
+    initialPageParam: undefined,
     enabled: !!selectedVideo && !!pageId,
     refetchInterval: isAutoRefresh && isCommentsOpen ? 10000 : false,
   });
 
-  // Cache orders data với React Query
+  const comments = useMemo(() => {
+    const allComments = commentsData?.pages.flatMap(page => page.data) || [];
+    // Deduplicate comments by ID to prevent rendering issues
+    const uniqueComments = new Map<string, FacebookComment>();
+    allComments.forEach(comment => {
+      uniqueComments.set(comment.id, comment);
+    });
+    return Array.from(uniqueComments.values());
+  }, [commentsData]);
+
+  // Cache orders data with React Query
   const { data: ordersData = [] } = useQuery({
     queryKey: ["tpos-orders", selectedVideo?.objectId],
     queryFn: async () => {
@@ -233,10 +376,10 @@ export default function FacebookLiveCommentsPage() {
       const phoneNumbers: string[] = [];
       const commentPhoneMap = new Map<string, string>();
 
-      for (const comment of commentsNeedingTPOSFetch) { // Use commentsNeedingTPOSFetch here
+      for (const comment of commentsNeedingTPOSFetch) {
         const order = orders.find(o => 
           o.Facebook_CommentId === comment.id || 
-          o.Facebook_UserName?.toLowerCase() === comment.from.name.toLowerCase()
+          (o.Facebook_ASUserId === comment.from.id && o.Facebook_UserName?.toLowerCase() === comment.from.name.toLowerCase())
         );
 
         if (order) {
@@ -336,7 +479,7 @@ export default function FacebookLiveCommentsPage() {
         // Update status map (this should still happen for all comments, even if not upserted)
         newStatusMap.set(comment.from.id, {
           partnerStatus: customerData.phone ? customerData.customer_status : 'Cần thêm TT',
-          orderInfo: order && phone ? { Telephone: phone } as any : undefined,
+          orderInfo: order,
           isLoadingStatus: false,
         });
       }
@@ -431,36 +574,39 @@ export default function FacebookLiveCommentsPage() {
 
   // Track new comments
   useEffect(() => {
-    if (comments.length === 0) return;
-    
-    const currentIds = new Set(comments.map(c => c.id));
-    const newIds = new Set<string>();
-    
-    if (previousCommentIds.size > 0) {
-      currentIds.forEach(id => {
-        if (!previousCommentIds.has(id)) {
-          newIds.add(id);
-        }
-      });
-      
-      if (newIds.size > 0) {
-        setNewCommentIds(newIds);
-        toast({
-          title: `🔔 ${newIds.size} comment mới!`,
-        });
-        
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = 0;
-        }
-        
-        setTimeout(() => {
-          setNewCommentIds(new Set());
-        }, 3000);
-      }
+    if (comments.length === 0) {
+      allCommentIdsRef.current = new Set();
+      return;
     }
     
-    setPreviousCommentIds(currentIds);
-  }, [comments, toast, previousCommentIds]);
+    const currentIds = new Set(comments.map(c => c.id));
+    const previousIds = allCommentIdsRef.current;
+    
+    const newIds = new Set<string>();
+    currentIds.forEach(id => {
+      if (!previousIds.has(id)) {
+        newIds.add(id);
+      }
+    });
+    
+    if (newIds.size > 0 && previousIds.size > 0) { // Only show toast if it's not the initial load
+      setNewCommentIds(newIds);
+      toast({
+        title: `🔔 ${newIds.size} comment mới!`,
+      });
+      
+      // Don't auto-scroll if the user is loading more.
+      if (newIds.size < 20 && scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+      }
+      
+      setTimeout(() => {
+        setNewCommentIds(new Set());
+      }, 3000);
+    }
+    
+    allCommentIdsRef.current = currentIds;
+  }, [comments, toast]);
 
   const handleLoadVideos = async () => {
     if (!pageId) {
@@ -487,10 +633,9 @@ export default function FacebookLiveCommentsPage() {
   const handleVideoClick = (video: FacebookVideo) => {
     setSelectedVideo(video);
     setIsCommentsOpen(true);
-    setPreviousCommentIds(new Set());
+    allCommentIdsRef.current = new Set();
     setNewCommentIds(new Set());
     setSearchQuery("");
-    setDisplayLimit(20);
     setCustomerStatusMap(new Map()); // Reset status map
   };
 
@@ -506,21 +651,17 @@ export default function FacebookLiveCommentsPage() {
     }
   };
 
-  const filteredComments = commentsWithStatus.filter(comment =>
-    comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredComments = useMemo(() => {
+    return commentsWithStatus.filter(comment => {
+      const matchesSearch = !searchQuery ||
+        comment.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
-  const displayedComments = filteredComments.slice(0, displayLimit);
+      const matchesOrderFilter = !showOnlyWithOrders || (comment.orderInfo && comment.orderInfo.Code);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.target as HTMLDivElement;
-    const scrollPercentage = (target.scrollTop + target.clientHeight) / target.scrollHeight;
-    
-    if (scrollPercentage > 0.8 && displayLimit < filteredComments.length) {
-      setDisplayLimit(prev => Math.min(prev + 20, filteredComments.length));
-    }
-  }, [displayLimit, filteredComments.length]);
+      return matchesSearch && matchesOrderFilter;
+    });
+  }, [commentsWithStatus, searchQuery, showOnlyWithOrders]);
 
   const stats = {
     totalVideos: videos.length,
@@ -528,6 +669,47 @@ export default function FacebookLiveCommentsPage() {
     totalComments: videos.reduce((sum, v) => sum + (v.countComment || 0), 0),
     totalReactions: videos.reduce((sum, v) => sum + (v.countReaction || 0), 0),
   };
+
+  // New filtering logic for debug panel
+  const filteredVideosForDebug = useMemo(() => {
+    if (!videosDebugSearch) return videos;
+    const searchTerm = videosDebugSearch.toLowerCase();
+    return videos.filter(video =>
+      JSON.stringify(video).toLowerCase().includes(searchTerm)
+    );
+  }, [videos, videosDebugSearch]);
+
+  const filteredCommentsForDebug = useMemo(() => {
+    if (!commentsDebugSearch) return comments;
+    const searchTerm = commentsDebugSearch.toLowerCase();
+    return comments.filter(comment =>
+      JSON.stringify(comment).toLowerCase().includes(searchTerm)
+    );
+  }, [comments, commentsDebugSearch]);
+
+  const filteredOrdersForDebug = useMemo(() => {
+    if (!ordersDebugSearch) return ordersData;
+    const searchTerm = ordersDebugSearch.toLowerCase();
+    return ordersData.filter(order =>
+      JSON.stringify(order).toLowerCase().includes(searchTerm)
+    );
+  }, [ordersData, ordersDebugSearch]);
+
+  const filteredStatusMapForDebug = useMemo(() => {
+    if (!statusMapDebugSearch) return Object.fromEntries(customerStatusMap);
+    const searchTerm = statusMapDebugSearch.toLowerCase();
+    const filteredEntries = Array.from(customerStatusMap.entries()).filter(
+      ([key, value]) =>
+        key.toLowerCase().includes(searchTerm) ||
+        JSON.stringify(value).toLowerCase().includes(searchTerm)
+    );
+    return Object.fromEntries(filteredEntries);
+  }, [customerStatusMap, statusMapDebugSearch]);
+
+  const allCommentsLoaded = useMemo(() => {
+    if (!selectedVideo || selectedVideo.statusLive === 1) return false;
+    return comments.length >= selectedVideo.countComment;
+  }, [comments, selectedVideo]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -729,26 +911,38 @@ export default function FacebookLiveCommentsPage() {
               )}
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Tìm kiếm comments..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            {/* Search & Filter */}
+            <div className="flex items-center gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Tìm kiếm comments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox id="show-only-with-orders" checked={showOnlyWithOrders} onCheckedChange={(checked) => setShowOnlyWithOrders(checked as boolean)} />
+                <Label htmlFor="show-only-with-orders" className="text-sm font-medium whitespace-nowrap">
+                  Chỉ hiển thị comment có đơn
+                </Label>
+              </div>
             </div>
 
             {/* Comments List */}
-            <ScrollArea className="h-[400px] pr-4" ref={scrollRef} onScrollCapture={handleScroll}>
+            <ScrollArea className="h-[400px] pr-4" ref={scrollRef}>
               <div className="space-y-4">
-                {filteredComments.length === 0 ? (
+                {commentsLoading && comments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                  </div>
+                ) : filteredComments.length === 0 ? (
                   <div className="text-center text-muted-foreground py-8">
                     {searchQuery ? "Không tìm thấy comment nào" : "Chưa có comment"}
                   </div>
                 ) : (
-                  displayedComments.map((comment) => {
+                  filteredComments.map((comment) => {
                     const isNew = newCommentIds.has(comment.id);
                     const status = comment.partnerStatus || 'Khách lạ';
                     const isWarning = status.toLowerCase().includes('cảnh báo') || status.toLowerCase().includes('warning');
@@ -765,17 +959,24 @@ export default function FacebookLiveCommentsPage() {
                               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold">
                                 {comment.from?.name?.charAt(0) || '?'}
                               </div>
-                              <Badge 
-                                variant="destructive" 
-                                className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-semibold"
-                              >
-                                {userCommentCounts.get(comment.from.id) || 0}
-                              </Badge>
+                              {comment.orderInfo?.SessionIndex && (
+                                <Badge 
+                                  variant="destructive" 
+                                  className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-semibold"
+                                >
+                                  {comment.orderInfo.SessionIndex}
+                                </Badge>
+                              )}
                             </div>
                             
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold text-sm">{comment.from?.name}</span>
+                                {comment.orderInfo?.Code && (
+                                  <Badge variant="secondary" className="text-xs font-mono bg-gray-600 text-white">
+                                    #{comment.orderInfo.SessionIndex}. {comment.orderInfo.Code}
+                                  </Badge>
+                                )}
                                 {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && comment.partnerStatus !== 'Cần thêm TT' && (
                                   <Badge 
                                     variant={
@@ -801,11 +1002,6 @@ export default function FacebookLiveCommentsPage() {
                                     Chưa có TT
                                   </Badge>
                                 )}
-                                {comment.from?.id && (
-                                  <Badge variant="outline" className="text-xs">
-                                    #{comment.from.id.slice(-8)}
-                                  </Badge>
-                                )}
                                 {isNew && (
                                   <Badge variant="default" className="text-xs">✨ MỚI</Badge>
                                 )}
@@ -817,7 +1013,15 @@ export default function FacebookLiveCommentsPage() {
                               <p className="text-sm mt-1.5 break-words">{comment.message}</p>
                               
                               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <Button size="sm" className="h-7 text-xs">
+                                <Button 
+                                  size="sm" 
+                                  className="h-7 text-xs"
+                                  onClick={() => handleCreateOrderClick(comment)}
+                                  disabled={(createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id)}
+                                >
+                                  {createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : null}
                                   Tạo đơn hàng
                                 </Button>
                                 <Button 
@@ -856,16 +1060,32 @@ export default function FacebookLiveCommentsPage() {
                     );
                   })
                 )}
-                {displayLimit < filteredComments.length && (
+                {allCommentsLoaded ? (
+                  <div className="text-center py-4 text-sm text-muted-foreground">
+                    Đã tải tất cả bình luận.
+                  </div>
+                ) : hasNextPage && (
                   <div className="text-center py-4">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+                    <Button
+                      onClick={() => fetchNextPage()}
+                      disabled={isFetchingNextPage}
+                      variant="outline"
+                    >
+                      {isFetchingNextPage ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Tải thêm bình luận
+                    </Button>
                   </div>
                 )}
               </div>
             </ScrollArea>
 
             <div className="text-sm text-muted-foreground text-center">
-              Hiển thị {displayedComments.length} / {filteredComments.length} comments
+              {selectedVideo && selectedVideo.statusLive !== 1
+                ? `Hiển thị ${filteredComments.length} / ${selectedVideo.countComment} comments`
+                : `Hiển thị ${filteredComments.length} comments`
+              }
               {isAutoRefresh && " • Auto-refresh mỗi 10s"}
             </div>
           </div>
@@ -936,6 +1156,161 @@ export default function FacebookLiveCommentsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={isCreateOrderResponseOpen} onOpenChange={setIsCreateOrderResponseOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>API Response: Tạo đơn hàng</DialogTitle>
+            <DialogDescription>
+              Đây là dữ liệu được gửi đi và nhận về từ TPOS API.
+            </DialogDescription>
+          </DialogHeader>
+          {createOrderResponse && (
+            <div className="space-y-4">
+              {createOrderResponse.payload && (
+                <Collapsible>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 bg-muted/50 hover:bg-muted/80">
+                    <span className="font-semibold">Payload đã gửi</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="space-y-2 rounded-md border p-4">
+                      <h4 className="font-semibold">Giải thích Payload</h4>
+                      <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
+                        <li><code className="bg-muted px-1 rounded">Facebook_PostId</code>: Lấy từ <code className="bg-muted px-1 rounded">video.objectId</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">Facebook_ASUserId</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.from.id</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">Facebook_UserName</code>, <code className="bg-muted px-1 rounded">Name</code>, <code className="bg-muted px-1 rounded">PartnerName</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.from.name</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">Facebook_CommentId</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.id</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">Facebook_Comments</code>: Chứa toàn bộ đối tượng <code className="bg-muted px-1 rounded">comment</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">Note</code>: Nội dung bình luận với tiền tố <code className="bg-muted px-1 rounded">{'{before}'}</code>.</li>
+                        <li><code className="bg-muted px-1 rounded">DateCreated</code>: Thời gian hiện tại khi gửi request.</li>
+                        <li>Các trường khác là giá trị cố định.</li>
+                      </ul>
+                      <div className="flex items-center justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(JSON.stringify(createOrderResponse.payload, null, 2))}
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Payload
+                        </Button>
+                      </div>
+                      <ScrollArea className="h-[300px] w-full rounded-md border">
+                        <pre className="p-4 text-xs bg-muted">{JSON.stringify(createOrderResponse.payload, null, 2)}</pre>
+                      </ScrollArea>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+              <Collapsible>
+                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 bg-muted/50 hover:bg-muted/80">
+                  <span className="font-semibold">Response nhận được</span>
+                  <ChevronDown className="h-4 w-4" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2">
+                  <div className="space-y-2 rounded-md border p-4">
+                    <div className="flex items-center justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(JSON.stringify(createOrderResponse.data, null, 2))}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Response
+                      </Button>
+                    </div>
+                    <ScrollArea className="h-[500px] w-full rounded-md border">
+                      <pre className="p-4 text-xs bg-muted">{JSON.stringify(createOrderResponse.data, null, 2)}</pre>
+                    </ScrollArea>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!confirmCreateOrderComment} onOpenChange={() => setConfirmCreateOrderComment(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xác nhận tạo đơn hàng mới</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bình luận này đã có đơn hàng. Bạn có chắc chắn muốn tạo thêm một đơn hàng mới không?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Hủy</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCreateOrder}>Tạo đơn mới</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Card className="mt-6">
+        <Collapsible>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer flex flex-row items-center justify-between p-4 data-[state=open]:border-b">
+              <div className="flex items-center gap-2">
+                <Code className="w-5 h-5" />
+                <CardTitle className="text-base">Xem Dữ Liệu API (Debug)</CardTitle>
+              </div>
+              <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-4">
+              <div className="space-y-2">
+                <h3 className="font-semibold mb-2">1. Videos Response (`/facebook-livevideo`)</h3>
+                <Input
+                  placeholder="Tìm kiếm trong videos response..."
+                  value={videosDebugSearch}
+                  onChange={(e) => setVideosDebugSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
+                  <pre className="text-xs">{JSON.stringify(filteredVideosForDebug, null, 2)}</pre>
+                </ScrollArea>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold mb-2">2. Comments Response (`/facebook-comments`)</h3>
+                <Input
+                  placeholder="Tìm kiếm trong comments response..."
+                  value={commentsDebugSearch}
+                  onChange={(e) => setCommentsDebugSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
+                  <pre className="text-xs">{JSON.stringify(filteredCommentsForDebug, null, 2)}</pre>
+                </ScrollArea>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold mb-2">3. TPOS Orders Response (`/fetch-facebook-orders`)</h3>
+                <Input
+                  placeholder="Tìm kiếm trong orders response..."
+                  value={ordersDebugSearch}
+                  onChange={(e) => setOrdersDebugSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
+                  <pre className="text-xs">{JSON.stringify(filteredOrdersForDebug, null, 2)}</pre>
+                </ScrollArea>
+              </div>
+              <div className="space-y-2">
+                <h3 className="font-semibold mb-2">4. Processed Customer Status Map</h3>
+                <Input
+                  placeholder="Tìm kiếm trong status map..."
+                  value={statusMapDebugSearch}
+                  onChange={(e) => setStatusMapDebugSearch(e.target.value)}
+                  className="mb-2"
+                />
+                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
+                  <pre className="text-xs">{JSON.stringify(filteredStatusMapForDebug, null, 2)}</pre>
+                </ScrollArea>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
     </div>
   );
 }
