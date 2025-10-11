@@ -363,28 +363,27 @@ export default function FacebookLiveCommentsPage() {
         });
       });
 
-      // Identify comments that still need TPOS fetch
-      const commentsNeedingTPOSFetch = commentsToProcess.filter(
+      // Identify comments that need to be processed (don't have phone in DB)
+      const commentsNeedingProcessing = commentsToProcess.filter(
         c => {
           const existingCustomer = existingCustomersMap.get(c.from.id);
-          // If customer doesn't exist in Supabase, or exists but has incomplete info, fetch from TPOS
+          // If customer doesn't exist in Supabase, or exists but has incomplete info
           return !existingCustomer || !existingCustomer.phone || existingCustomer.info_status === 'incomplete';
         }
       );
 
-      console.log('[Fetch] Found', commentsNeedingTPOSFetch.length, 'comments needing TPOS fetch');
+      console.log('[Fetch] Found', commentsNeedingProcessing.length, 'comments needing processing');
 
-      if (commentsNeedingTPOSFetch.length === 0) {
-        setCustomerStatusMap(newStatusMap); // No TPOS fetch needed, update map with only DB data
+      if (commentsNeedingProcessing.length === 0) {
+        setCustomerStatusMap(newStatusMap); // No processing needed, update map with only DB data
         return;
       }
 
-      // Step 2: Map comments to orders (only for commentsNeedingTPOSFetch)
+      // Step 2: Map comments to orders to get phone numbers
       const commentOrderMap = new Map<string, TPOSOrder>();
-      const phoneNumbers: string[] = [];
       const commentPhoneMap = new Map<string, string>();
 
-      for (const comment of commentsNeedingTPOSFetch) {
+      for (const comment of commentsNeedingProcessing) {
         const order = orders.find(o => 
           o.Facebook_CommentId === comment.id || 
           (o.Facebook_ASUserId === comment.from.id && o.Facebook_UserName?.toLowerCase() === comment.from.name.toLowerCase())
@@ -394,97 +393,46 @@ export default function FacebookLiveCommentsPage() {
           commentOrderMap.set(comment.id, order);
           if (order.Telephone) {
             commentPhoneMap.set(comment.id, order.Telephone);
-            if (!phoneNumbers.includes(order.Telephone)) {
-              phoneNumbers.push(order.Telephone);
-            }
           }
         }
       }
 
-      console.log('[Fetch] Matched', commentOrderMap.size, 'orders from TPOS for comments needing fetch');
-      console.log('[Fetch] Unique phones for TPOS fetch:', phoneNumbers.length);
+      console.log('[Fetch] Matched', commentOrderMap.size, 'orders for comments');
 
-      // Step 3: Batch fetch partner status from TPOS
-      const partnerStatusMap = new Map<string, string>();
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      for (let i = 0; i < phoneNumbers.length; i += 10) {
-        const batch = phoneNumbers.slice(i, i + 10);
-        
-        console.log(`[Fetch] Calling fetch-partner-status with batch:`, batch);
-        const partnerResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-partner-status`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ phones: batch }),
-        });
-
-        if (partnerResponse.ok) {
-          const partnerData = await partnerResponse.json();
-          const partners = partnerData.value || [];
-          console.log(`[Fetch] Received ${partners.length} partners for batch:`, partners);
-
-          for (const comment of commentsNeedingTPOSFetch) { // Use commentsNeedingTPOSFetch here
-            const order = commentOrderMap.get(comment.id);
-            const phone = commentPhoneMap.get(comment.id);
-            
-            if (phone && order) {
-              // IMPORTANT: TPOS API might return multiple partners for a phone.
-              // We need to find the one that matches the order's name.
-              const matchingPartner = partners.find(
-                (p: any) => p.Name === order.Name && p.Phone === phone
-              );
-              
-              if (matchingPartner?.StatusText) {
-                partnerStatusMap.set(comment.id, matchingPartner.StatusText);
-                console.log(`[Fetch] Matched partner status for comment ${comment.id}: ${matchingPartner.StatusText}`);
-              } else {
-                console.log(`[Fetch] No matching partner status found for comment ${comment.id} (phone: ${phone}, order name: ${order.Name})`);
-              }
-            }
-          }
-        } else {
-          const errorText = await partnerResponse.text();
-          console.error(`[Fetch] Error fetching partner status for batch ${batch.join(',')}: ${partnerResponse.status} - ${errorText}`);
-        }
-      }
-
-      console.log('[Fetch] Partner status map size:', partnerStatusMap.size);
-
-      // Step 4: Batch upsert to customers table
+      // Step 3: Batch upsert to customers table (without TPOS status fetch)
       const customersToUpsertMap = new Map<string, any>(); // Map to deduplicate by facebook_id
 
-      for (const comment of commentsNeedingTPOSFetch) { // Use commentsNeedingTPOSFetch here
+      for (const comment of commentsNeedingProcessing) {
         const order = commentOrderMap.get(comment.id);
-        const partnerStatus = partnerStatusMap.get(comment.id);
         const phone = commentPhoneMap.get(comment.id);
+        
+        // Get existing customer status from DB or default to 'Bình thường'
+        const existingCustomer = existingCustomersMap.get(comment.from.id);
+        const currentStatus = existingCustomer?.customer_status || 'Bình thường';
         
         const customerData = order && phone ? {
           customer_name: order.Name,
           phone: phone,
           facebook_id: comment.from.id,
-          customer_status: mapStatusText(partnerStatus), // Sử dụng mapStatusText
-          info_status: partnerStatus ? 'complete' : 'incomplete',
+          customer_status: currentStatus, // Giữ status hiện tại từ DB hoặc mặc định
+          info_status: 'complete',
         } : {
           customer_name: comment.from.name,
           phone: null,
           facebook_id: comment.from.id,
-          customer_status: 'Bình thường',
+          customer_status: currentStatus, // Giữ status hiện tại từ DB hoặc mặc định
           info_status: 'incomplete',
         };
 
-        // Ensure facebook_id is a string and not empty for upsert
+        // Ensure facebook_id is valid for upsert
         if (customerData.facebook_id && typeof customerData.facebook_id === 'string' && customerData.facebook_id.trim() !== '') {
-          // Add to map, this will overwrite if a duplicate facebook_id is encountered, effectively deduplicating
           customersToUpsertMap.set(customerData.facebook_id, customerData);
           console.log(`[Fetch] Preparing to upsert customer ${customerData.customer_name} (FB ID: ${customerData.facebook_id}) with status: ${customerData.customer_status}`);
         } else {
           console.warn(`[Fetch] Skipping upsert for comment from ${comment.from.name} due to invalid facebook_id: "${customerData.facebook_id}"`);
         }
 
-        // Update status map (this should still happen for all comments, even if not upserted)
+        // Update status map
         newStatusMap.set(comment.from.id, {
           partnerStatus: customerData.phone ? customerData.customer_status : 'Cần thêm TT',
           orderInfo: order,
