@@ -54,7 +54,29 @@ export function FacebookPageManager() {
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("fetch-crm-teams");
       if (error) throw error;
-      return data.value as CRMTeam[];
+      
+      // Flatten teams to include both parent and child teams
+      const flattenedTeams: CRMTeam[] = [];
+      if (data.value) {
+        data.value.forEach((parentTeam: any) => {
+          // Add children teams if they exist
+          if (parentTeam.Childs && Array.isArray(parentTeam.Childs)) {
+            parentTeam.Childs.forEach((childTeam: any) => {
+              flattenedTeams.push({
+                Id: childTeam.Id.toString(),
+                Name: childTeam.Name,
+              });
+            });
+          }
+          // Also add parent team
+          flattenedTeams.push({
+            Id: parentTeam.Id.toString(),
+            Name: parentTeam.Name,
+          });
+        });
+      }
+      
+      return flattenedTeams;
     },
   });
 
