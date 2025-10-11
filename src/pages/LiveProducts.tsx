@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { FacebookCommentsManager } from "@/components/facebook/FacebookCommentsManager";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFacebookComments } from "@/contexts/FacebookCommentsContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
@@ -184,6 +185,8 @@ export default function LiveProducts() {
   const [activeTab, setActiveTab] = useState<string>(() => {
     return localStorage.getItem('liveProducts_activeTab') || "products";
   });
+  
+  const { openPanel } = useFacebookComments();
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -1444,6 +1447,16 @@ export default function LiveProducts() {
               </TabsList>
 
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openPanel()}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Load Livestream
+                </Button>
+                
                 {activeTab === "products" && (
                   <>
                     <Button

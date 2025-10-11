@@ -565,8 +565,8 @@ export function FacebookCommentsManager() {
   }, [commentsWithStatus, selectedVideo]);
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="h-full flex flex-col overflow-hidden">
+      <Card className="border-0 shadow-none">
         <Collapsible defaultOpen={false}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer flex flex-row items-center justify-between p-4 data-[state=open]:border-b">
@@ -587,16 +587,16 @@ export function FacebookCommentsManager() {
         </Collapsible>
       </Card>
 
-      <div className="grid grid-cols-12 gap-4">
-        {/* Left Column: Video List */}
-        <div className="col-span-12 lg:col-span-5 space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Cấu hình và Videos</CardTitle>
-              <CardDescription>
-                Chọn Facebook Page từ danh sách đã thêm ở trên
-              </CardDescription>
-            </CardHeader>
+      <div className="flex-1 overflow-auto p-4">
+        <div className="space-y-4">
+          {/* Video List - now full width */}
+          <Card className="border-0 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Cấu hình và Videos</CardTitle>
+            <CardDescription className="text-sm">
+              Chọn Facebook Page từ danh sách đã thêm ở trên
+            </CardDescription>
+          </CardHeader>
             <CardContent className="space-y-4">
               {selectedPage && selectedPage.crm_team_id && (
                 <div className="text-sm p-3 bg-muted rounded-md space-y-1">
@@ -749,25 +749,24 @@ export function FacebookCommentsManager() {
               </div>
             </ScrollArea>
           )}
-        </div>
+          </Card>
 
-        {/* Right Column: Comments Panel */}
-        <div className="col-span-12 lg:col-span-7">
+          {/* Comments Panel - now full width */}
           {selectedVideo ? (
-            <Card className="h-full">
-              <CardHeader className="border-b">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <CardTitle className="line-clamp-1">{selectedVideo.title}</CardTitle>
-                    <CardDescription>
-                      Xem và theo dõi comments từ video
-                    </CardDescription>
-                  </div>
-                  {selectedVideo.statusLive === 1 && (
-                    <Badge variant="destructive" className="ml-2">🔴 LIVE</Badge>
-                  )}
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="border-b py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="line-clamp-1 text-base">{selectedVideo.title}</CardTitle>
+                  <CardDescription className="text-sm">
+                    Xem và theo dõi comments từ video
+                  </CardDescription>
                 </div>
-              </CardHeader>
+                {selectedVideo.statusLive === 1 && (
+                  <Badge variant="destructive" className="ml-2">🔴 LIVE</Badge>
+                )}
+              </div>
+            </CardHeader>
               
               <CardContent className="pt-4 space-y-4">
                 <div className="flex items-center gap-2">
@@ -997,14 +996,14 @@ export function FacebookCommentsManager() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="h-full">
-              <CardContent className="h-[700px] flex flex-col items-center justify-center">
+            <Card className="border-0 shadow-sm">
+              <CardContent className="flex flex-col items-center justify-center py-12">
                 <MessageCircle className="h-16 w-16 text-muted-foreground/30 mb-4" />
                 <p className="text-lg font-medium text-muted-foreground">
                   Chọn video để xem comments
                 </p>
                 <p className="text-sm text-muted-foreground/70 mt-2">
-                  Click vào một video bên trái để bắt đầu
+                  Click vào một video để bắt đầu
                 </p>
               </CardContent>
             </Card>

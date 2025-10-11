@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { FacebookCommentsProvider } from "@/contexts/FacebookCommentsContext";
+import { FacebookCommentsPanel } from "@/components/facebook/FacebookCommentsPanel";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -25,68 +27,75 @@ export function Layout({
     if (!email) return "User";
     return email.split('@')[0];
   };
-  return <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col">
-          {/* Header */}
-          <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shadow-soft">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all hover:scale-105 shadow-md hover:shadow-lg" />
-              <div className="relative">
-                
-                
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center">
-                  <span className="text-xs text-destructive-foreground font-bold">3</span>
+  return (
+    <FacebookCommentsProvider>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full bg-background">
+          <AppSidebar />
+          
+          <div className="flex-1 flex flex-col">
+            {/* Header */}
+            <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shadow-soft">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all hover:scale-105 shadow-md hover:shadow-lg" />
+                <div className="relative">
+                  
+                  
                 </div>
-              </Button>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {getInitials(user?.email)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="hidden md:inline">
-                      {getDisplayName(user?.email)}
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">
-                        {getDisplayName(user?.email)}
-                      </p>
-                      <p className="text-xs leading-none text-muted-foreground">
-                        {user?.email}
-                      </p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Đăng xuất</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
+              </div>
 
-          {/* Main Content */}
-          <main className="flex-1 p-6 overflow-auto">
-            {children}
-          </main>
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="w-5 h-5" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center">
+                    <span className="text-xs text-destructive-foreground font-bold">3</span>
+                  </div>
+                </Button>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="text-xs">
+                          {getInitials(user?.email)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="hidden md:inline">
+                        {getDisplayName(user?.email)}
+                      </span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">
+                          {getDisplayName(user?.email)}
+                        </p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user?.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Đăng xuất</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </header>
+
+            {/* Main Content */}
+            <main className="flex-1 p-6 overflow-auto">
+              {children}
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>;
+        
+        {/* Fixed Facebook Comments Panel */}
+        <FacebookCommentsPanel />
+      </SidebarProvider>
+    </FacebookCommentsProvider>
+  );
 }
