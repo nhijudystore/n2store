@@ -1415,12 +1415,10 @@ export default function LiveProducts() {
         </Card>
       )}
 
-      {/* Stats and Content with Comments Panel */}
+      {/* Stats and Content */}
       {selectedPhase && (
-        <div className="grid grid-cols-12 gap-4">
-          {/* Main Content - Left Side */}
-          <div className="col-span-12 lg:col-span-7">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <>
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div ref={tabsRef} className="flex items-center justify-between">
               <TabsList>
                 <TabsTrigger value="products" className="flex items-center gap-2">
@@ -1438,6 +1436,10 @@ export default function LiveProducts() {
                  <TabsTrigger value="supplier-stats" className="flex items-center gap-2">
                   <Store className="h-4 w-4" />
                   Thống kê NCC
+                </TabsTrigger>
+                <TabsTrigger value="test-comment" className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4" />
+                  Livestream Comment
                 </TabsTrigger>
               </TabsList>
 
@@ -2476,16 +2478,13 @@ export default function LiveProducts() {
                 phaseId={selectedPhase}
               />
             </TabsContent>
-          </Tabs>
-        </div>
 
-        {/* Comments Panel - Right Side (Always Visible) */}
-        <div className="col-span-12 lg:col-span-5">
-          <div className="sticky top-4">
-            <FacebookCommentsManager />
-          </div>
-        </div>
-      </div>
+            {/* Facebook Live Comments Feature Tab */}
+            <TabsContent value="test-comment" className="space-y-4">
+              <FacebookCommentsManager />
+            </TabsContent>
+          </Tabs>
+        </>
       )}
 
       {/* Empty States */}
