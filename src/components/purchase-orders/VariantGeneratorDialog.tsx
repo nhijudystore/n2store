@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sparkles, AlertTriangle, Search, Check, ChevronRight, X } from "lucide-react";
+import { Sparkles, AlertTriangle, Search, Check, ChevronRight, X, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 import { TPOS_ATTRIBUTES } from "@/lib/tpos-attributes";
@@ -260,8 +260,8 @@ export function VariantGeneratorDialog({
             </div>
           )}
 
-          {/* Selection Columns */}
-          <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
+          {/* Selection Columns and Preview */}
+          <div className="grid grid-cols-[15%_15%_15%_55%] gap-4 flex-1 overflow-hidden">
             {/* Size Text */}
             <div className={cn(
               "space-y-2 flex flex-col h-full transition-opacity",
@@ -399,53 +399,22 @@ export function VariantGeneratorDialog({
                 </div>
               </ScrollArea>
             </div>
-          </div>
 
-          {/* Preview Table với Collapse/Expand */}
-          {previewResults.length > 0 && (
-            <div className="space-y-2">
+            {/* Preview Results - Always Visible */}
+            <div className="space-y-2 flex flex-col h-full">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
-                    className="h-8 gap-2 hover:bg-transparent"
-                  >
-                    <ChevronRight 
-                      className={cn(
-                        "h-4 w-4 transition-transform",
-                        isPreviewExpanded && "rotate-90"
-                      )} 
-                    />
-                    <Label className="text-base cursor-pointer">Xem trước kết quả</Label>
-                  </Button>
+                <Label className="text-base">Xem trước kết quả</Label>
+                {previewResults.length > 0 && (
                   <Badge variant="secondary" className="gap-1">
                     <Sparkles className="h-3 w-3" />
                     {previewResults.length} biến thể
-                    {selectedVariantIndices.size > 0 && (
-                      <span className="ml-1">
-                        • {selectedVariantIndices.size} đã chọn
-                      </span>
-                    )}
                   </Badge>
-                </div>
-                {isPreviewExpanded && selectedVariantIndices.size < previewResults.length && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSelectedVariantIndices(new Set(previewResults.map((_, i) => i)));
-                    }}
-                  >
-                    Chọn tất cả
-                  </Button>
                 )}
               </div>
               
-              {isPreviewExpanded && (
-                <div className="border rounded-lg overflow-hidden animate-in slide-in-from-top-2">
-                  <ScrollArea className="h-[300px]">
+              {previewResults.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden flex-1">
+                  <ScrollArea className="h-full">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -461,11 +430,10 @@ export function VariantGeneratorDialog({
                               }}
                             />
                           </TableHead>
-                          <TableHead className="w-12">#</TableHead>
-                          <TableHead className="w-32">Mã Đầy Đủ</TableHead>
-                          <TableHead className="w-24">Mã Variant</TableHead>
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead className="w-[110px]">Mã Đầy Đủ</TableHead>
                           <TableHead>Tên Sản Phẩm</TableHead>
-                          <TableHead>Chi Tiết Variant</TableHead>
+                          <TableHead>Biến thể</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -473,18 +441,8 @@ export function VariantGeneratorDialog({
                           <TableRow 
                             key={index}
                             className={cn(
-                              "cursor-pointer hover:bg-muted/50",
                               selectedVariantIndices.has(index) && "bg-primary/5 border-l-2 border-l-primary"
                             )}
-                            onClick={() => {
-                              const newSet = new Set(selectedVariantIndices);
-                              if (newSet.has(index)) {
-                                newSet.delete(index);
-                              } else {
-                                newSet.add(index);
-                              }
-                              setSelectedVariantIndices(newSet);
-                            }}
                           >
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <Checkbox
@@ -500,25 +458,36 @@ export function VariantGeneratorDialog({
                                 }}
                               />
                             </TableCell>
-                            <TableCell className="font-medium text-muted-foreground">
-                              {index + 1}
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newResults = previewResults.filter((_, i) => i !== index);
+                                  setPreviewResults(newResults);
+                                  const newSet = new Set(selectedVariantIndices);
+                                  newSet.delete(index);
+                                  // Adjust indices after deletion
+                                  const adjustedSet = new Set<number>();
+                                  newSet.forEach(i => {
+                                    if (i > index) {
+                                      adjustedSet.add(i - 1);
+                                    } else {
+                                      adjustedSet.add(i);
+                                    }
+                                  });
+                                  setSelectedVariantIndices(adjustedSet);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="font-mono text-xs">
                                 {result.fullCode}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <code className="text-xs bg-muted px-2 py-1 rounded">
-                                  {result.variantCode}
-                                </code>
-                                {result.hasCollision && (
-                                  <Badge variant="destructive" className="text-xs">
-                                    <AlertTriangle className="h-3 w-3" />
-                                  </Badge>
-                                )}
-                              </div>
                             </TableCell>
                             <TableCell className="font-medium text-sm">
                               {result.productName}
@@ -532,9 +501,15 @@ export function VariantGeneratorDialog({
                     </Table>
                   </ScrollArea>
                 </div>
+              ) : (
+                <div className="border rounded-lg flex-1 flex items-center justify-center bg-muted/30">
+                  <p className="text-sm text-muted-foreground">
+                    Chọn thuộc tính để xem trước biến thể
+                  </p>
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
 
         <DialogFooter>
