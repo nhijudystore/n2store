@@ -18,11 +18,49 @@ function getTPOSHeaders(bearerToken: string) {
     'accept': 'application/json, text/plain, */*',
     'authorization': `Bearer ${bearerToken}`,
     'content-type': 'application/json;charset=UTF-8',
+    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
     'tposappversion': '5.9.10.1',
     'x-request-id': generateRandomId(),
     'x-requested-with': 'XMLHttpRequest',
     'Referer': 'https://tomato.tpos.vn/',
   };
+}
+
+async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise<string> {
+  try {
+    console.log('Fetching LiveCampaignId for post:', postId);
+    
+    const response = await fetch(
+      "https://tomato.tpos.vn/rest/v1.0/facebookpost/get_saved_by_ids",
+      {
+        method: "POST",
+        headers: getTPOSHeaders(bearerToken),
+        body: JSON.stringify({
+          PostIds: [postId],
+          TeamId: 10037
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to fetch LiveCampaignId:', response.status, errorText);
+      throw new Error(`Failed to fetch LiveCampaignId: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("LiveCampaign API response:", JSON.stringify(data, null, 2));
+
+    if (Array.isArray(data) && data.length > 0 && data[0].LiveCampaignId) {
+      console.log('Found LiveCampaignId:', data[0].LiveCampaignId);
+      return data[0].LiveCampaignId;
+    }
+
+    throw new Error(`LiveCampaignId not found for post: ${postId}`);
+  } catch (error) {
+    console.error('Error fetching LiveCampaignId:', error);
+    throw error;
+  }
 }
 
 serve(async (req) => {
@@ -44,6 +82,9 @@ serve(async (req) => {
       throw new Error('Facebook bearer token not configured');
     }
 
+    // Fetch LiveCampaignId dynamically
+    const liveCampaignId = await fetchLiveCampaignId(video.objectId, bearerToken);
+
     const tposUrl = "https://tomato.tpos.vn/odata/SaleOnline_Order?IsIncrease=True&$expand=Details,User,Partner($expand=Addresses)";
 
     // Clean comment object - chỉ giữ fields TPOS API cần
@@ -61,7 +102,7 @@ serve(async (req) => {
 
     payload = {
       "CRMTeamId": 10037,
-      "LiveCampaignId": "baaa4adc-07ea-d7eb-5ca9-3a1cbf08eef0", // This seems static
+      "LiveCampaignId": liveCampaignId,
       "Facebook_PostId": video.objectId,
       "Facebook_ASUserId": comment.from.id,
       "Facebook_UserName": comment.from.name,
