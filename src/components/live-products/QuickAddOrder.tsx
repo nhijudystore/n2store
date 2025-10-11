@@ -39,6 +39,21 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseId,
   });
 
+  // Fetch existing orders to filter out used comments
+  const { data: existingOrders = [] } = useQuery({
+    queryKey: ['live-orders', phaseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('live_orders')
+        .select('order_code')
+        .eq('live_phase_id', phaseId);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!phaseId,
+  });
+
   // Fetch facebook_pending_orders for the phase date
   const { data: pendingOrders = [] } = useQuery({
     queryKey: ['facebook-pending-orders', phaseData?.phase_date],
@@ -58,17 +73,22 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseData?.phase_date,
   });
 
-  // Group orders by session_index
+  // Get used order codes
+  const usedOrderCodes = React.useMemo(() => {
+    return new Set(existingOrders.map(order => order.order_code));
+  }, [existingOrders]);
+
+  // Filter out used comments and group by session_index
   const groupedOrders = React.useMemo(() => {
     const groups = new Map<string, typeof pendingOrders>();
     pendingOrders.forEach(order => {
-      if (order.session_index) {
+      if (order.session_index && !usedOrderCodes.has(order.session_index)) {
         const existing = groups.get(order.session_index) || [];
         groups.set(order.session_index, [...existing, order]);
       }
     });
     return groups;
-  }, [pendingOrders]);
+  }, [pendingOrders, usedOrderCodes]);
 
   const uniqueSessionIndexes = Array.from(groupedOrders.keys());
 
@@ -142,7 +162,8 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
   });
 
-  const handleSelectSessionIndex = (sessionIndex: string) => {
+  const handleSelectComment = (sessionIndex: string) => {
+    setSelectedSessionIndex(sessionIndex);
     addOrderMutation.mutate(sessionIndex);
   };
 
@@ -180,25 +201,25 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                         <HoverCardTrigger asChild>
                           <CommandItem
                             value={sessionIndex}
-                            onSelect={() => handleSelectSessionIndex(sessionIndex)}
-                            className="cursor-pointer"
+                            className="cursor-default"
                           >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedSessionIndex === sessionIndex ? "opacity-100" : "opacity-0"
-                              )}
-                            />
                             {sessionIndex}
                           </CommandItem>
                         </HoverCardTrigger>
                         <HoverCardContent className="w-80" side="right">
                           <div className="space-y-2">
                             <h4 className="text-sm font-semibold">Comments ({orders.length})</h4>
-                            <ScrollArea className="h-[150px]">
+                            <ScrollArea className="h-[200px]">
                               <div className="space-y-2">
-                                {orders.map((order, idx) => (
-                                  <div key={order.id} className="text-xs border-b pb-2 last:border-0">
+                                {orders.map((order) => (
+                                  <div 
+                                    key={order.id} 
+                                    className="text-xs border-b pb-2 last:border-0 cursor-pointer hover:bg-accent p-2 rounded"
+                                    onClick={() => {
+                                      handleSelectComment(sessionIndex);
+                                      setOpen(false);
+                                    }}
+                                  >
                                     <p className="font-medium">{order.name}</p>
                                     {order.comment && (
                                       <p className="text-muted-foreground mt-1">{order.comment}</p>
