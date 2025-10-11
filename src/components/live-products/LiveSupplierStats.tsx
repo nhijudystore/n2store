@@ -139,12 +139,12 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[180px]">Nhà cung cấp</TableHead>
+                <TableHead className="text-center">SL bán</TableHead>
                 <TableHead>Mã sản phẩm</TableHead>
                 <TableHead>Tên sản phẩm</TableHead>
                 <TableHead>Biến thể</TableHead>
                 <TableHead className="w-[80px]">Hình ảnh</TableHead>
                 <TableHead className="text-center">SL chuẩn bị</TableHead>
-                <TableHead className="text-center">SL bán</TableHead>
                 <TableHead className="text-right">Giá bán</TableHead>
               </TableRow>
             </TableHeader>
@@ -176,6 +176,9 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
                             </div>
                           </TableCell>
                         )}
+                        <TableCell className="text-center font-medium text-red-600">
+                          {product.sold_quantity}
+                        </TableCell>
                         <TableCell className="font-medium">{product.product_code}</TableCell>
                         <TableCell>{product.product_name}</TableCell>
                         <TableCell className="text-muted-foreground">
@@ -196,9 +199,6 @@ export function LiveSupplierStats({ liveProducts }: LiveSupplierStatsProps) {
                         </TableCell>
                         <TableCell className="text-center font-medium">
                           {product.prepared_quantity}
-                        </TableCell>
-                        <TableCell className="text-center font-medium text-primary">
-                          {product.sold_quantity}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatVND(product.selling_price)}
