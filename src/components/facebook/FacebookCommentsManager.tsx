@@ -735,7 +735,7 @@ export function FacebookCommentsManager() {
                       {video.title}
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      {format(new Date(video.channelCreatedTime), 'dd/MM/yyyy HH:mm')}
+                      {video.channelCreatedTime ? format(new Date(video.channelCreatedTime), 'dd/MM/yyyy HH:mm') : 'N/A'}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -913,7 +913,7 @@ export function FacebookCommentsManager() {
                                   <Badge variant="default" className="text-xs">✨ MỚI</Badge>
                                 )}
                                 <span className="text-xs text-muted-foreground ml-auto">
-                                  {format(new Date(comment.created_time), 'dd/MM/yyyy HH:mm')}
+                                  {comment.created_time ? format(new Date(comment.created_time), 'dd/MM/yyyy HH:mm') : 'N/A'}
                                 </span>
                               </div>
                               
@@ -1055,7 +1055,7 @@ export function FacebookCommentsManager() {
                 <div className="col-span-2">
                   <label className="text-sm font-medium">Ngày tạo</label>
                   <p className="text-sm text-muted-foreground">
-                    {format(new Date(selectedOrderInfo.DateCreated), 'dd/MM/yyyy HH:mm:ss')}
+                    {selectedOrderInfo.DateCreated ? format(new Date(selectedOrderInfo.DateCreated), 'dd/MM/yyyy HH:mm:ss') : 'N/A'}
                   </p>
                 </div>
               </div>
