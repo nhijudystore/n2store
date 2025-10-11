@@ -70,7 +70,7 @@ export default function FacebookLiveCommentsPage() {
   const [isCreateOrderResponseOpen, setIsCreateOrderResponseOpen] = useState(false);
   
   // New state for confirmation dialog
-  const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<FacebookComment | null>(null);
+  const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -132,7 +132,7 @@ export default function FacebookLiveCommentsPage() {
     },
   });
 
-  const handleCreateOrderClick = (comment: FacebookComment) => {
+  const handleCreateOrderClick = (comment: CommentWithStatus) => {
     if (comment.orderInfo) {
       setConfirmCreateOrderComment(comment);
     } else {
@@ -222,7 +222,7 @@ export default function FacebookLiveCommentsPage() {
       // Check for duplicates to prevent infinite loops
       const lastPageIds = new Set(lastPage.data.map((c: FacebookComment) => c.id));
       const allExistingIds = allCommentIdsRef.current;
-      const isDuplicatePage = [...lastPageIds].every(id => allExistingIds.has(id));
+      const isDuplicatePage = [...lastPageIds].every((id: string) => allExistingIds.has(id));
 
       if (isDuplicatePage && allExistingIds.size > 0) {
         console.warn("Duplicate page detected, stopping fetch.");
