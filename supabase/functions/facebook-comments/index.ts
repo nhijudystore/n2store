@@ -1,5 +1,4 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +6,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -17,6 +15,8 @@ serve(async (req) => {
     const pageId = url.searchParams.get('pageId');
     const postId = url.searchParams.get('postId');
     const limit = url.searchParams.get('limit') || '100';
+    const after = url.searchParams.get('after');
+    const order = url.searchParams.get('order') || 'reverse_chronological'; // Accept order param
 
     if (!pageId || !postId) {
       return new Response(
@@ -27,17 +27,22 @@ serve(async (req) => {
 
     const bearerToken = Deno.env.get('FACEBOOK_BEARER_TOKEN');
     if (!bearerToken) {
-      console.error('TPOS_BEARER_TOKEN not configured');
+      console.error('FACEBOOK_BEARER_TOKEN not configured');
       return new Response(
         JSON.stringify({ error: 'Bearer token not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Fetching comments for pageId: ${pageId}, postId: ${postId}, limit: ${limit}`);
+    let tposUrl = `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&facebook_type=Page&postId=${postId}&limit=${limit}&order=${order}`;
+    if (after) {
+      tposUrl += `&after=${after}`;
+    }
+
+    console.log(`Fetching comments from URL: ${tposUrl}`);
 
     const response = await fetch(
-      `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&facebook_type=Page&postId=${postId}&limit=${limit}&order=reverse_chronological`,
+      tposUrl,
       {
         method: 'GET',
         headers: {
@@ -60,10 +65,36 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log(`Successfully fetched ${data?.length || 0} comments`);
+    let responsePayload;
+
+    if (Array.isArray(data)) {
+      responsePayload = { data: data, paging: { cursors: {} } };
+    } else if (data && data.data) {
+      responsePayload = data;
+      // Robustly handle paging: if cursors.after is missing, try to parse from `next` URL
+      if (responsePayload.paging && !responsePayload.paging.cursors?.after && responsePayload.paging.next) {
+        try {
+          const nextUrl = new URL(responsePayload.paging.next);
+          const afterCursor = nextUrl.searchParams.get('after');
+          if (afterCursor) {
+            if (!responsePayload.paging.cursors) {
+              responsePayload.paging.cursors = {};
+            }
+            responsePayload.paging.cursors.after = afterCursor;
+            console.log(`Extracted 'after' cursor from next URL: ${afterCursor}`);
+          }
+        } catch (e) {
+          console.warn("Could not parse 'next' URL in paging object:", e.message);
+        }
+      }
+    } else {
+      responsePayload = { data: [], paging: { cursors: {} } };
+    }
+
+    console.log(`Successfully fetched ${responsePayload.data?.length || 0} comments`);
 
     return new Response(
-      JSON.stringify(data),
+      JSON.stringify(responsePayload),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

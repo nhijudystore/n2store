@@ -14,21 +14,19 @@ function generateRandomId(): string {
   });
 }
 
-function getTPOSHeaders(bearerToken: string, cookie: string) {
+function getTPOSHeaders(bearerToken: string) {
   return {
     accept: "application/json, text/plain, */*",
     "accept-language": "en-US,en;q=0.9,vi;q=0.8",
     authorization: `Bearer ${bearerToken}`,
     priority: "u=1, i",
-    "sec-ch-ua":
-      '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+    "sec-ch-ua": '"Google Chrome";v="126", "Chromium";v="126", "Not?A_Brand";v="8"',
     "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"macOS"',
+    "sec-ch-ua-platform": '"Windows"',
     "sec-fetch-dest": "empty",
     "sec-fetch-mode": "cors",
     "sec-fetch-site": "same-origin",
     tposappversion: "5.9.10.1",
-    cookie: cookie,
     Referer: "https://tomato.tpos.vn/",
     "x-request-id": generateRandomId(),
   };
@@ -41,14 +39,13 @@ serve(async (req) => {
 
   try {
     const bearerToken = Deno.env.get("FACEBOOK_BEARER_TOKEN");
-    const cookie = Deno.env.get("TPOS_COOKIE");
 
-    if (!bearerToken || !cookie) {
+    if (!bearerToken) {
       return new Response(
         JSON.stringify({
           is_valid: false,
           error:
-            "TPOS API credentials (FACEBOOK_BEARER_TOKEN or TPOS_COOKIE) not configured in Supabase Secrets.",
+            "TPOS API credentials (FACEBOOK_BEARER_TOKEN) not configured in Supabase Secrets.",
         }),
         {
           status: 400,
@@ -64,7 +61,7 @@ serve(async (req) => {
 
     const response = await fetch(tposUrl, {
       method: "GET",
-      headers: getTPOSHeaders(bearerToken, cookie),
+      headers: getTPOSHeaders(bearerToken),
     });
 
     if (!response.ok) {
@@ -78,7 +75,7 @@ serve(async (req) => {
       let errorMessage = `TPOS API returned ${response.status}: ${response.statusText}`;
       if (response.status === 401 || response.status === 403) {
         errorMessage =
-          "TPOS Bearer Token hoặc Cookie đã hết hạn/không hợp lệ. Vui lòng cập nhật trong Supabase Secrets.";
+          "TPOS Bearer Token đã hết hạn/không hợp lệ. Vui lòng cập nhật trong Supabase Secrets.";
       } else {
         errorMessage = `Lỗi khi kiểm tra TPOS API: ${errorText}`;
       }

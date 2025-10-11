@@ -15,21 +15,18 @@ function generateRandomId(): string {
 }
 
 function getTPOSHeaders(bearerToken: string) {
-  // Removed cookie parameter
   return {
     accept: "application/json, text/plain, */*",
     "accept-language": "en-US,en;q=0.9,vi;q=0.8",
     authorization: `Bearer ${bearerToken}`,
     priority: "u=1, i",
-    "sec-ch-ua":
-      '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+    "sec-ch-ua": '"Google Chrome";v="126", "Chromium";v="126", "Not?A_Brand";v="8"',
     "sec-ch-ua-mobile": "?0",
-    "sec-ch-ua-platform": '"macOS"',
+    "sec-ch-ua-platform": '"Windows"',
     "sec-fetch-dest": "empty",
     "sec-fetch-mode": "cors",
     "sec-fetch-site": "same-origin",
     tposappversion: "5.9.10.1",
-    // Removed "cookie": cookie,
     Referer: "https://tomato.tpos.vn/",
     "x-request-id": generateRandomId(),
   };
@@ -51,10 +48,8 @@ serve(async (req) => {
     }
 
     const bearerToken = Deno.env.get("FACEBOOK_BEARER_TOKEN");
-    // Removed const cookie = Deno.env.get('TPOS_COOKIE');
 
     if (!bearerToken) {
-      // Updated check
       console.error(
         "FACEBOOK_BEARER_TOKEN not configured in Supabase secrets.",
       );
@@ -62,7 +57,7 @@ serve(async (req) => {
         JSON.stringify({
           error:
             "TPOS API credentials not configured. Please set FACEBOOK_BEARER_TOKEN in Supabase Secrets.",
-        }), // Updated error message
+        }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -76,7 +71,7 @@ serve(async (req) => {
 
     const response = await fetch(tposUrl, {
       method: "GET",
-      headers: getTPOSHeaders(bearerToken), // Removed cookie argument
+      headers: getTPOSHeaders(bearerToken),
     });
 
     if (!response.ok) {

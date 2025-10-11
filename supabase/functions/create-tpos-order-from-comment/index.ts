@@ -1,0 +1,101 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+function generateRandomId(): string {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function getTPOSHeaders(bearerToken: string) {
+  return {
+    'accept': 'application/json, text/plain, */*',
+    'authorization': `Bearer ${bearerToken}`,
+    'content-type': 'application/json;charset=UTF-8',
+    'tposappversion': '5.9.10.1',
+    'x-request-id': generateRandomId(),
+    'x-requested-with': 'XMLHttpRequest',
+    'Referer': 'https://tomato.tpos.vn/',
+  };
+}
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  let payload: any = null;
+
+  try {
+    const { comment, video } = await req.json();
+
+    if (!comment || !video) {
+      throw new Error('Comment and video data are required');
+    }
+
+    const bearerToken = Deno.env.get('FACEBOOK_BEARER_TOKEN');
+    if (!bearerToken) {
+      throw new Error('Facebook bearer token not configured');
+    }
+
+    const tposUrl = "https://tomato.tpos.vn/odata/SaleOnline_Order?IsIncrease=True&$expand=Details,User,Partner($expand=Addresses)";
+
+    payload = {
+      "CRMTeamId": 10037,
+      "LiveCampaignId": "baaa4adc-07ea-d7eb-5ca9-3a1cbf08eef0", // This seems static
+      "Facebook_PostId": video.objectId,
+      "Facebook_ASUserId": comment.from.id,
+      "Facebook_UserName": comment.from.name,
+      "Facebook_CommentId": comment.id,
+      "Name": comment.from.name,
+      "PartnerName": comment.from.name,
+      "Details": [],
+      "TotalAmount": 0,
+      "Facebook_Comments": [comment],
+      "WarehouseId": 1,
+      "CompanyId": 1,
+      "TotalQuantity": 0,
+      "Note": `{before}${comment.message}`,
+      "DateCreated": new Date().toISOString(),
+    };
+
+    console.log("Sending payload to TPOS:", JSON.stringify(payload, null, 2));
+
+    const response = await fetch(tposUrl, {
+      method: "POST",
+      headers: getTPOSHeaders(bearerToken),
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('TPOS API error:', errorText);
+      // Return payload even on error for debugging
+      return new Response(
+        JSON.stringify({ payload, error: `TPOS API error: ${response.status} - ${errorText}` }),
+        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await response.json();
+    console.log("TPOS response:", data);
+
+    // Return both payload and response
+    return new Response(JSON.stringify({ payload, response: data }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Error in create-tpos-order-from-comment function:', error);
+    return new Response(
+      JSON.stringify({ payload, error: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
