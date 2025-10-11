@@ -47,6 +47,7 @@ interface PurchaseOrder {
   total_amount: number;
   final_amount: number;
   discount_amount: number;
+  shipping_fee: number;
   invoice_number: string | null;
   supplier_name: string | null;
   supplier_id?: string | null;

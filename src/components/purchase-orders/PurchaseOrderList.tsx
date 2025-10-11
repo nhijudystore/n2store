@@ -48,6 +48,7 @@ interface PurchaseOrder {
   total_amount: number;
   final_amount: number;
   discount_amount: number;
+  shipping_fee: number;
   invoice_number: string | null;
   supplier_name: string | null;
   supplier_id?: string | null;
@@ -446,7 +447,7 @@ export function PurchaseOrderList({
                             const calculatedTotal = flatItem.items.reduce((sum, item) => 
                               sum + ((item.product?.purchase_price || 0) * (item.quantity || 0)), 
                             0);
-                            const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
+                            const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0) + (flatItem.shipping_fee || 0);
                             const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
                             return hasMismatch ? 'bg-red-100 border-2 border-red-300' : '';
                           })()
@@ -469,13 +470,13 @@ export function PurchaseOrderList({
                               const calculatedTotal = flatItem.items.reduce((sum, item) => 
                                 sum + ((item.product?.purchase_price || 0) * (item.quantity || 0)), 
                               0);
-                              const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0);
+                              const calculatedFinalAmount = calculatedTotal - (flatItem.discount_amount || 0) + (flatItem.shipping_fee || 0);
                               const hasMismatch = Math.abs(calculatedFinalAmount - (flatItem.final_amount || 0)) > 0.01;
                               
                               if (hasMismatch) {
                                 return (
                                   <div className="text-xs font-semibold text-red-600">
-                                    Tổng tính: {formatVND(calculatedFinalAmount)}
+                                    Thành tiền: {formatVND(calculatedFinalAmount)}
                                   </div>
                                 );
                               }
