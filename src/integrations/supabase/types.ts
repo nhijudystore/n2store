@@ -98,6 +98,39 @@ export type Database = {
         }
         Relationships: []
       }
+      facebook_pages: {
+        Row: {
+          created_at: string | null
+          crm_team_id: string | null
+          crm_team_name: string | null
+          id: string
+          is_active: boolean | null
+          page_id: string
+          page_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          crm_team_id?: string | null
+          crm_team_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          page_id: string
+          page_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          crm_team_id?: string | null
+          crm_team_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          page_id?: string
+          page_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       facebook_pending_orders: {
         Row: {
           code: string | null

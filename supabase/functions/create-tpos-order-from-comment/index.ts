@@ -33,9 +33,86 @@ function convertFacebookTimeToISO(facebookTime: string): string {
   return facebookTime.replace('+0000', '.000Z');
 }
 
-async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise<string> {
+async function getCRMTeamId(
+  postId: string,
+  bearerToken: string,
+  supabase: any
+): Promise<{ teamId: string; teamName: string }> {
   try {
-    console.log('Fetching LiveCampaignId for post:', postId);
+    // Extract page ID from post ID (format: pageId_postId)
+    const pageId = postId.split('_')[0];
+    
+    // Try to get from database first
+    const { data: pageData, error: pageError } = await supabase
+      .from('facebook_pages')
+      .select('crm_team_id, crm_team_name')
+      .eq('page_id', pageId)
+      .maybeSingle();
+
+    if (!pageError && pageData?.crm_team_id) {
+      console.log(`Found CRM Team ID in database: ${pageData.crm_team_id} (${pageData.crm_team_name})`);
+      return {
+        teamId: pageData.crm_team_id,
+        teamName: pageData.crm_team_name,
+      };
+    }
+
+    // Fallback: fetch from TPOS API
+    console.log('CRM Team ID not found in database, fetching from TPOS...');
+    const response = await fetch(
+      "https://tomato.tpos.vn/odata/CRMTeam/ODataService.GetAllFacebook?$expand=Childs",
+      {
+        method: "GET",
+        headers: getTPOSHeaders(bearerToken),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CRM teams: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    // Try to match with page name from database
+    if (pageData?.page_name && data.value) {
+      const matchedTeam = data.value.find((team: any) => 
+        team.Name === pageData.page_name
+      );
+      
+      if (matchedTeam) {
+        // Save to database for future use
+        await supabase
+          .from('facebook_pages')
+          .update({
+            crm_team_id: matchedTeam.Id,
+            crm_team_name: matchedTeam.Name,
+          })
+          .eq('page_id', pageId);
+
+        console.log(`Found and saved CRM Team: ${matchedTeam.Name} (${matchedTeam.Id})`);
+        return {
+          teamId: matchedTeam.Id,
+          teamName: matchedTeam.Name,
+        };
+      }
+    }
+
+    // Last resort: use default ID
+    console.log('Using default CRM Team ID: 10052');
+    return { teamId: '10052', teamName: 'Default Team' };
+  } catch (error) {
+    console.error('Error getting CRM Team ID:', error);
+    return { teamId: '10052', teamName: 'Default Team' };
+  }
+}
+
+async function fetchLiveCampaignId(
+  postId: string,
+  teamId: string,
+  bearerToken: string
+): Promise<string> {
+  try {
+    console.log('Fetching LiveCampaignId for post:', postId, 'TeamId:', teamId);
     
     const response = await fetch(
       "https://tomato.tpos.vn/rest/v1.0/facebookpost/get_saved_by_ids",
@@ -44,7 +121,7 @@ async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise
         headers: getTPOSHeaders(bearerToken),
         body: JSON.stringify({
           PostIds: [postId],
-          TeamId: 10052
+          TeamId: parseInt(teamId, 10),
         }),
       }
     );
@@ -89,8 +166,21 @@ serve(async (req) => {
       throw new Error('Facebook bearer token not configured');
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Missing Supabase credentials');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get CRM Team ID from database or fetch from API
+    const { teamId, teamName } = await getCRMTeamId(video.objectId, bearerToken, supabase);
+
     // Fetch LiveCampaignId dynamically
-    const liveCampaignId = await fetchLiveCampaignId(video.objectId, bearerToken);
+    const liveCampaignId = await fetchLiveCampaignId(video.objectId, teamId, bearerToken);
 
     const tposUrl = "https://tomato.tpos.vn/odata/SaleOnline_Order?IsIncrease=True&$expand=Details,User,Partner($expand=Addresses)";
 
@@ -108,7 +198,7 @@ serve(async (req) => {
     };
 
     payload = {
-      "CRMTeamId": 10052,
+      "CRMTeamId": parseInt(teamId, 10),
       "LiveCampaignId": liveCampaignId,
       "Facebook_PostId": video.objectId,
       "Facebook_ASUserId": comment.from.id,
@@ -149,15 +239,7 @@ serve(async (req) => {
 
     // Save to facebook_pending_orders table
     try {
-      const supabaseUrl = Deno.env.get('SUPABASE_URL');
-      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-      
-      if (!supabaseUrl || !supabaseKey) {
-        console.error('Missing Supabase credentials');
-      } else {
-        const supabase = createClient(supabaseUrl, supabaseKey);
-        
-        const { error: insertError } = await supabase
+      const { error: insertError } = await supabase
           .from('facebook_pending_orders')
           .insert({
             name: data.Name || comment.from.name,
@@ -174,9 +256,8 @@ serve(async (req) => {
 
         if (insertError) {
           console.error('Error saving to facebook_pending_orders:', insertError);
-        } else {
-          console.log('Successfully saved to facebook_pending_orders');
-        }
+      } else {
+        console.log('Successfully saved to facebook_pending_orders');
       }
     } catch (dbError) {
       console.error('Exception saving to database:', dbError);

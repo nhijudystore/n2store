@@ -25,6 +25,7 @@ import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } fro
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { FacebookPageManager } from "@/components/facebook/FacebookPageManager";
 
 // Helper: Debounce function
 function debounce<T extends (...args: any[]) => any>(
@@ -696,6 +697,27 @@ export default function FacebookLiveCommentsPage() {
           </p>
         </div>
       </div>
+
+      <Card>
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer flex flex-row items-center justify-between p-4 data-[state=open]:border-b">
+              <div>
+                <CardTitle>Quản lý Facebook Pages</CardTitle>
+                <CardDescription>
+                  Thêm và cấu hình CRM Team ID cho các Facebook pages
+                </CardDescription>
+              </div>
+              <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="pt-4">
+              <FacebookPageManager />
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
 
       <Card>
         <CardHeader>
