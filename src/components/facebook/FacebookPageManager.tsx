@@ -48,7 +48,7 @@ export function FacebookPageManager() {
     },
   });
 
-  // Fetch CRM teams from TPOS
+  // Fetch CRM teams from TPOS - auto load
   const { data: crmTeams, isLoading: isLoadingTeams, refetch: refetchTeams } = useQuery({
     queryKey: ["crm-teams"],
     queryFn: async () => {
@@ -56,7 +56,6 @@ export function FacebookPageManager() {
       if (error) throw error;
       return data.value as CRMTeam[];
     },
-    enabled: false, // Only fetch when button is clicked
   });
 
   // Add new page mutation
@@ -102,6 +101,7 @@ export function FacebookPageManager() {
     onSuccess: () => {
       toast.success("Đã lưu CRM Team ID");
       queryClient.invalidateQueries({ queryKey: ["facebook-pages"] });
+      setSelectedPageId("");
       setManualCrmTeamId("");
       setManualCrmTeamName("");
     },
@@ -155,132 +155,184 @@ export function FacebookPageManager() {
         </CardContent>
       </Card>
 
-      {/* Configure CRM Team */}
+      {/* Pages List with CRM Configuration */}
       <Card>
         <CardHeader>
-          <CardTitle>Cấu hình CRM Team ID</CardTitle>
+          <CardTitle>Danh sách Facebook Pages</CardTitle>
           <CardDescription>
-            Chọn page và thiết lập CRM Team ID
+            Quản lý và cấu hình CRM Team ID cho các Facebook pages
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="page-select">Chọn Page</Label>
-            <Select value={selectedPageId} onValueChange={setSelectedPageId}>
-              <SelectTrigger id="page-select" className="bg-background">
-                <SelectValue placeholder="Chọn Facebook Page" />
-              </SelectTrigger>
-              <SelectContent className="bg-background z-50">
-                {facebookPages?.map((page) => (
-                  <SelectItem key={page.id} value={page.id}>
-                    {page.page_name} {page.crm_team_id && `(${page.crm_team_name})`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {selectedPage && (
-            <>
-              <div className="p-4 bg-muted rounded-lg space-y-2">
-                <div className="text-sm">
-                  <span className="font-semibold">Page ID:</span> {selectedPage.page_id}
-                </div>
-                {selectedPage.crm_team_id && (
-                  <>
-                    <div className="text-sm">
-                      <span className="font-semibold">CRM Team ID hiện tại:</span> {selectedPage.crm_team_id}
+        <CardContent className="space-y-3">
+          {facebookPages && facebookPages.length > 0 ? (
+            <div className="space-y-3">
+              {facebookPages.map((page) => (
+                <Card key={page.id} className="border">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-1">
+                        <div className="font-semibold text-base">{page.page_name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          Page ID: {page.page_id}
+                        </div>
+                        {page.crm_team_id ? (
+                          <div className="text-sm">
+                            <span className="text-muted-foreground">CRM Team:</span>{" "}
+                            <span className="font-medium text-green-600">
+                              {page.crm_team_name} ({page.crm_team_id})
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="text-sm text-orange-600">
+                            Chưa cấu hình CRM Team
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedPageId(page.id);
+                          if (page.crm_team_id) {
+                            setManualCrmTeamId(page.crm_team_id);
+                            setManualCrmTeamName(page.crm_team_name || "");
+                          } else {
+                            setManualCrmTeamId("");
+                            setManualCrmTeamName("");
+                          }
+                        }}
+                      >
+                        Sửa CRM
+                      </Button>
                     </div>
-                    <div className="text-sm">
-                      <span className="font-semibold">Team Name:</span> {selectedPage.crm_team_name}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => refetchTeams()}
-                    disabled={isLoadingTeams}
-                  >
-                    {isLoadingTeams ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                    )}
-                    Tải CRM Teams từ TPOS
-                  </Button>
-                </div>
-
-                {crmTeams && crmTeams.length > 0 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="crm-team-select">Chọn CRM Team</Label>
-                    <Select
-                      value={manualCrmTeamId}
-                      onValueChange={(value) => {
-                        setManualCrmTeamId(value);
-                        const team = crmTeams.find((t) => t.Id === value);
-                        if (team) setManualCrmTeamName(team.Name);
-                      }}
-                    >
-                      <SelectTrigger id="crm-team-select" className="bg-background">
-                        <SelectValue placeholder="Chọn CRM Team" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background z-50">
-                        {crmTeams.map((team) => (
-                          <SelectItem key={team.Id} value={team.Id}>
-                            {team.Name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <Label>Hoặc nhập thủ công</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      placeholder="CRM Team ID"
-                      value={manualCrmTeamId}
-                      onChange={(e) => setManualCrmTeamId(e.target.value)}
-                    />
-                    <Input
-                      placeholder="Team Name"
-                      value={manualCrmTeamName}
-                      onChange={(e) => setManualCrmTeamName(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  onClick={() =>
-                    updateCrmTeamMutation.mutate({
-                      pageId: selectedPageId,
-                      crmTeamId: manualCrmTeamId,
-                      crmTeamName: manualCrmTeamName,
-                    })
-                  }
-                  disabled={
-                    !manualCrmTeamId ||
-                    !manualCrmTeamName ||
-                    updateCrmTeamMutation.isPending
-                  }
-                >
-                  {updateCrmTeamMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Lưu CRM Team ID
-                </Button>
-              </div>
-            </>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              Chưa có Facebook pages nào. Thêm page mới ở trên.
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Configure CRM Team Dialog */}
+      {selectedPageId && (
+        <Card className="border-primary">
+          <CardHeader>
+            <CardTitle>Cấu hình CRM Team ID</CardTitle>
+            <CardDescription>
+              Đang cấu hình cho:{" "}
+              <span className="font-semibold text-foreground">
+                {selectedPage?.page_name}
+              </span>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => refetchTeams()}
+                disabled={isLoadingTeams}
+              >
+                {isLoadingTeams ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                {crmTeams ? "Tải lại CRM Teams" : "Tải CRM Teams từ TPOS"}
+              </Button>
+              {crmTeams && (
+                <span className="text-sm text-muted-foreground">
+                  {crmTeams.length} teams
+                </span>
+              )}
+            </div>
+
+            {isLoadingTeams && (
+              <div className="text-sm text-muted-foreground">
+                Đang tải danh sách CRM teams...
+              </div>
+            )}
+
+            {crmTeams && crmTeams.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="crm-team-select">Chọn CRM Team</Label>
+                <Select
+                  value={manualCrmTeamId}
+                  onValueChange={(value) => {
+                    setManualCrmTeamId(value);
+                    const team = crmTeams.find((t) => t.Id === value);
+                    if (team) setManualCrmTeamName(team.Name);
+                  }}
+                >
+                  <SelectTrigger id="crm-team-select" className="bg-background">
+                    <SelectValue placeholder="Chọn CRM Team" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {crmTeams.map((team) => (
+                      <SelectItem key={team.Id} value={team.Id}>
+                        {team.Name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Hoặc nhập thủ công</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  placeholder="CRM Team ID"
+                  value={manualCrmTeamId}
+                  onChange={(e) => setManualCrmTeamId(e.target.value)}
+                />
+                <Input
+                  placeholder="Team Name"
+                  value={manualCrmTeamName}
+                  onChange={(e) => setManualCrmTeamName(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                onClick={() =>
+                  updateCrmTeamMutation.mutate({
+                    pageId: selectedPageId,
+                    crmTeamId: manualCrmTeamId,
+                    crmTeamName: manualCrmTeamName,
+                  })
+                }
+                disabled={
+                  !manualCrmTeamId ||
+                  !manualCrmTeamName ||
+                  updateCrmTeamMutation.isPending
+                }
+              >
+                {updateCrmTeamMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Lưu CRM Team ID
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedPageId("");
+                  setManualCrmTeamId("");
+                  setManualCrmTeamName("");
+                }}
+              >
+                Hủy
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
