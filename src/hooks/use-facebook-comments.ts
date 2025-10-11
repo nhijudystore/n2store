@@ -107,12 +107,12 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
         }
       });
 
-      // Override with pending orders (these are more up-to-date)
+      // Override with pending orders that have TPOS order ID
       pendingOrders?.forEach((pending) => {
-        if (pending.facebook_comment_id) {
+        if (pending.facebook_comment_id && pending.tpos_order_id) {
           // Convert pending order to TPOSOrder format
           const tposOrder: TPOSOrder = {
-            Id: pending.tpos_order_id || pending.id,
+            Id: pending.tpos_order_id,
             Code: pending.code || '',
             SessionIndex: pending.session_index,
             Facebook_UserId: pending.facebook_user_id,
@@ -130,7 +130,7 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
             TotalAmount: 0,
             TotalQuantity: 0,
             DateCreated: pending.created_time || pending.created_at,
-            StatusText: pending.tpos_order_id ? 'Đã tạo đơn' : 'Đang xử lý',
+            StatusText: 'Đã tạo đơn',
           };
           mergedOrdersMap.set(pending.facebook_comment_id, tposOrder);
         }
