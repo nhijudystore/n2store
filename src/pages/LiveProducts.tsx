@@ -44,8 +44,11 @@ import {
 } from "lucide-react";
 import { FacebookCommentsManager } from "@/components/facebook/FacebookCommentsManager";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useFacebookComments } from "@/contexts/FacebookCommentsContext";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { CommentsSettingsCollapsible } from "@/components/live-products/CommentsSettingsCollapsible";
+import { LiveCommentsPanel } from "@/components/live-products/LiveCommentsPanel";
+import { useFacebookComments } from "@/hooks/use-facebook-comments";
+import type { FacebookVideo } from "@/types/facebook";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { getProductImageUrl } from "@/lib/tpos-image-loader";
@@ -186,7 +189,29 @@ export default function LiveProducts() {
     return localStorage.getItem('liveProducts_activeTab') || "products";
   });
   
-  const { openPanel } = useFacebookComments();
+  // Facebook Comments State
+  const [commentsPageId, setCommentsPageId] = useState("");
+  const [commentsVideoId, setCommentsVideoId] = useState("");
+  const [selectedFacebookVideo, setSelectedFacebookVideo] = useState<FacebookVideo | null>(null);
+  const [isCommentsAutoRefresh, setIsCommentsAutoRefresh] = useState(true);
+  const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
+  const [hideNames] = useState<string[]>(["Nhi Judy House"]);
+  
+  const {
+    comments,
+    ordersData,
+    newCommentIds,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetchComments,
+    commentsLoading,
+  } = useFacebookComments({
+    pageId: commentsPageId,
+    videoId: commentsVideoId,
+    isAutoRefresh: isCommentsAutoRefresh,
+  });
+  
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
@@ -1306,7 +1331,7 @@ export default function LiveProducts() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="w-full py-6 px-4 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1447,16 +1472,6 @@ export default function LiveProducts() {
               </TabsList>
 
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openPanel()}
-                  className="flex items-center gap-2"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Load Livestream
-                </Button>
-                
                 {activeTab === "products" && (
                   <>
                     <Button
@@ -1497,6 +1512,23 @@ export default function LiveProducts() {
                 </Card>
               ) : (
                 <>
+                  {/* Comments Settings - Collapsible */}
+                  <CommentsSettingsCollapsible
+                    pageId={commentsPageId}
+                    videoId={commentsVideoId}
+                    isAutoRefresh={isCommentsAutoRefresh}
+                    showOnlyWithOrders={showOnlyWithOrders}
+                    hideNames={hideNames}
+                    onPageIdChange={setCommentsPageId}
+                    onVideoChange={(video) => {
+                      setSelectedFacebookVideo(video);
+                      setCommentsVideoId(video?.objectId || "");
+                    }}
+                    onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
+                    onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
+                    onRefresh={() => refetchComments()}
+                  />
+                  
                   {/* Search box */}
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-lg border">
                     <Search className="h-4 w-4 text-muted-foreground" />
@@ -1519,7 +1551,11 @@ export default function LiveProducts() {
                     )}
                   </div>
 
-                  <Card>
+                  {/* 2-Column Layout: 80% Products + 20% Comments */}
+                  <div className="flex gap-4">
+                    {/* Left: Products List - 80% */}
+                    <div className="flex-[4]">
+                      <Card>
                   <Table>
                      <TableHeader>
                       <TableRow>
@@ -1815,10 +1851,30 @@ export default function LiveProducts() {
                           ));
                         });
                       })()}
-                    </TableBody>
-                  </Table>
-                </Card>
-              </>
+                     </TableBody>
+                   </Table>
+                      </Card>
+                    </div>
+
+                    {/* Right: Comments Panel - 20% */}
+                    {commentsVideoId && (
+                      <div className="flex-[1] border-l pl-4">
+                        <LiveCommentsPanel
+                          pageId={commentsPageId}
+                          videoId={commentsVideoId}
+                          comments={comments}
+                          ordersData={ordersData}
+                          newCommentIds={newCommentIds}
+                          showOnlyWithOrders={showOnlyWithOrders}
+                          hideNames={hideNames}
+                          isLoading={commentsLoading || isFetchingNextPage}
+                          onLoadMore={() => fetchNextPage()}
+                          hasMore={hasNextPage}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </TabsContent>
 
