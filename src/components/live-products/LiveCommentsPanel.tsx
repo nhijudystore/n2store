@@ -379,6 +379,13 @@ export function LiveCommentsPanel({
                       <p className="text-xs text-foreground break-words">
                         {comment.message || "(Không có nội dung)"}
                       </p>
+
+                      {/* Comment Time */}
+                      {comment.created_time && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          {format(new Date(comment.created_time), 'HH:mm')}
+                        </p>
+                      )}
                     </div>
                   </div>
 

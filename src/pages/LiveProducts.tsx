@@ -1554,10 +1554,10 @@ export default function LiveProducts() {
                     )}
                   </div>
 
-                  {/* 2-Column Layout: 80% Products + 20% Comments */}
+                  {/* 2-Column Layout: 70% Products + 30% Comments */}
                   <div className="flex gap-4">
-                    {/* Left: Products List - 80% */}
-                    <div className="flex-[4]">
+                    {/* Left: Products List - 70% */}
+                    <div className="flex-[7]">
                       <Card>
                   <Table>
                      <TableHeader>
@@ -1859,9 +1859,9 @@ export default function LiveProducts() {
                       </Card>
                     </div>
 
-                    {/* Right: Comments Panel - 20% */}
+                    {/* Right: Comments Panel - 30% */}
                     {commentsVideoId && (
-                      <div className="flex-[1] border-l pl-4">
+                      <div className="flex-[3] border-l pl-4">
                         <LiveCommentsPanel
                           pageId={commentsPageId}
                           videoId={commentsVideoId}
