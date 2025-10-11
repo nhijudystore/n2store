@@ -220,12 +220,8 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                                       setOpen(false);
                                     }}
                                   >
-                                    <p className="font-medium">{order.name}</p>
                                     {order.comment && (
-                                      <p className="text-muted-foreground mt-1">{order.comment}</p>
-                                    )}
-                                    {order.phone && (
-                                      <p className="text-muted-foreground mt-1">SĐT: {order.phone}</p>
+                                      <p className="text-muted-foreground">{order.comment}</p>
                                     )}
                                   </div>
                                 ))}
