@@ -237,7 +237,6 @@ export default function LiveProducts() {
     errors: number;
   } | null>(null);
   const [maxRecordsToFetch, setMaxRecordsToFetch] = useState("4000");
-  const [showComments, setShowComments] = useState(false);
   
   // Search state for products tab
   const [productSearch, setProductSearch] = useState("");
@@ -1419,8 +1418,8 @@ export default function LiveProducts() {
       {/* Stats and Content with Comments Panel */}
       {selectedPhase && (
         <div className="grid grid-cols-12 gap-4">
-          {/* Main Content */}
-          <div className={showComments ? "col-span-12 lg:col-span-7" : "col-span-12"}>
+          {/* Main Content - Left Side */}
+          <div className="col-span-12 lg:col-span-7">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div ref={tabsRef} className="flex items-center justify-between">
               <TabsList>
@@ -1443,15 +1442,6 @@ export default function LiveProducts() {
               </TabsList>
 
               <div className="flex gap-2">
-                <Button
-                  variant={showComments ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowComments(!showComments)}
-                  className="flex items-center gap-2"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  {showComments ? "Ẩn" : "Hiện"} Comments
-                </Button>
                 {activeTab === "products" && (
                   <>
                     <Button
@@ -2489,14 +2479,12 @@ export default function LiveProducts() {
           </Tabs>
         </div>
 
-        {/* Comments Panel - Right Side */}
-        {showComments && (
-          <div className="col-span-12 lg:col-span-5">
-            <div className="sticky top-4">
-              <FacebookCommentsManager />
-            </div>
+        {/* Comments Panel - Right Side (Always Visible) */}
+        <div className="col-span-12 lg:col-span-5">
+          <div className="sticky top-4">
+            <FacebookCommentsManager />
           </div>
-        )}
+        </div>
       </div>
       )}
 
