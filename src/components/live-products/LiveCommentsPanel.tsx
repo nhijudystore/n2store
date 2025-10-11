@@ -369,11 +369,6 @@ export function LiveCommentsPanel({
                               {comment.orderInfo.Telephone}
                             </Badge>
                           )}
-                          
-                          {/* Status Badge */}
-                          <Badge className={`${getStatusColor(comment.partnerStatus)} text-white text-[10px] px-1.5 py-0`}>
-                            {comment.partnerStatus}
-                          </Badge>
                         </div>
 
                         {/* Comment Time */}
