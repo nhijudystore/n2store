@@ -339,11 +339,17 @@ export default function FacebookLiveCommentsPage() {
 
       // Step 1: Check existing customers from Supabase
       const facebookIds = commentsToProcess.map(c => c.from.id);
+      
+      console.log('[Fetch] Querying DB for', facebookIds.length, 'facebook IDs');
+      const startTime = performance.now();
+      
       const { data: existingCustomers = [] } = await supabase
         .from('customers')
         .select('*')
         .in('facebook_id', facebookIds);
       
+      const dbTime = performance.now() - startTime;
+      console.log('[Fetch] DB query completed in', dbTime.toFixed(2), 'ms');
       console.log('[Fetch] Found', existingCustomers.length, 'existing customers in Supabase');
 
       const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
@@ -484,9 +490,9 @@ export default function FacebookLiveCommentsPage() {
     }
   }, [toast]);
 
-  // Debounced version
+  // Debounced version - Giảm delay để load nhanh hơn
   const debouncedFetchStatus = useMemo(
-    () => debounce(fetchPartnerStatusBatch, 500),
+    () => debounce(fetchPartnerStatusBatch, 100),
     [fetchPartnerStatusBatch]
   );
 
