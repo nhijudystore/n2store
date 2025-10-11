@@ -536,7 +536,7 @@ export default function FacebookLiveCommentsPage() {
         ...comment,
         partnerStatus: status?.partnerStatus || "Khách lạ",
         orderInfo: status?.orderInfo,
-        isLoadingStatus: status?.isLoadingStatus ?? true,
+        isLoadingStatus: status?.isLoadingStatus ?? false, // Bỏ qua nếu không tìm thấy
       };
     });
   }, [comments, customerStatusMap]);
