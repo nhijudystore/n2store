@@ -44,7 +44,7 @@ async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise
         headers: getTPOSHeaders(bearerToken),
         body: JSON.stringify({
           PostIds: [postId],
-          TeamId: 10037
+          TeamId: 10052
         }),
       }
     );
@@ -108,7 +108,7 @@ serve(async (req) => {
     };
 
     payload = {
-      "CRMTeamId": 10037,
+      "CRMTeamId": 10052,
       "LiveCampaignId": liveCampaignId,
       "Facebook_PostId": video.objectId,
       "Facebook_ASUserId": comment.from.id,
