@@ -73,27 +73,45 @@ async function getCRMTeamId(
 
     const data = await response.json();
     
-    // Try to match with page name from database
-    if (pageData?.page_name && data.value) {
-      const matchedTeam = data.value.find((team: any) => 
-        team.Name === pageData.page_name
-      );
+    // Normalize function for Vietnamese text comparison
+    const normalizeText = (text: string): string => {
+      return text
+        .normalize('NFC') // Normalize unicode
+        .trim() // Remove leading/trailing whitespace
+        .toLowerCase(); // Case insensitive
+    };
+    
+    // Try to match with CRM team name or page name from database
+    const nameToMatch = pageData?.crm_team_name || pageData?.page_name;
+    if (nameToMatch && data.value) {
+      const normalizedSearchName = normalizeText(nameToMatch);
+      console.log(`Looking for CRM team matching: "${nameToMatch}" (normalized: "${normalizedSearchName}")`);
+      
+      const matchedTeam = data.value.find((team: any) => {
+        const normalizedTeamName = normalizeText(team.Name);
+        const isMatch = normalizedTeamName === normalizedSearchName;
+        console.log(`  Comparing with "${team.Name}" (normalized: "${normalizedTeamName}"): ${isMatch}`);
+        return isMatch;
+      });
       
       if (matchedTeam) {
         // Save to database for future use
         await supabase
           .from('facebook_pages')
           .update({
-            crm_team_id: matchedTeam.Id,
+            crm_team_id: matchedTeam.Id.toString(),
             crm_team_name: matchedTeam.Name,
           })
           .eq('page_id', pageId);
 
         console.log(`Found and saved CRM Team: ${matchedTeam.Name} (${matchedTeam.Id})`);
         return {
-          teamId: matchedTeam.Id,
+          teamId: matchedTeam.Id.toString(),
           teamName: matchedTeam.Name,
         };
+      } else {
+        console.log(`No matching CRM team found for "${nameToMatch}"`);
+        console.log(`Available teams:`, data.value.map((t: any) => t.Name).join(', '));
       }
     }
 
