@@ -6,7 +6,6 @@ import { Check, ChevronsUpDown } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { OrderBillNotification } from './OrderBillNotification';
@@ -79,19 +78,22 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     return new Set(existingOrders.map(order => order.facebook_comment_id).filter(Boolean));
   }, [existingOrders]);
 
-  // Group orders by session_index - only show comments that haven't been used
-  const groupedOrders = React.useMemo(() => {
-    const groups = new Map<string, typeof pendingOrders>();
-    pendingOrders.forEach(order => {
-      if (order.session_index && order.facebook_comment_id && !usedCommentIds.has(order.facebook_comment_id)) {
-        const existing = groups.get(order.session_index) || [];
-        groups.set(order.session_index, [...existing, order]);
-      }
-    });
-    return groups;
+  // Flat list of orders - only show comments that haven't been used
+  const flatOrders = React.useMemo(() => {
+    return pendingOrders
+      .filter(order => 
+        order.session_index && 
+        order.facebook_comment_id && 
+        !usedCommentIds.has(order.facebook_comment_id)
+      )
+      .sort((a, b) => {
+        // Sort by session_index first (numeric), then by created_time
+        const indexA = parseInt(a.session_index || '0');
+        const indexB = parseInt(b.session_index || '0');
+        if (indexA !== indexB) return indexA - indexB;
+        return new Date(a.created_time).getTime() - new Date(b.created_time).getTime();
+      });
   }, [pendingOrders, usedCommentIds]);
-
-  const uniqueSessionIndexes = Array.from(groupedOrders.keys());
 
   const addOrderMutation = useMutation({
     mutationFn: async ({ sessionIndex, commentId }: { sessionIndex: string; commentId: string }) => {
@@ -278,59 +280,25 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
               <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
               <CommandGroup>
                 <ScrollArea className="h-[200px]">
-                  {uniqueSessionIndexes.map((sessionIndex) => {
-                    const orders = groupedOrders.get(sessionIndex) || [];
-                    return (
-                      <HoverCard key={sessionIndex} openDelay={200}>
-                        <HoverCardTrigger asChild>
-                          <CommandItem
-                            value={sessionIndex}
-                            className="cursor-default hover:bg-accent/50 font-medium"
-                          >
-                            <span className="text-base">{sessionIndex}</span>
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              ({orders.length} comment{orders.length > 1 ? 's' : ''})
-                            </span>
-                          </CommandItem>
-                        </HoverCardTrigger>
-                        <HoverCardContent className="w-96 p-0" side="right" sideOffset={10}>
-                          <div className="border-b bg-muted/50 px-4 py-3">
-                            <h4 className="text-sm font-semibold">
-                              Chọn comment để thêm đơn ({orders.length})
-                            </h4>
-                          </div>
-                          <ScrollArea className="max-h-[300px]">
-                            <div className="p-2">
-                              {orders.length > 0 ? (
-                                orders.map((order) => (
-                                  <div 
-                                    key={order.id} 
-                                    className="mb-2 cursor-pointer rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent hover:shadow-sm"
-                                    onClick={() => {
-                                      if (order.facebook_comment_id) {
-                                        handleSelectComment(sessionIndex, order.facebook_comment_id);
-                                        setOpen(false);
-                                      }
-                                    }}
-                                  >
-                                    {order.comment ? (
-                                      <p className="text-foreground leading-relaxed">{order.comment}</p>
-                                    ) : (
-                                      <p className="text-muted-foreground italic">Không có comment</p>
-                                    )}
-                                  </div>
-                                ))
-                              ) : (
-                                <div className="p-3 text-center text-sm text-muted-foreground">
-                                  Tất cả comments đã được sử dụng
-                                </div>
-                              )}
-                            </div>
-                          </ScrollArea>
-                        </HoverCardContent>
-                      </HoverCard>
-                    );
-                  })}
+                  {flatOrders.map((order) => (
+                    <CommandItem
+                      key={order.id}
+                      value={`${order.session_index}-${order.comment || ''}`}
+                      onSelect={() => {
+                        if (order.facebook_comment_id) {
+                          handleSelectComment(order.session_index!, order.facebook_comment_id);
+                          setOpen(false);
+                        }
+                      }}
+                      className="cursor-pointer"
+                    >
+                      <span className="font-medium">{order.session_index}</span>
+                      <span className="mx-2">-</span>
+                      <span className="flex-1 truncate text-muted-foreground">
+                        {order.comment || '(không có comment)'}
+                      </span>
+                    </CommandItem>
+                  ))}
                 </ScrollArea>
               </CommandGroup>
             </CommandList>
