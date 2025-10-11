@@ -470,6 +470,7 @@ export default function FacebookLiveCommentsPage() {
       // Update state and ref
       customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
+      console.log('[Fetch] Updated customer status map, size:', newStatusMap.size);
 
     } catch (error) {
       console.error('[Fetch] General error in fetchPartnerStatusBatch:', error); // Catch-all error log
