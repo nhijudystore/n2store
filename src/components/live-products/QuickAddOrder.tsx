@@ -9,6 +9,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { OrderBillNotification } from './OrderBillNotification';
 
 interface QuickAddOrderProps {
   productId: string;
@@ -97,11 +98,14 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       // Get current product data to check if overselling
       const { data: product, error: fetchError } = await supabase
         .from('live_products')
-        .select('sold_quantity, prepared_quantity')
+        .select('sold_quantity, prepared_quantity, product_code, product_name')
         .eq('id', productId)
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Get pending order details for bill
+      const pendingOrder = pendingOrders.find(order => order.facebook_comment_id === commentId);
 
       // Check if this order will be an oversell
       const newSoldQuantity = (product.sold_quantity || 0) + 1;
@@ -130,9 +134,21 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
 
       if (updateError) throw updateError;
       
-      return { sessionIndex, isOversell };
+      return { 
+        sessionIndex, 
+        isOversell,
+        billData: pendingOrder ? {
+          sessionIndex,
+          phone: pendingOrder.phone,
+          customerName: pendingOrder.name,
+          productCode: product.product_code,
+          productName: product.product_name,
+          comment: pendingOrder.comment,
+          createdTime: pendingOrder.created_time,
+        } : null
+      };
     },
-    onSuccess: ({ sessionIndex, isOversell }) => {
+    onSuccess: ({ sessionIndex, isOversell, billData }) => {
       setSelectedSessionIndex('');
       setOpen(false);
       // Force refetch all related queries immediately
@@ -145,13 +161,24 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
-      toast({
-        title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
-        description: isOversell 
-          ? `Đã thêm đơn ${sessionIndex} (vượt số lượng - đánh dấu đỏ)`
-          : `Đã thêm đơn hàng ${sessionIndex}`,
-        variant: isOversell ? "destructive" : "default",
-      });
+      if (billData) {
+        toast({
+          title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
+          description: (
+            <OrderBillNotification {...billData} />
+          ),
+          variant: isOversell ? "destructive" : "default",
+          duration: 10000,
+        });
+      } else {
+        toast({
+          title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
+          description: isOversell 
+            ? `Đã thêm đơn ${sessionIndex} (vượt số lượng - đánh dấu đỏ)`
+            : `Đã thêm đơn hàng ${sessionIndex}`,
+          variant: isOversell ? "destructive" : "default",
+        });
+      }
     },
     onError: (error) => {
       console.error('Error adding order:', error);
