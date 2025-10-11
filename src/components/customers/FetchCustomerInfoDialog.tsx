@@ -91,6 +91,7 @@ const mapStatusText = (statusText: string | null | undefined): string => {
     "thiếu thông tin": "Thiếu thông tin",
     "cần thêm tt": "Cần thêm TT",
     "chưa có tt": "Chưa có TT",
+    "trùng sđt": "Trùng SĐT",
   };
   return statusMap[normalizedStatus] || "Bình thường";
 };
