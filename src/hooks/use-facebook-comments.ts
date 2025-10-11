@@ -70,7 +70,7 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     return Array.from(uniqueComments.values());
   }, [commentsData]);
 
-  // Cache orders data
+  // Cache orders data - merge from facebook_pending_orders and TPOS API
   const { data: ordersData = [] } = useQuery({
     queryKey: ["tpos-orders", videoId],
     queryFn: async () => {
@@ -78,6 +78,14 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
 
       const { data: { session } } = await supabase.auth.getSession();
 
+      // Fetch from facebook_pending_orders table
+      const { data: pendingOrders } = await supabase
+        .from('facebook_pending_orders')
+        .select('*')
+        .eq('facebook_post_id', videoId)
+        .order('created_at', { ascending: false });
+
+      // Fetch from TPOS API
       const ordersResponse = await fetch(`https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/fetch-facebook-orders`, {
         method: 'POST',
         headers: {
@@ -87,10 +95,48 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
         body: JSON.stringify({ postId: videoId, top: 200 }),
       });
 
-      if (!ordersResponse.ok) return [];
+      const tposOrders = ordersResponse.ok ? (await ordersResponse.json()).value || [] : [];
 
-      const ordersDataResult = await ordersResponse.json();
-      return ordersDataResult.value || [];
+      // Merge orders: prioritize facebook_pending_orders
+      const mergedOrdersMap = new Map<string, TPOSOrder>();
+
+      // Add TPOS API orders first
+      tposOrders.forEach((order: TPOSOrder) => {
+        if (order.Facebook_CommentId) {
+          mergedOrdersMap.set(order.Facebook_CommentId, order);
+        }
+      });
+
+      // Override with pending orders (these are more up-to-date)
+      pendingOrders?.forEach((pending) => {
+        if (pending.facebook_comment_id) {
+          // Convert pending order to TPOSOrder format
+          const tposOrder: TPOSOrder = {
+            Id: pending.tpos_order_id || pending.id,
+            Code: pending.code || '',
+            SessionIndex: pending.session_index,
+            Facebook_UserId: pending.facebook_user_id,
+            Facebook_PostId: pending.facebook_post_id,
+            Facebook_ASUserId: '',
+            Facebook_CommentId: pending.facebook_comment_id,
+            Facebook_UserName: pending.name,
+            Telephone: pending.phone || '',
+            Name: pending.name,
+            Note: pending.comment || '',
+            PartnerId: 0,
+            PartnerName: '',
+            PartnerStatus: '',
+            PartnerStatusText: null,
+            TotalAmount: 0,
+            TotalQuantity: 0,
+            DateCreated: pending.created_time || pending.created_at,
+            StatusText: pending.tpos_order_id ? 'Đã tạo đơn' : 'Đang xử lý',
+          };
+          mergedOrdersMap.set(pending.facebook_comment_id, tposOrder);
+        }
+      });
+
+      return Array.from(mergedOrdersMap.values());
     },
     enabled: !!videoId,
     staleTime: 5 * 60 * 1000,
