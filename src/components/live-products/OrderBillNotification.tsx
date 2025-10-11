@@ -1,5 +1,4 @@
 import React from 'react';
-import Barcode from 'react-barcode';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 
@@ -39,17 +38,6 @@ export function OrderBillNotification({
         {productCode} - {cleanedProductName}
       </div>
       {comment && <div className="text-muted-foreground italic">{comment}</div>}
-      <div className="flex justify-center">
-        <Barcode 
-          value={productCode} 
-          width={1.5}
-          height={40}
-          fontSize={0}
-          margin={0}
-          background="transparent"
-          displayValue={false}
-        />
-      </div>
       <div className="text-xs text-muted-foreground">{formattedTime}</div>
     </div>
   );

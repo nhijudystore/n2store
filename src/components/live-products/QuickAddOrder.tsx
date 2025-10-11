@@ -195,7 +195,6 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
             <html>
               <head>
                 <title>Bill #${billData.sessionIndex}</title>
-                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
                   body { 
                     font-family: monospace; 
@@ -215,18 +214,8 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                 <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
                 <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
                 ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
-                <div style="margin: 10px 0;">
-                  <svg id="barcode"></svg>
-                </div>
                 <div style="font-size: 12px; color: #666; margin-top: 10px;">${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}</div>
                 <script>
-                  JsBarcode("#barcode", "${billData.productCode}", {
-                    width: 1.5,
-                    height: 40,
-                    displayValue: false,
-                    margin: 0,
-                    background: "transparent"
-                  });
                   setTimeout(() => {
                     window.print();
                     setTimeout(() => window.close(), 100);
