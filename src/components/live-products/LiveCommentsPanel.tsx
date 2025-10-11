@@ -345,9 +345,11 @@ export function LiveCommentsPanel({
                   <div className="flex items-start gap-2 mb-2">
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-[10px]">
-                        {comment.orderInfo?.Code 
-                          ? (comment.orderInfo.Code.split('.').pop() || comment.orderInfo.Code)
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-[10px] ${
+                        comment.orderInfo?.SessionIndex ? 'bg-red-500' : 'bg-blue-500'
+                      }`}>
+                        {comment.orderInfo?.SessionIndex 
+                          ? comment.orderInfo.SessionIndex
                           : comment.from.name.charAt(0).toUpperCase()
                         }
                       </div>
