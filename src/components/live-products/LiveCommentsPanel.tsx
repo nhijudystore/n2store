@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/use-debounce";
 import { MessageCircle, Heart, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import type { FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
@@ -58,15 +57,6 @@ export function LiveCommentsPanel({
   const [selectedOrderInfo, setSelectedOrderInfo] = useState<TPOSOrder | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-
-  // Helper function to remove Vietnamese diacritics for search
-  const removeVietnameseTones = (str: string): string => {
-    return str
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toLowerCase();
-  };
 
   const mapStatusText = (statusText: string | null | undefined): string => {
     if (!statusText) return 'Bình thường';
@@ -292,27 +282,16 @@ export function LiveCommentsPanel({
       );
     }
 
-    if (debouncedSearchQuery) {
-      const query = removeVietnameseTones(debouncedSearchQuery);
-      filtered = filtered.filter(comment => {
-        const name = removeVietnameseTones(comment.from.name);
-        const message = removeVietnameseTones(comment.message || '');
-        const phone = comment.orderInfo?.Telephone || '';
-        const orderCode = comment.orderInfo?.Code || '';
-        const customerName = removeVietnameseTones(comment.orderInfo?.Name || '');
-        
-        return (
-          name.includes(query) ||
-          message.includes(query) ||
-          phone.includes(debouncedSearchQuery) ||
-          orderCode.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-          customerName.includes(query)
-        );
-      });
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(comment =>
+        comment.message?.toLowerCase().includes(query) ||
+        comment.from.name.toLowerCase().includes(query)
+      );
     }
 
     return filtered;
-  }, [commentsWithStatus, showOnlyWithOrders, hideNames, debouncedSearchQuery]);
+  }, [commentsWithStatus, showOnlyWithOrders, hideNames, searchQuery]);
 
   const getStatusColor = (status: string) => {
     const statusColors: Record<string, string> = {
@@ -335,7 +314,7 @@ export function LiveCommentsPanel({
       <div className="relative">
         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Tìm theo tên, SĐT, mã đơn..."
+          placeholder="Tìm comment..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-8 h-9 text-sm"
