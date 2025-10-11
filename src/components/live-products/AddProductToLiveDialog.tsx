@@ -41,6 +41,7 @@ interface AddProductToLiveDialogProps {
   onOpenChange: (open: boolean) => void;
   phaseId: string;
   sessionId: string;
+  onProductAdded?: () => void;
 }
 
 interface FormData {
@@ -50,7 +51,7 @@ interface FormData {
   variants: { name: string; quantity: number }[];
 }
 
-export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId }: AddProductToLiveDialogProps) {
+export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId, onProductAdded }: AddProductToLiveDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [imageUrl, setImageUrl] = useState<string>("");
   const [isUploading, setIsUploading] = useState(false);
@@ -414,6 +415,7 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId 
       form.reset();
       setImageUrl("");
       onOpenChange(false);
+      onProductAdded?.();
     },
     onError: (error) => {
       console.error("Error adding product to live:", error);

@@ -197,6 +197,7 @@ export default function LiveProducts() {
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
   const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
+  const productListRef = useRef<HTMLDivElement>(null);
   
   const {
     comments,
@@ -1557,7 +1558,7 @@ export default function LiveProducts() {
                   {/* 2-Column Layout: 70% Products + 30% Comments */}
                   <div className="flex gap-4 h-[calc(100vh-280px)]">
                     {/* Left: Products List - 70% */}
-                    <div className="flex-[7] overflow-y-auto">
+                    <div ref={productListRef} className="flex-[7] overflow-y-auto">
                       <Card>
                   <Table>
                      <TableHeader>
@@ -2605,6 +2606,9 @@ export default function LiveProducts() {
         onOpenChange={setIsAddProductOpen}
         phaseId={selectedPhase}
         sessionId={selectedSession}
+        onProductAdded={() => {
+          productListRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
       />
 
       <EditProductDialog 
