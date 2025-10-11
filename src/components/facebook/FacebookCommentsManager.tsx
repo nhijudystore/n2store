@@ -749,7 +749,6 @@ export function FacebookCommentsManager() {
               </div>
             </ScrollArea>
           )}
-          </Card>
 
           {/* Comments Panel - now full width */}
           {selectedVideo ? (
