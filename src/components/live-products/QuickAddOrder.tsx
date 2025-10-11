@@ -162,14 +162,81 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       if (billData) {
+        // Create a temporary element for printing
+        const printContent = document.createElement('div');
+        printContent.innerHTML = `
+          <div style="font-family: monospace; text-align: center; padding: 20px;">
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+              #${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}
+            </div>
+            <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
+            <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+            ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
+            <div style="margin: 10px 0;">
+              <svg id="barcode-${billData.sessionIndex}"></svg>
+            </div>
+          </div>
+        `;
+        
+        // Show toast notification
         toast({
-          title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
           description: (
             <OrderBillNotification {...billData} />
           ),
           variant: isOversell ? "destructive" : "default",
           duration: 10000,
         });
+        
+        // Trigger print
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Bill #${billData.sessionIndex}</title>
+                <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+                <style>
+                  body { 
+                    font-family: monospace; 
+                    margin: 0; 
+                    padding: 20px;
+                    text-align: center;
+                  }
+                  @media print {
+                    body { margin: 0; padding: 10px; }
+                  }
+                </style>
+              </head>
+              <body>
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+                  #${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}
+                </div>
+                <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
+                <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+                ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
+                <div style="margin: 10px 0;">
+                  <svg id="barcode"></svg>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 10px;">${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}</div>
+                <script>
+                  JsBarcode("#barcode", "${billData.productCode}", {
+                    width: 1.5,
+                    height: 40,
+                    displayValue: false,
+                    margin: 0,
+                    background: "transparent"
+                  });
+                  setTimeout(() => {
+                    window.print();
+                    setTimeout(() => window.close(), 100);
+                  }, 500);
+                </script>
+              </body>
+            </html>
+          `);
+          printWindow.document.close();
+        }
       } else {
         toast({
           title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
