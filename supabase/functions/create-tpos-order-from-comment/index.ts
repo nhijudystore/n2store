@@ -26,6 +26,12 @@ function getTPOSHeaders(bearerToken: string) {
   };
 }
 
+function convertFacebookTimeToISO(facebookTime: string): string {
+  // Facebook format: "2025-10-09T08:43:42+0000"
+  // TPOS format:     "2025-10-09T08:43:42.000Z"
+  return facebookTime.replace('+0000', '.000Z');
+}
+
 async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise<string> {
   try {
     console.log('Fetching LiveCampaignId for post:', postId);
@@ -93,7 +99,7 @@ serve(async (req) => {
       is_hidden: comment.is_hidden,
       message: comment.message,
       created_time: comment.created_time,
-      created_time_converted: comment.created_time,
+      created_time_converted: convertFacebookTimeToISO(comment.created_time),
       from: {
         id: comment.from.id,
         name: comment.from.name
