@@ -192,7 +192,7 @@ export default function FacebookLiveCommentsPage() {
       
       const order = selectedVideo.statusLive === 1 ? 'reverse_chronological' : 'chronological';
       
-      let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=100&order=${order}`;
+      let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=500&order=${order}`;
       if (pageParam) {
         url += `&after=${pageParam}`;
       }
@@ -214,17 +214,28 @@ export default function FacebookLiveCommentsPage() {
       return await response.json();
     },
     getNextPageParam: (lastPage) => {
+      console.log('getNextPageParam called:', {
+        dataLength: lastPage.data?.length || 0,
+        hasPaging: !!lastPage.paging,
+        hasCursors: !!lastPage.paging?.cursors,
+        afterCursor: lastPage.paging?.cursors?.after,
+        nextUrl: lastPage.paging?.next
+      });
+      
       // Chỉ dừng khi không có nextPageCursor hoặc page rỗng
       if (!lastPage.data || lastPage.data.length === 0) {
+        console.log('No data in page, stopping pagination');
         return undefined;
       }
 
       const nextPageCursor = lastPage.paging?.cursors?.after || (lastPage.paging?.next ? new URL(lastPage.paging.next).searchParams.get('after') : null);
 
       if (!nextPageCursor) {
+        console.log('No next page cursor found, stopping pagination');
         return undefined;
       }
 
+      console.log('Next page cursor:', nextPageCursor);
       return nextPageCursor;
     },
     initialPageParam: undefined,

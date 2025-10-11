@@ -65,6 +65,16 @@ serve(async (req) => {
     }
 
     const data = await response.json();
+    console.log('TPOS API response:', {
+      hasData: !!data,
+      isArray: Array.isArray(data),
+      dataLength: data?.data?.length || (Array.isArray(data) ? data.length : 0),
+      hasPaging: !!data?.paging,
+      hasCursors: !!data?.paging?.cursors,
+      afterCursor: data?.paging?.cursors?.after,
+      nextUrl: data?.paging?.next
+    });
+    
     let responsePayload;
 
     if (Array.isArray(data)) {
@@ -84,7 +94,8 @@ serve(async (req) => {
             console.log(`Extracted 'after' cursor from next URL: ${afterCursor}`);
           }
         } catch (e) {
-          console.warn("Could not parse 'next' URL in paging object:", e.message);
+          const errorMsg = e instanceof Error ? e.message : String(e);
+          console.warn("Could not parse 'next' URL in paging object:", errorMsg);
         }
       }
     } else {
