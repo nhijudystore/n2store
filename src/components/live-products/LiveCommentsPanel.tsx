@@ -357,35 +357,37 @@ export function LiveCommentsPanel({
 
                     {/* Name, Order Code, Status */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                        <span className="font-semibold text-sm">
-                          {comment.from.name}
-                        </span>
-                        
-                        {/* Phone Number Badge */}
-                        {comment.orderInfo?.Telephone && (
-                          <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
-                            {comment.orderInfo.Telephone}
+                      <div className="flex items-center justify-between gap-1.5 mb-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-semibold text-sm">
+                            {comment.from.name}
+                          </span>
+                          
+                          {/* Phone Number Badge */}
+                          {comment.orderInfo?.Telephone && (
+                            <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
+                              {comment.orderInfo.Telephone}
+                            </Badge>
+                          )}
+                          
+                          {/* Status Badge */}
+                          <Badge className={`${getStatusColor(comment.partnerStatus)} text-white text-[10px] px-1.5 py-0`}>
+                            {comment.partnerStatus}
                           </Badge>
+                        </div>
+
+                        {/* Comment Time */}
+                        {comment.created_time && (
+                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                            {format(new Date(comment.created_time), 'HH:mm')}
+                          </span>
                         )}
-                        
-                        {/* Status Badge */}
-                        <Badge className={`${getStatusColor(comment.partnerStatus)} text-white text-[10px] px-1.5 py-0`}>
-                          {comment.partnerStatus}
-                        </Badge>
                       </div>
 
                       {/* Comment Message */}
-                      <p className="text-xs text-foreground break-words">
+                      <p className="text-sm text-foreground break-words">
                         {comment.message || "(Không có nội dung)"}
                       </p>
-
-                      {/* Comment Time */}
-                      {comment.created_time && (
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {format(new Date(comment.created_time), 'HH:mm')}
-                        </p>
-                      )}
                     </div>
                   </div>
 
