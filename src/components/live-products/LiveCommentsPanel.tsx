@@ -337,59 +337,88 @@ export function LiveCommentsPanel({
               {filteredComments.map((comment) => (
                 <div
                   key={comment.id}
-                  className={`p-2 rounded-lg border transition-colors ${
+                  className={`p-3 rounded-lg border transition-colors ${
                     newCommentIds.has(comment.id) ? 'bg-accent' : 'bg-card'
                   }`}
                 >
-                  <div className="flex items-start gap-2 mb-1">
+                  {/* Header: Avatar, Name, Order Code, Status, Phone */}
+                  <div className="flex items-start gap-2 mb-2">
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
+                        {comment.from.name.charAt(0).toUpperCase()}
+                      </div>
+                      {comment.orderInfo && (
+                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px] font-bold border-2 border-background">
+                          {comment.orderInfo.TotalQuantity || 0}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Name, Order Code, Status */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-1">
-                        <span className="font-medium text-xs truncate">
+                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                        <span className="font-semibold text-sm">
                           {comment.from.name}
                         </span>
-                        <Badge variant="secondary" className={`${getStatusColor(comment.partnerStatus)} text-white text-[10px] px-1 py-0`}>
+                        
+                        {/* Order Code Badge */}
+                        {comment.orderInfo && (
+                          <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
+                            #{comment.orderInfo.Code?.split('.').pop() || comment.orderInfo.Code}
+                          </Badge>
+                        )}
+                        
+                        {/* Status Badge */}
+                        <Badge className={`${getStatusColor(comment.partnerStatus)} text-white text-[10px] px-1.5 py-0`}>
                           {comment.partnerStatus}
                         </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground break-words">
+
+                      {/* Phone Number */}
+                      {comment.orderInfo?.Telephone && (
+                        <div className="text-xs text-muted-foreground mb-1">
+                          {comment.orderInfo.Telephone}
+                        </div>
+                      )}
+
+                      {/* Comment Message */}
+                      <p className="text-xs text-foreground break-words">
                         {comment.message || "(Không có nội dung)"}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1">
-                        <Heart className="h-3 w-3" />
-                        {comment.like_count || 0}
-                      </span>
-                    </div>
-                    <span>{format(new Date(comment.created_time), 'HH:mm')}</span>
-                  </div>
-
-                  <div className="flex gap-1">
+                  {/* Buttons */}
+                  <div className="flex gap-1.5">
                     <Button
-                      variant="outline"
                       size="sm"
-                      className="flex-1 h-7 text-xs"
+                      className="h-8 text-xs flex-1 bg-blue-500 hover:bg-blue-600 text-white"
                       onClick={() => handleCreateOrderClick(comment)}
                       disabled={createOrderMutation.isPending}
                     >
-                      {comment.orderInfo ? "Tạo lại đơn" : "Tạo đơn"}
+                      Tạo đơn hàng
                     </Button>
-                    {comment.orderInfo && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          setSelectedOrderInfo(comment.orderInfo!);
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs bg-green-500 hover:bg-green-600 text-white border-green-500"
+                      onClick={() => {
+                        if (comment.orderInfo) {
+                          setSelectedOrderInfo(comment.orderInfo);
                           setIsInfoDialogOpen(true);
-                        }}
-                      >
-                        TT
-                      </Button>
-                    )}
+                        }
+                      }}
+                    >
+                      Thông tin
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`h-8 text-xs ${getStatusColor(comment.partnerStatus)} text-white border-0`}
+                    >
+                      {comment.partnerStatus}
+                    </Button>
                   </div>
                 </div>
               ))}
