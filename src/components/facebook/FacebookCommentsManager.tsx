@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, Code, ChevronDown, Copy } from "lucide-react";
+import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, ChevronDown, Copy } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
@@ -60,11 +60,6 @@ export function FacebookCommentsManager() {
   const fetchInProgress = useRef(false);
   const customerStatusMapRef = useRef<Map<string, any>>(new Map());
 
-  // New states for debug search
-  const [videosDebugSearch, setVideosDebugSearch] = useState("");
-  const [commentsDebugSearch, setCommentsDebugSearch] = useState("");
-  const [ordersDebugSearch, setOrdersDebugSearch] = useState("");
-  const [statusMapDebugSearch, setStatusMapDebugSearch] = useState("");
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
   const [hideNames, setHideNames] = useState<string[]>(["Nhi Judy House"]);
 
@@ -565,41 +560,6 @@ export function FacebookCommentsManager() {
     totalComments: videos.reduce((sum, v) => sum + (v.countComment || 0), 0),
     totalReactions: videos.reduce((sum, v) => sum + (v.countReaction || 0), 0),
   };
-
-  const filteredVideosForDebug = useMemo(() => {
-    if (!videosDebugSearch) return videos;
-    const searchTerm = videosDebugSearch.toLowerCase();
-    return videos.filter(video =>
-      JSON.stringify(video).toLowerCase().includes(searchTerm)
-    );
-  }, [videos, videosDebugSearch]);
-
-  const filteredCommentsForDebug = useMemo(() => {
-    if (!commentsDebugSearch) return comments;
-    const searchTerm = commentsDebugSearch.toLowerCase();
-    return comments.filter(comment =>
-      JSON.stringify(comment).toLowerCase().includes(searchTerm)
-    );
-  }, [comments, commentsDebugSearch]);
-
-  const filteredOrdersForDebug = useMemo(() => {
-    if (!ordersDebugSearch) return ordersData;
-    const searchTerm = ordersDebugSearch.toLowerCase();
-    return ordersData.filter(order =>
-      JSON.stringify(order).toLowerCase().includes(searchTerm)
-    );
-  }, [ordersData, ordersDebugSearch]);
-
-  const filteredStatusMapForDebug = useMemo(() => {
-    if (!statusMapDebugSearch) return Object.fromEntries(customerStatusMap);
-    const searchTerm = statusMapDebugSearch.toLowerCase();
-    const filteredEntries = Array.from(customerStatusMap.entries()).filter(
-      ([key, value]) =>
-        key.toLowerCase().includes(searchTerm) ||
-        JSON.stringify(value).toLowerCase().includes(searchTerm)
-    );
-    return Object.fromEntries(filteredEntries);
-  }, [customerStatusMap, statusMapDebugSearch]);
 
   const allCommentsLoaded = useMemo(() => {
     if (!selectedVideo || selectedVideo.statusLive === 1) return false;
@@ -1107,71 +1067,6 @@ export function FacebookCommentsManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Card className="mt-6">
-        <Collapsible>
-          <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer flex flex-row items-center justify-between p-4 data-[state=open]:border-b">
-              <div className="flex items-center gap-2">
-                <Code className="w-5 h-5" />
-                <CardTitle className="text-base">Xem Dữ Liệu API (Debug)</CardTitle>
-              </div>
-              <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
-            </CardHeader>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <CardContent className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <h3 className="font-semibold mb-2">1. Videos Response</h3>
-                <Input
-                  placeholder="Tìm kiếm trong videos response..."
-                  value={videosDebugSearch}
-                  onChange={(e) => setVideosDebugSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
-                  <pre className="text-xs">{JSON.stringify(filteredVideosForDebug, null, 2)}</pre>
-                </ScrollArea>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold mb-2">2. Comments Response</h3>
-                <Input
-                  placeholder="Tìm kiếm trong comments response..."
-                  value={commentsDebugSearch}
-                  onChange={(e) => setCommentsDebugSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
-                  <pre className="text-xs">{JSON.stringify(filteredCommentsForDebug, null, 2)}</pre>
-                </ScrollArea>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold mb-2">3. TPOS Orders Response</h3>
-                <Input
-                  placeholder="Tìm kiếm trong orders response..."
-                  value={ordersDebugSearch}
-                  onChange={(e) => setOrdersDebugSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
-                  <pre className="text-xs">{JSON.stringify(filteredOrdersForDebug, null, 2)}</pre>
-                </ScrollArea>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-semibold mb-2">4. Processed Customer Status Map</h3>
-                <Input
-                  placeholder="Tìm kiếm trong status map..."
-                  value={statusMapDebugSearch}
-                  onChange={(e) => setStatusMapDebugSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <ScrollArea className="h-64 w-full rounded-md border p-4 bg-muted/50">
-                  <pre className="text-xs">{JSON.stringify(filteredStatusMapForDebug, null, 2)}</pre>
-                </ScrollArea>
-              </div>
-            </CardContent>
-          </CollapsibleContent>
-        </Collapsible>
-      </Card>
     </div>
   );
 }
