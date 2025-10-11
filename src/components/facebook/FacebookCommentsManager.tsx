@@ -313,103 +313,93 @@ export function FacebookCommentsManager() {
     setIsLoadingCustomerStatus(true);
 
     try {
-      const facebookIds = commentsToProcess.map(c => c.from.id);
-      const facebookIdsToFetch = facebookIds.filter(id => !customerStatusMapRef.current.has(id));
+      // 1. Get unique Facebook user IDs from the comments that need processing.
+      const facebookIdsToFetch = [
+        ...new Set(
+            commentsToProcess
+                .map(c => c.from.id)
+                .filter(id => id && !customerStatusMapRef.current.has(id))
+        )
+      ];
       
-      if (facebookIdsToFetch.length === 0) return;
+      if (facebookIdsToFetch.length === 0) {
+        fetchInProgress.current = false;
+        setIsLoadingCustomerStatus(false);
+        return;
+      }
       
+      // 2. Create a map of Facebook User ID -> TPOS Order.
+      const userOrderMap = new Map<string, TPOSOrder>();
+      for (const order of orders) {
+          if (order.Facebook_ASUserId && !userOrderMap.has(order.Facebook_ASUserId)) {
+              userOrderMap.set(order.Facebook_ASUserId, order);
+          }
+      }
+
+      // 3. Fetch existing customer records from our DB for these Facebook IDs.
       const { data: existingCustomers = [] } = await supabase
         .from('customers')
         .select('*')
         .in('facebook_id', facebookIdsToFetch);
-
       const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
+
+      // 4. Prepare a batch of customer data to upsert into our DB.
+      const customersToUpsert: any[] = [];
       const newStatusMap = new Map(customerStatusMapRef.current);
-      
-      existingCustomers.forEach(customer => {
-        const hasCompleteInfoInDB = !!customer.phone && customer.info_status === 'complete';
-        const statusText = hasCompleteInfoInDB
-          ? mapStatusText(customer.customer_status)
-          : 'Cần thêm TT';
-        
-        newStatusMap.set(customer.facebook_id, {
-          partnerStatus: statusText,
-          orderInfo: customer.phone ? { Telephone: customer.phone } as any : undefined,
-          isLoadingStatus: false,
-        });
-      });
 
-      const commentsNeedingProcessing = commentsToProcess.filter(
-        c => {
-          const existingCustomer = existingCustomersMap.get(c.from.id);
-          return !existingCustomer || !existingCustomer.phone || existingCustomer.info_status === 'incomplete';
-        }
-      );
+      for (const facebookId of facebookIdsToFetch) {
+        const order = userOrderMap.get(facebookId);
+        const existingCustomer = existingCustomersMap.get(facebookId);
+        const commentAuthorName = commentsToProcess.find(c => c.from.id === facebookId)?.from.name || 'Unknown';
 
-      if (commentsNeedingProcessing.length === 0) {
-        setCustomerStatusMap(newStatusMap);
-        return;
-      }
+        let partnerStatus: string;
+        let customerDataForUpsert: any;
 
-      const commentOrderMap = new Map<string, TPOSOrder>();
-      const commentPhoneMap = new Map<string, string>();
-
-      for (const comment of commentsNeedingProcessing) {
-        const order = orders.find(o => 
-          o.Facebook_CommentId === comment.id || 
-          (o.Facebook_ASUserId === comment.from.id && o.Facebook_UserName?.toLowerCase() === comment.from.name.toLowerCase())
-        );
-
-        if (order) {
-          commentOrderMap.set(comment.id, order);
-          if (order.Telephone) {
-            commentPhoneMap.set(comment.id, order.Telephone);
-          }
-        }
-      }
-
-      const customersToUpsertMap = new Map<string, any>();
-
-      for (const comment of commentsNeedingProcessing) {
-        const order = commentOrderMap.get(comment.id);
-        const phone = commentPhoneMap.get(comment.id);
-        const existingCustomer = existingCustomersMap.get(comment.from.id);
-        const currentStatus = existingCustomer?.customer_status || 'Bình thường';
-        
-        const customerData = order && phone ? {
-          customer_name: order.Name,
-          phone: phone,
-          facebook_id: comment.from.id,
-          customer_status: currentStatus,
-          info_status: 'complete',
-        } : {
-          customer_name: comment.from.name,
-          phone: null,
-          facebook_id: comment.from.id,
-          customer_status: currentStatus,
-          info_status: 'incomplete',
-        };
-
-        if (customerData.facebook_id && typeof customerData.facebook_id === 'string' && customerData.facebook_id.trim() !== '') {
-          customersToUpsertMap.set(customerData.facebook_id, customerData);
+        if (order && order.Telephone) {
+            // User has an order with a phone number in this video.
+            partnerStatus = mapStatusText(existingCustomer?.customer_status || order.PartnerStatusText);
+            customerDataForUpsert = {
+                facebook_id: facebookId,
+                customer_name: order.Name || commentAuthorName,
+                phone: order.Telephone,
+                customer_status: partnerStatus,
+                info_status: 'complete',
+            };
+        } else if (existingCustomer) {
+            // User exists in our DB but has no order in this video (or order has no phone).
+            partnerStatus = mapStatusText(existingCustomer.customer_status);
+            if (!existingCustomer.phone || existingCustomer.info_status === 'incomplete') {
+                partnerStatus = 'Cần thêm TT';
+            }
+        } else {
+            // New user, no order info in this video.
+            partnerStatus = 'Khách lạ';
+            customerDataForUpsert = {
+                facebook_id: facebookId,
+                customer_name: commentAuthorName,
+                phone: null,
+                customer_status: 'Bình thường',
+                info_status: 'incomplete',
+            };
         }
 
-        newStatusMap.set(comment.from.id, {
-          partnerStatus: customerData.phone ? customerData.customer_status : 'Cần thêm TT',
-          orderInfo: order,
-          isLoadingStatus: false,
+        if (customerDataForUpsert) {
+            customersToUpsert.push(customerDataForUpsert);
+        }
+
+        // Update the local state map for the UI.
+        newStatusMap.set(facebookId, {
+            partnerStatus,
+            orderInfo: order, // Associate the user's order with all their comments.
+            isLoadingStatus: false,
         });
       }
 
-      const customersToUpsert = Array.from(customersToUpsertMap.values());
-
+      // 5. Upsert customer data to our DB.
       if (customersToUpsert.length > 0) {
         const { error: upsertError } = await supabase
-          .from("customers")
-          .upsert(customersToUpsert, { 
-            onConflict: "facebook_id",
-            ignoreDuplicates: false 
-          });
+            .from("customers")
+            .upsert(customersToUpsert, { onConflict: "facebook_id", ignoreDuplicates: false });
 
         if (upsertError) {
           toast({
@@ -420,12 +410,14 @@ export function FacebookCommentsManager() {
         }
       }
 
+      // 6. Update component state.
       customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
 
     } catch (error) {
       toast({
         title: "Lỗi khi tải thông tin khách hàng",
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
     } finally {
