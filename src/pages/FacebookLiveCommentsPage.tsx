@@ -708,8 +708,8 @@ export default function FacebookLiveCommentsPage() {
 
   const allCommentsLoaded = useMemo(() => {
     if (!selectedVideo || selectedVideo.statusLive === 1) return false;
-    return comments.length >= selectedVideo.countComment;
-  }, [comments, selectedVideo]);
+    return commentsWithStatus.length >= selectedVideo.countComment;
+  }, [commentsWithStatus, selectedVideo]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -1102,8 +1102,8 @@ export default function FacebookLiveCommentsPage() {
 
             <div className="text-sm text-muted-foreground text-center">
               {selectedVideo && selectedVideo.statusLive !== 1
-                ? `Hiển thị ${filteredComments.length} / ${selectedVideo.countComment} comments`
-                : `Hiển thị ${filteredComments.length} comments`
+                ? `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments (Tổng: ${selectedVideo.countComment})`
+                : `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments`
               }
               {isAutoRefresh && " • Auto-refresh mỗi 10s"}
             </div>
