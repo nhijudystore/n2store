@@ -373,7 +373,7 @@ export function LiveCommentsPanel({
 
                         {/* Comment Time */}
                         {comment.created_time && (
-                          <span className="text-xs text-muted-foreground flex-shrink-0">
+                          <span className="text-sm text-muted-foreground flex-shrink-0">
                             {format(new Date(comment.created_time), 'HH:mm')}
                           </span>
                         )}
