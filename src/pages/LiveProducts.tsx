@@ -42,6 +42,7 @@ import {
   MessageSquare,
   ShoppingBag
 } from "lucide-react";
+import { FacebookCommentsManager } from "@/components/facebook/FacebookCommentsManager";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
