@@ -44,7 +44,6 @@ export function FacebookCommentsManager() {
   const [pageId, setPageId] = useState("");
   const [limit, setLimit] = useState("1");
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
-  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
@@ -233,7 +232,7 @@ export function FacebookCommentsManager() {
     },
     initialPageParam: undefined,
     enabled: !!selectedVideo && !!pageId,
-    refetchInterval: isAutoRefresh && isCommentsOpen && selectedVideo?.statusLive === 1 ? 10000 : false,
+    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 10000 : false,
   });
 
   const comments = useMemo(() => {
@@ -523,7 +522,6 @@ export function FacebookCommentsManager() {
 
   const handleVideoClick = (video: FacebookVideo) => {
     setSelectedVideo(video);
-    setIsCommentsOpen(true);
     allCommentIdsRef.current = new Set();
     setNewCommentIds(new Set());
     setSearchQuery("");
@@ -589,403 +587,430 @@ export function FacebookCommentsManager() {
         </Collapsible>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Cấu hình và Videos</CardTitle>
-          <CardDescription>
-            Chọn Facebook Page từ danh sách đã thêm ở trên
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {selectedPage && selectedPage.crm_team_id && (
-            <div className="text-sm p-3 bg-muted rounded-md space-y-1">
-              <div><span className="font-medium">Page:</span> {selectedPage.page_name}</div>
-              <div><span className="font-medium">CRM Team:</span> {selectedPage.crm_team_name} ({selectedPage.crm_team_id})</div>
-            </div>
-          )}
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <Select value={pageId} onValueChange={setPageId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Chọn fanpage" />
-                </SelectTrigger>
-                <SelectContent>
-                  {facebookPages && facebookPages.length > 0 ? (
-                    facebookPages.map((page) => (
-                      <SelectItem key={page.id} value={page.page_id}>
-                        {page.page_name}
-                      </SelectItem>
-                    ))
+      <div className="grid grid-cols-12 gap-4">
+        {/* Left Column: Video List */}
+        <div className="col-span-12 lg:col-span-5 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Cấu hình và Videos</CardTitle>
+              <CardDescription>
+                Chọn Facebook Page từ danh sách đã thêm ở trên
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {selectedPage && selectedPage.crm_team_id && (
+                <div className="text-sm p-3 bg-muted rounded-md space-y-1">
+                  <div><span className="font-medium">Page:</span> {selectedPage.page_name}</div>
+                  <div><span className="font-medium">CRM Team:</span> {selectedPage.crm_team_name} ({selectedPage.crm_team_id})</div>
+                </div>
+              )}
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Select value={pageId} onValueChange={setPageId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn fanpage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {facebookPages && facebookPages.length > 0 ? (
+                        facebookPages.map((page) => (
+                          <SelectItem key={page.id} value={page.page_id}>
+                            {page.page_name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          Chưa có page nào. Thêm ở tab trên.
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-32">
+                  <Input
+                    type="number"
+                    placeholder="Limit"
+                    value={limit}
+                    onChange={(e) => setLimit(e.target.value)}
+                    min="1"
+                    max="50"
+                  />
+                </div>
+                <Button onClick={handleLoadVideos} disabled={videosLoading}>
+                  {videosLoading ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Đang tải...
+                    </>
                   ) : (
-                    <SelectItem value="none" disabled>
-                      Chưa có page nào. Thêm ở tab trên.
-                    </SelectItem>
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Tải Videos
+                    </>
                   )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-32">
-              <Input
-                type="number"
-                placeholder="Limit"
-                value={limit}
-                onChange={(e) => setLimit(e.target.value)}
-                min="1"
-                max="50"
-              />
-            </div>
-            <Button onClick={handleLoadVideos} disabled={videosLoading}>
-              {videosLoading ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Đang tải...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Tải Videos
-                </>
+                </Button>
+              </div>
+
+              {videos.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <Video className="mx-auto h-8 w-8 mb-2 text-primary" />
+                        <div className="text-2xl font-bold">{stats.totalVideos}</div>
+                        <div className="text-sm text-muted-foreground">Videos</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <Badge variant="destructive" className="mb-2">LIVE</Badge>
+                        <div className="text-2xl font-bold">{stats.liveVideos}</div>
+                        <div className="text-sm text-muted-foreground">Đang Live</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <MessageCircle className="mx-auto h-8 w-8 mb-2 text-blue-500" />
+                        <div className="text-2xl font-bold">{(stats.totalComments || 0).toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Comments</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="text-center">
+                        <Heart className="mx-auto h-8 w-8 mb-2 text-red-500" />
+                        <div className="text-2xl font-bold">{(stats.totalReactions || 0).toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Reactions</div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
-            </Button>
-          </div>
+            </CardContent>
+          </Card>
 
           {videos.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <Video className="mx-auto h-8 w-8 mb-2 text-primary" />
-                    <div className="text-2xl font-bold">{stats.totalVideos}</div>
-                    <div className="text-sm text-muted-foreground">Videos</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <Badge variant="destructive" className="mb-2">LIVE</Badge>
-                    <div className="text-2xl font-bold">{stats.liveVideos}</div>
-                    <div className="text-sm text-muted-foreground">Đang Live</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <MessageCircle className="mx-auto h-8 w-8 mb-2 text-blue-500" />
-                    <div className="text-2xl font-bold">{(stats.totalComments || 0).toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Comments</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <Heart className="mx-auto h-8 w-8 mb-2 text-red-500" />
-                    <div className="text-2xl font-bold">{(stats.totalReactions || 0).toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Reactions</div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {videos.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {videos.map((video) => (
-                <Card
-                  key={video.objectId}
-                  className="cursor-pointer hover:shadow-lg transition-all overflow-hidden"
-                  onClick={() => handleVideoClick(video)}
-                >
-                  <div className="relative aspect-video bg-muted">
-                    {video.thumbnail?.url ? (
-                      <img
-                        src={video.thumbnail.url}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Video className="h-12 w-12 text-muted-foreground opacity-30" />
-                      </div>
-                    )}
-                    {video.statusLive === 1 && (
-                      <Badge variant="destructive" className="absolute top-2 right-2">
-                        🔴 LIVE
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base line-clamp-2">
-                      {video.title}
-                    </CardTitle>
-                    <CardDescription className="text-xs">
-                      {video.channelCreatedTime ? format(new Date(video.channelCreatedTime), 'dd/MM/yyyy HH:mm') : 'N/A'}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-4 text-sm">
-                      <div className="flex items-center gap-1">
-                        <MessageCircle className="h-4 w-4" />
-                        <span>{(video.countComment || 0).toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart className="h-4 w-4" />
-                        <span>{(video.countReaction || 0).toLocaleString()}</span>
-                      </div>
+            <ScrollArea className="h-[600px]">
+              <div className="space-y-4 pr-4">
+                {videos.map((video) => (
+                  <Card
+                    key={video.objectId}
+                    className={`cursor-pointer hover:shadow-lg transition-all overflow-hidden ${
+                      selectedVideo?.objectId === video.objectId ? 'border-primary border-2' : ''
+                    }`}
+                    onClick={() => handleVideoClick(video)}
+                  >
+                    <div className="relative aspect-video bg-muted">
+                      {video.thumbnail?.url ? (
+                        <img
+                          src={video.thumbnail.url}
+                          alt={video.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Video className="h-12 w-12 text-muted-foreground opacity-30" />
+                        </div>
+                      )}
+                      {video.statusLive === 1 && (
+                        <Badge variant="destructive" className="absolute top-2 right-2">
+                          🔴 LIVE
+                        </Badge>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Comments Dialog */}
-      <Dialog open={isCommentsOpen} onOpenChange={setIsCommentsOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
-              <span className="line-clamp-1">{selectedVideo?.title}</span>
-              {selectedVideo?.statusLive === 1 && (
-                <Badge variant="destructive">LIVE</Badge>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              Xem và theo dõi comments từ video live
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsAutoRefresh(!isAutoRefresh)}
-              >
-                {isAutoRefresh ? (
-                  <>
-                    <Pause className="mr-2 h-4 w-4" />
-                    Pause
-                  </>
-                ) : (
-                  <>
-                    <Play className="mr-2 h-4 w-4" />
-                    Resume
-                  </>
-                )}
-              </Button>
-              <Button variant="outline" size="sm" onClick={() => refetchComments()}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Refresh
-              </Button>
-              {newCommentIds.size > 0 && (
-                <Badge variant="default" className="ml-auto">
-                  {newCommentIds.size} mới
-                </Badge>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Tìm kiếm comments..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox id="show-only-with-orders" checked={showOnlyWithOrders} onCheckedChange={(checked) => setShowOnlyWithOrders(checked as boolean)} />
-                <Label htmlFor="show-only-with-orders" className="text-sm font-medium whitespace-nowrap">
-                  Chỉ hiển thị comment có đơn
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="hide-page-comments" 
-                  checked={hideNames.includes("Nhi Judy House")} 
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setHideNames(["Nhi Judy House"]);
-                    } else {
-                      setHideNames([]);
-                    }
-                  }} 
-                />
-                <Label htmlFor="hide-page-comments" className="text-sm font-medium whitespace-nowrap">
-                  Ẩn "Nhi Judy House"
-                </Label>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                Hiển thị {filteredComments.length} / {commentsWithStatus.length} comments
-              </div>
-            </div>
-
-            <ScrollArea className="h-[400px] pr-4" ref={scrollRef}>
-              <div className="space-y-4">
-                {commentsLoading && comments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-                  </div>
-                ) : filteredComments.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    {searchQuery ? "Không tìm thấy comment nào" : "Chưa có comment"}
-                  </div>
-                ) : (
-                  filteredComments.map((comment) => {
-                    const isNew = newCommentIds.has(comment.id);
-                    const status = comment.partnerStatus || 'Khách lạ';
-                    const isWarning = status.toLowerCase().includes('cảnh báo') || status.toLowerCase().includes('warning');
                     
-                    return (
-                      <Card
-                        key={comment.id}
-                        className={isNew ? "border-primary bg-primary/5 animate-in fade-in slide-in-from-bottom-2" : ""}
-                      >
-                        <CardContent className="pt-4">
-                          <div className="flex items-start gap-3">
-                            <div className="relative flex-shrink-0">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold">
-                                {comment.from?.name?.charAt(0) || '?'}
-                              </div>
-                              {comment.orderInfo?.SessionIndex && (
-                                <Badge 
-                                  variant="destructive" 
-                                  className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-semibold"
-                                >
-                                  {comment.orderInfo.SessionIndex}
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm">{comment.from?.name}</span>
-                                {comment.orderInfo?.Code && (
-                                  <Badge variant="secondary" className="text-xs font-mono bg-gray-600 text-white">
-                                    #{comment.orderInfo.SessionIndex}. {comment.orderInfo.Code}
-                                  </Badge>
-                                )}
-                                {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && comment.partnerStatus !== 'Cần thêm TT' && (
-                                  <Badge 
-                                    variant={
-                                      comment.partnerStatus === 'Bình thường' || comment.partnerStatus === 'Thân thiết' || comment.partnerStatus === 'Vip' || comment.partnerStatus === 'VIP' ? 'default' :
-                                      comment.partnerStatus === 'Cảnh báo' ? 'secondary' :
-                                      'destructive'
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {comment.partnerStatus}
-                                  </Badge>
-                                )}
-                                {comment.orderInfo?.Telephone ? (
-                                  <Badge variant="outline" className="text-xs">
-                                    {comment.orderInfo.Telephone}
-                                  </Badge>
-                                ) : comment.partnerStatus === 'Cần thêm TT' ? (
-                                  <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-700">
-                                    Cần thêm TT
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="text-xs bg-orange-500/20 text-orange-700">
-                                    Chưa có TT
-                                  </Badge>
-                                )}
-                                {isNew && (
-                                  <Badge variant="default" className="text-xs">✨ MỚI</Badge>
-                                )}
-                                <span className="text-xs text-muted-foreground ml-auto">
-                                  {comment.created_time ? format(new Date(comment.created_time), 'dd/MM/yyyy HH:mm') : 'N/A'}
-                                </span>
-                              </div>
-                              
-                              <p className="text-sm mt-1.5 break-words">{comment.message}</p>
-                              
-                              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <Button 
-                                  size="sm" 
-                                  className="h-7 text-xs"
-                                  onClick={() => handleCreateOrderClick(comment)}
-                                  disabled={(createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id)}
-                                >
-                                  {createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : null}
-                                  Tạo đơn hàng
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="h-7 text-xs"
-                                  onClick={() => handleShowInfo(comment.orderInfo)}
-                                >
-                                  Thông tin
-                                </Button>
-                                <Badge 
-                                  variant="secondary"
-                                  className={isWarning
-                                    ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                                    : 'bg-gray-500 hover:bg-gray-600 text-white'
-                                  }
-                                >
-                                  {comment.isLoadingStatus ? (
-                                    <>
-                                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                      Đang tải...
-                                    </>
-                                  ) : status}
-                                </Badge>
-                                {comment.like_count > 0 && (
-                                  <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
-                                    <Heart className="h-3 w-3" />
-                                    {comment.like_count}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-                )}
-                {allCommentsLoaded ? (
-                  <div className="text-center py-4 text-sm text-muted-foreground">
-                    Đã tải tất cả bình luận.
-                  </div>
-                ) : hasNextPage && (
-                  <div className="text-center py-4">
-                    <Button
-                      onClick={() => fetchNextPage()}
-                      disabled={isFetchingNextPage}
-                      variant="outline"
-                    >
-                      {isFetchingNextPage ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      Tải thêm bình luận
-                    </Button>
-                  </div>
-                )}
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base line-clamp-2">
+                        {video.title}
+                      </CardTitle>
+                      <CardDescription className="text-xs">
+                        {video.channelCreatedTime ? format(new Date(video.channelCreatedTime), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-4 text-sm">
+                        <div className="flex items-center gap-1">
+                          <MessageCircle className="h-4 w-4" />
+                          <span>{(video.countComment || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4" />
+                          <span>{(video.countReaction || 0).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             </ScrollArea>
+          )}
+        </div>
 
-            <div className="text-sm text-muted-foreground text-center">
-              {selectedVideo && selectedVideo.statusLive !== 1
-                ? `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments (Tổng: ${selectedVideo.countComment})`
-                : `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments`
-              }
-              {isAutoRefresh && " • Auto-refresh mỗi 10s"}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        {/* Right Column: Comments Panel */}
+        <div className="col-span-12 lg:col-span-7">
+          {selectedVideo ? (
+            <Card className="h-full">
+              <CardHeader className="border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <CardTitle className="line-clamp-1">{selectedVideo.title}</CardTitle>
+                    <CardDescription>
+                      Xem và theo dõi comments từ video
+                    </CardDescription>
+                  </div>
+                  {selectedVideo.statusLive === 1 && (
+                    <Badge variant="destructive" className="ml-2">🔴 LIVE</Badge>
+                  )}
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+                  >
+                    {isAutoRefresh ? (
+                      <>
+                        <Pause className="mr-2 h-4 w-4" />
+                        Pause
+                      </>
+                    ) : (
+                      <>
+                        <Play className="mr-2 h-4 w-4" />
+                        Resume
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => refetchComments()}>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Refresh
+                  </Button>
+                  {newCommentIds.size > 0 && (
+                    <Badge variant="default" className="ml-auto">
+                      {newCommentIds.size} mới
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Tìm kiếm comments..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox id="show-only-with-orders" checked={showOnlyWithOrders} onCheckedChange={(checked) => setShowOnlyWithOrders(checked as boolean)} />
+                      <Label htmlFor="show-only-with-orders" className="text-sm font-medium whitespace-nowrap">
+                        Chỉ hiển thị comment có đơn
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="hide-page-comments" 
+                        checked={hideNames.includes("Nhi Judy House")} 
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setHideNames(["Nhi Judy House"]);
+                          } else {
+                            setHideNames([]);
+                          }
+                        }} 
+                      />
+                      <Label htmlFor="hide-page-comments" className="text-sm font-medium whitespace-nowrap">
+                        Ẩn "Nhi Judy House"
+                      </Label>
+                    </div>
+                    <div className="text-sm text-muted-foreground ml-auto">
+                      Hiển thị {filteredComments.length} / {commentsWithStatus.length} comments
+                    </div>
+                  </div>
+                </div>
+
+                <ScrollArea className="h-[500px] pr-4" ref={scrollRef}>
+                  <div className="space-y-4">
+                    {commentsLoading && comments.length === 0 ? (
+                      <div className="text-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+                      </div>
+                    ) : filteredComments.length === 0 ? (
+                      <div className="text-center text-muted-foreground py-8">
+                        {searchQuery ? "Không tìm thấy comment nào" : "Chưa có comment"}
+                      </div>
+                    ) : (
+                      filteredComments.map((comment) => {
+                        const isNew = newCommentIds.has(comment.id);
+                        const status = comment.partnerStatus || 'Khách lạ';
+                        const isWarning = status.toLowerCase().includes('cảnh báo') || status.toLowerCase().includes('warning');
+                        
+                        return (
+                          <Card
+                            key={comment.id}
+                            className={isNew ? "border-primary bg-primary/5 animate-in fade-in slide-in-from-bottom-2" : ""}
+                          >
+                            <CardContent className="pt-4">
+                              <div className="flex items-start gap-3">
+                                <div className="relative flex-shrink-0">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-white font-bold">
+                                    {comment.from?.name?.charAt(0) || '?'}
+                                  </div>
+                                  {comment.orderInfo?.SessionIndex && (
+                                    <Badge 
+                                      variant="destructive" 
+                                      className="absolute -bottom-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-[10px] font-semibold"
+                                    >
+                                      {comment.orderInfo.SessionIndex}
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-sm">{comment.from?.name}</span>
+                                    {comment.orderInfo?.Code && (
+                                      <Badge variant="secondary" className="text-xs font-mono bg-gray-600 text-white">
+                                        #{comment.orderInfo.SessionIndex}. {comment.orderInfo.Code}
+                                      </Badge>
+                                    )}
+                                    {comment.partnerStatus && comment.partnerStatus !== 'Khách lạ' && comment.partnerStatus !== 'Cần thêm TT' && (
+                                      <Badge 
+                                        variant={
+                                          comment.partnerStatus === 'Bình thường' || comment.partnerStatus === 'Thân thiết' || comment.partnerStatus === 'Vip' || comment.partnerStatus === 'VIP' ? 'default' :
+                                          comment.partnerStatus === 'Cảnh báo' ? 'secondary' :
+                                          'destructive'
+                                        }
+                                        className="text-xs"
+                                      >
+                                        {comment.partnerStatus}
+                                      </Badge>
+                                    )}
+                                    {comment.orderInfo?.Telephone ? (
+                                      <Badge variant="outline" className="text-xs">
+                                        {comment.orderInfo.Telephone}
+                                      </Badge>
+                                    ) : comment.partnerStatus === 'Cần thêm TT' ? (
+                                      <Badge variant="secondary" className="text-xs bg-red-500/20 text-red-700">
+                                        Cần thêm TT
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs bg-orange-500/20 text-orange-700">
+                                        Chưa có TT
+                                      </Badge>
+                                    )}
+                                    {isNew && (
+                                      <Badge variant="default" className="text-xs">✨ MỚI</Badge>
+                                    )}
+                                    <span className="text-xs text-muted-foreground ml-auto">
+                                      {comment.created_time ? format(new Date(comment.created_time), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                                    </span>
+                                  </div>
+                                  
+                                  <p className="text-sm mt-1.5 break-words">{comment.message}</p>
+                                  
+                                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                    <Button 
+                                      size="sm" 
+                                      className="h-7 text-xs"
+                                      onClick={() => handleCreateOrderClick(comment)}
+                                      disabled={(createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id)}
+                                    >
+                                      {createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : null}
+                                      Tạo đơn hàng
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline" 
+                                      className="h-7 text-xs"
+                                      onClick={() => handleShowInfo(comment.orderInfo)}
+                                    >
+                                      Thông tin
+                                    </Button>
+                                    <Badge 
+                                      variant="secondary"
+                                      className={isWarning
+                                        ? 'bg-orange-500 hover:bg-orange-600 text-white' 
+                                        : 'bg-gray-500 hover:bg-gray-600 text-white'
+                                      }
+                                    >
+                                      {comment.isLoadingStatus ? (
+                                        <>
+                                          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                          Đang tải...
+                                        </>
+                                      ) : status}
+                                    </Badge>
+                                    {comment.like_count > 0 && (
+                                      <span className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
+                                        <Heart className="h-3 w-3" />
+                                        {comment.like_count}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                    {allCommentsLoaded ? (
+                      <div className="text-center py-4 text-sm text-muted-foreground">
+                        Đã tải tất cả bình luận.
+                      </div>
+                    ) : hasNextPage && (
+                      <div className="text-center py-4">
+                        <Button
+                          onClick={() => fetchNextPage()}
+                          disabled={isFetchingNextPage}
+                          variant="outline"
+                        >
+                          {isFetchingNextPage ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : null}
+                          Tải thêm bình luận
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+
+                <div className="text-sm text-muted-foreground text-center pt-2 border-t">
+                  {selectedVideo && selectedVideo.statusLive !== 1
+                    ? `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments (Tổng: ${selectedVideo.countComment})`
+                    : `Hiển thị ${filteredComments.length} / ${commentsWithStatus.length} comments`
+                  }
+                  {isAutoRefresh && " • Auto-refresh mỗi 10s"}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="h-full">
+              <CardContent className="h-[700px] flex flex-col items-center justify-center">
+                <MessageCircle className="h-16 w-16 text-muted-foreground/30 mb-4" />
+                <p className="text-lg font-medium text-muted-foreground">
+                  Chọn video để xem comments
+                </p>
+                <p className="text-sm text-muted-foreground/70 mt-2">
+                  Click vào một video bên trái để bắt đầu
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* Order Info Dialog */}
       <Dialog open={isInfoDialogOpen} onOpenChange={setIsInfoDialogOpen}>

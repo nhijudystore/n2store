@@ -1439,7 +1439,7 @@ export default function LiveProducts() {
                 </TabsTrigger>
                 <TabsTrigger value="test-comment" className="flex items-center gap-2">
                   <MessageSquare className="h-4 w-4" />
-                  Test Tính Năng Comment
+                  Livestream Comment
                 </TabsTrigger>
               </TabsList>
 
