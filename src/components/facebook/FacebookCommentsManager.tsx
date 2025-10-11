@@ -41,7 +41,7 @@ function debounce<T extends (...args: any[]) => any>(
 
 export function FacebookCommentsManager() {
   const queryClient = useQueryClient();
-  const [pageId, setPageId] = useState("117267091364524");
+  const [pageId, setPageId] = useState("");
   const [limit, setLimit] = useState("1");
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -70,6 +70,23 @@ export function FacebookCommentsManager() {
 
   // New state for confirmation dialog
   const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
+
+  // Fetch Facebook pages from database
+  const { data: facebookPages } = useQuery({
+    queryKey: ["facebook-pages"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("facebook_pages")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Get selected page details based on current pageId
+  const selectedPage = facebookPages?.find((p) => p.page_id === pageId);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -616,10 +633,16 @@ export function FacebookCommentsManager() {
         <CardHeader>
           <CardTitle>Cấu hình và Videos</CardTitle>
           <CardDescription>
-            Nhập Facebook Page ID để tải danh sách các video live
+            Chọn Facebook Page từ danh sách đã thêm ở trên
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {selectedPage && selectedPage.crm_team_id && (
+            <div className="text-sm p-3 bg-muted rounded-md space-y-1">
+              <div><span className="font-medium">Page:</span> {selectedPage.page_name}</div>
+              <div><span className="font-medium">CRM Team:</span> {selectedPage.crm_team_name} ({selectedPage.crm_team_id})</div>
+            </div>
+          )}
           <div className="flex gap-4">
             <div className="flex-1">
               <Select value={pageId} onValueChange={setPageId}>
@@ -627,12 +650,17 @@ export function FacebookCommentsManager() {
                   <SelectValue placeholder="Chọn fanpage" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="117267091364524">
-                    Fanpage NhiJudyHouse
-                  </SelectItem>
-                  <SelectItem value="193642490509664">
-                    Fanpage NhiJudy Nè
-                  </SelectItem>
+                  {facebookPages && facebookPages.length > 0 ? (
+                    facebookPages.map((page) => (
+                      <SelectItem key={page.id} value={page.page_id}>
+                        {page.page_name}
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="none" disabled>
+                      Chưa có page nào. Thêm ở tab trên.
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
