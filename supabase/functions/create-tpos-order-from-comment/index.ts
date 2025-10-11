@@ -46,6 +46,21 @@ serve(async (req) => {
 
     const tposUrl = "https://tomato.tpos.vn/odata/SaleOnline_Order?IsIncrease=True&$expand=Details,User,Partner($expand=Addresses)";
 
+    // Clean comment object - chỉ giữ fields TPOS API cần
+    const cleanComment = {
+      id: comment.id,
+      message: comment.message,
+      from: {
+        id: comment.from.id,
+        name: comment.from.name
+      },
+      is_hidden: comment.is_hidden,
+      can_hide: comment.can_hide,
+      can_remove: comment.can_remove,
+      created_time: comment.created_time,
+      object: comment.object
+    };
+
     payload = {
       "CRMTeamId": 10037,
       "LiveCampaignId": "baaa4adc-07ea-d7eb-5ca9-3a1cbf08eef0", // This seems static
@@ -57,7 +72,7 @@ serve(async (req) => {
       "PartnerName": comment.from.name,
       "Details": [],
       "TotalAmount": 0,
-      "Facebook_Comments": [comment],
+      "Facebook_Comments": [cleanComment],
       "WarehouseId": 1,
       "CompanyId": 1,
       "TotalQuantity": 0,
