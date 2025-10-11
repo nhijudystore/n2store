@@ -106,6 +106,47 @@ async function getCRMTeamId(
   }
 }
 
+async function createLiveCampaign(
+  postId: string,
+  teamId: string,
+  bearerToken: string
+): Promise<string> {
+  try {
+    console.log('Creating LiveCampaign for post:', postId, 'TeamId:', teamId);
+    
+    const response = await fetch(
+      "https://tomato.tpos.vn/rest/v1.0/facebookpost/save_posts",
+      {
+        method: "POST",
+        headers: getTPOSHeaders(bearerToken),
+        body: JSON.stringify({
+          PostIds: [postId],
+          TeamId: parseInt(teamId, 10),
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to create LiveCampaign:', response.status, errorText);
+      throw new Error(`Failed to create LiveCampaign: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log("Create LiveCampaign response:", JSON.stringify(data, null, 2));
+
+    if (Array.isArray(data) && data.length > 0 && data[0].LiveCampaignId) {
+      console.log('Created LiveCampaignId:', data[0].LiveCampaignId);
+      return data[0].LiveCampaignId;
+    }
+
+    throw new Error(`Failed to get LiveCampaignId from create response`);
+  } catch (error) {
+    console.error('Error creating LiveCampaign:', error);
+    throw error;
+  }
+}
+
 async function fetchLiveCampaignId(
   postId: string,
   teamId: string,
@@ -136,11 +177,13 @@ async function fetchLiveCampaignId(
     console.log("LiveCampaign API response:", JSON.stringify(data, null, 2));
 
     if (Array.isArray(data) && data.length > 0 && data[0].LiveCampaignId) {
-      console.log('Found LiveCampaignId:', data[0].LiveCampaignId);
+      console.log('Found existing LiveCampaignId:', data[0].LiveCampaignId);
       return data[0].LiveCampaignId;
     }
 
-    throw new Error(`LiveCampaignId not found for post: ${postId}`);
+    // Nếu chưa có LiveCampaign, tạo mới
+    console.log('LiveCampaign not found, creating new one...');
+    return await createLiveCampaign(postId, teamId, bearerToken);
   } catch (error) {
     console.error('Error fetching LiveCampaignId:', error);
     throw error;
