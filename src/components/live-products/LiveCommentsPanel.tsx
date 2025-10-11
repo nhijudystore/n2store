@@ -386,15 +386,11 @@ export function LiveCommentsPanel({
                   <div className="flex gap-1.5">
                     <Button
                       size="sm"
-                      className={`h-8 text-xs flex-1 text-white ${
-                        comment.orderInfo 
-                          ? 'bg-green-500 hover:bg-green-600' 
-                          : 'bg-blue-500 hover:bg-blue-600'
-                      }`}
+                      className="h-8 text-xs flex-1 bg-blue-500 hover:bg-blue-600 text-white"
                       onClick={() => handleCreateOrderClick(comment)}
                       disabled={createOrderMutation.isPending}
                     >
-                      {comment.orderInfo ? 'Đã tạo đơn' : 'Tạo đơn hàng'}
+                      Tạo đơn hàng
                     </Button>
                     <Button
                       variant="outline"
