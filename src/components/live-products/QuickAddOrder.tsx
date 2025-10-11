@@ -283,7 +283,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                   {flatOrders.map((order) => (
                     <CommandItem
                       key={order.id}
-                      value={`${order.session_index}-${order.comment || ''}`}
+                      value={`${order.session_index}-${order.name || ''}-${order.comment || ''}`}
                       onSelect={() => {
                         if (order.facebook_comment_id) {
                           handleSelectComment(order.session_index!, order.facebook_comment_id);
@@ -293,7 +293,9 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                       className="cursor-pointer"
                     >
                       <span className="font-medium">{order.session_index}</span>
-                      <span className="mx-2">-</span>
+                      <span className="mx-1">-</span>
+                      <span className="font-medium truncate">{order.name || '(không có tên)'}</span>
+                      <span className="mx-1">-</span>
                       <span className="flex-1 truncate text-muted-foreground">
                         {order.comment || '(không có comment)'}
                       </span>
