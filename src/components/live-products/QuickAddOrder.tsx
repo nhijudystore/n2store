@@ -201,33 +201,40 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                         <HoverCardTrigger asChild>
                           <CommandItem
                             value={sessionIndex}
-                            className="cursor-default"
+                            className="cursor-default hover:bg-accent/50 font-medium"
                           >
-                            {sessionIndex}
+                            <span className="text-base">{sessionIndex}</span>
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              ({orders.length} comment{orders.length > 1 ? 's' : ''})
+                            </span>
                           </CommandItem>
                         </HoverCardTrigger>
-                        <HoverCardContent className="w-80" side="right">
-                          <div className="space-y-2">
-                            <h4 className="text-sm font-semibold">Comments ({orders.length})</h4>
-                            <ScrollArea className="h-[200px]">
-                              <div className="space-y-2">
-                                {orders.map((order) => (
-                                  <div 
-                                    key={order.id} 
-                                    className="text-xs border-b pb-2 last:border-0 cursor-pointer hover:bg-accent p-2 rounded"
-                                    onClick={() => {
-                                      handleSelectComment(sessionIndex);
-                                      setOpen(false);
-                                    }}
-                                  >
-                                    {order.comment && (
-                                      <p className="text-muted-foreground">{order.comment}</p>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            </ScrollArea>
+                        <HoverCardContent className="w-96 p-0" side="right" sideOffset={10}>
+                          <div className="border-b bg-muted/50 px-4 py-3">
+                            <h4 className="text-sm font-semibold">
+                              Chọn comment để thêm đơn ({orders.length})
+                            </h4>
                           </div>
+                          <ScrollArea className="max-h-[300px]">
+                            <div className="p-2">
+                              {orders.map((order) => (
+                                <div 
+                                  key={order.id} 
+                                  className="mb-2 cursor-pointer rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent hover:shadow-sm"
+                                  onClick={() => {
+                                    handleSelectComment(sessionIndex);
+                                    setOpen(false);
+                                  }}
+                                >
+                                  {order.comment ? (
+                                    <p className="text-foreground leading-relaxed">{order.comment}</p>
+                                  ) : (
+                                    <p className="text-muted-foreground italic">Không có comment</p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
                         </HoverCardContent>
                       </HoverCard>
                     );
