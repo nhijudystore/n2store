@@ -362,10 +362,10 @@ export function LiveCommentsPanel({
                           {comment.from.name}
                         </span>
                         
-                        {/* Order Code Badge */}
-                        {comment.orderInfo && (
+                        {/* Phone Number Badge */}
+                        {comment.orderInfo?.Telephone && (
                           <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
-                            #{comment.orderInfo.Code?.split('.').pop() || comment.orderInfo.Code}
+                            {comment.orderInfo.Telephone}
                           </Badge>
                         )}
                         
@@ -374,13 +374,6 @@ export function LiveCommentsPanel({
                           {comment.partnerStatus}
                         </Badge>
                       </div>
-
-                      {/* Phone Number */}
-                      {comment.orderInfo?.Telephone && (
-                        <div className="text-xs text-muted-foreground mb-1">
-                          {comment.orderInfo.Telephone}
-                        </div>
-                      )}
 
                       {/* Comment Message */}
                       <p className="text-xs text-foreground break-words">
