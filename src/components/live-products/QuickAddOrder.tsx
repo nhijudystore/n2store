@@ -188,87 +188,41 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         });
         
         // Trigger print
-        const printWindow = window.open('', '_blank', 'width=300,height=600');
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
         if (printWindow) {
           printWindow.document.write(`
             <!DOCTYPE html>
             <html>
               <head>
                 <title>Bill #${billData.sessionIndex}</title>
-                <meta charset="UTF-8">
                 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 <style>
-                  @page {
-                    size: 80mm auto;
-                    margin: 0;
-                  }
-                  * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                  }
                   body { 
-                    font-family: 'Courier New', monospace; 
-                    width: 80mm;
-                    padding: 8mm 4mm;
+                    font-family: monospace; 
+                    margin: 0; 
+                    padding: 20px;
                     text-align: center;
-                    font-size: 11pt;
-                    line-height: 1.4;
-                  }
-                  .bill-header {
-                    font-size: 13pt;
-                    font-weight: bold;
-                    margin-bottom: 8px;
-                    line-height: 1.3;
-                  }
-                  .customer-name {
-                    font-size: 12pt;
-                    font-weight: bold;
-                    margin-bottom: 6px;
-                    word-wrap: break-word;
-                  }
-                  .product-info {
-                    font-size: 10pt;
-                    margin-bottom: 6px;
-                    word-wrap: break-word;
-                    line-height: 1.3;
-                  }
-                  .comment {
-                    font-style: italic;
-                    margin-bottom: 8px;
-                    font-size: 10pt;
-                  }
-                  .barcode-container {
-                    margin: 12px 0;
-                    display: flex;
-                    justify-content: center;
-                  }
-                  .timestamp {
-                    font-size: 9pt;
-                    margin-top: 8px;
                   }
                   @media print {
-                    body { 
-                      padding: 4mm 2mm;
-                    }
+                    body { margin: 0; padding: 10px; }
                   }
                 </style>
               </head>
               <body>
-                <div class="bill-header">
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
                   #${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}
                 </div>
-                <div class="customer-name">${billData.customerName}</div>
-                <div class="product-info">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
-                ${billData.comment ? `<div class="comment">${billData.comment}</div>` : ''}
-                <div class="barcode-container">
+                <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
+                <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+                ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
+                <div style="margin: 10px 0;">
                   <svg id="barcode"></svg>
                 </div>
-                <div class="timestamp">${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}</div>
+                <div style="font-size: 12px; color: #666; margin-top: 10px;">${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}</div>
                 <script>
                   JsBarcode("#barcode", "${billData.productCode}", {
-                    width: 2,
-                    height: 50,
+                    width: 1.5,
+                    height: 40,
                     displayValue: false,
                     margin: 0,
                     background: "transparent"
