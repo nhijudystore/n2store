@@ -726,6 +726,7 @@ export type Database = {
           invoice_number: string | null
           notes: string | null
           order_date: string
+          shipping_fee: number | null
           status: string
           supplier_id: string | null
           supplier_name: string | null
@@ -742,6 +743,7 @@ export type Database = {
           invoice_number?: string | null
           notes?: string | null
           order_date?: string
+          shipping_fee?: number | null
           status?: string
           supplier_id?: string | null
           supplier_name?: string | null
@@ -758,6 +760,7 @@ export type Database = {
           invoice_number?: string | null
           notes?: string | null
           order_date?: string
+          shipping_fee?: number | null
           status?: string
           supplier_id?: string | null
           supplier_name?: string | null

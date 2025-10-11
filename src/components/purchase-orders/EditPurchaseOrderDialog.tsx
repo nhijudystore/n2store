@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantDropdownSelector } from "./VariantDropdownSelector";
@@ -92,6 +92,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   const [invoiceImages, setInvoiceImages] = useState<string[]>([]);
   const [invoiceAmount, setInvoiceAmount] = useState<number>(0);
   const [discountAmount, setDiscountAmount] = useState<number>(0);
+  const [shippingFee, setShippingFee] = useState<number>(0);
+  const [showShippingFee, setShowShippingFee] = useState(false);
   const [items, setItems] = useState<PurchaseOrderItem[]>([
     { 
       product_id: null,
@@ -172,6 +174,9 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       setInvoiceImages(order.invoice_images || []);
       setInvoiceAmount(order.total_amount ? order.total_amount / 1000 : 0);
       setDiscountAmount(order.discount_amount ? order.discount_amount / 1000 : 0);
+      const orderShippingFee = (order as any).shipping_fee ? (order as any).shipping_fee / 1000 : 0;
+      setShippingFee(orderShippingFee);
+      setShowShippingFee(orderShippingFee > 0);
     }
   }, [order, open]);
 
@@ -220,6 +225,8 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
     setInvoiceImages([]);
     setInvoiceAmount(0);
     setDiscountAmount(0);
+    setShippingFee(0);
+    setShowShippingFee(false);
     setItems([{
       product_id: null,
       quantity: 1,
@@ -426,7 +433,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
       }
 
       const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0) * 1000;
-      const finalAmount = totalAmount - (discountAmount * 1000);
+      const finalAmount = totalAmount - (discountAmount * 1000) + (shippingFee * 1000);
 
       // Step 1: Create/update products first
       const productIds: (string | null)[] = [];
@@ -497,6 +504,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
           invoice_images: invoiceImages.length > 0 ? invoiceImages : null,
           total_amount: totalAmount,
           discount_amount: discountAmount * 1000,
+          shipping_fee: shippingFee * 1000,
           final_amount: finalAmount,
         })
         .eq("id", order.id);
@@ -617,7 +625,7 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
   };
 
   const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0);
-  const finalAmount = totalAmount - discountAmount;
+  const finalAmount = totalAmount - discountAmount + shippingFee;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -911,6 +919,51 @@ export function EditPurchaseOrderDialog({ order, open, onOpenChange }: EditPurch
                   onChange={(e) => setDiscountAmount(parseNumberInput(e.target.value))}
                 />
               </div>
+              
+              {!showShippingFee ? (
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowShippingFee(true)}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Truck className="w-4 h-4" />
+                    Thêm tiền ship
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">Tiền ship:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      className="w-40 text-right"
+                      placeholder="0"
+                      value={shippingFee || ""}
+                      onChange={(e) => setShippingFee(parseNumberInput(e.target.value))}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setShowShippingFee(false);
+                        setShippingFee(0);
+                      }}
+                      className="h-8 w-8"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-between items-center text-lg font-bold">
                 <span>Thành tiền:</span>
                 <span>{formatVND(finalAmount * 1000)}</span>

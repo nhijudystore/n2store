@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles } from "lucide-react";
+import { Plus, X, Copy, Calendar, Warehouse, RotateCcw, Sparkles, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ImageUploadCell } from "./ImageUploadCell";
 import { VariantDropdownSelector } from "./VariantDropdownSelector";
@@ -64,8 +64,11 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
     notes: "",
     invoice_images: [] as string[],
     invoice_amount: 0,
-    discount_amount: 0
+    discount_amount: 0,
+    shipping_fee: 0
   });
+
+  const [showShippingFee, setShowShippingFee] = useState(false);
 
   const [items, setItems] = useState<PurchaseOrderItem[]>([
     { 
@@ -127,7 +130,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
       const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0) * 1000;
       const discountAmount = formData.discount_amount * 1000;
-      const finalAmount = totalAmount - discountAmount;
+      const shippingFee = formData.shipping_fee * 1000;
+      const finalAmount = totalAmount - discountAmount + shippingFee;
 
       // Step 1: Create/update products and collect product_ids
       const productIds: string[] = [];
@@ -188,6 +192,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
           total_amount: totalAmount,
           final_amount: finalAmount,
           discount_amount: discountAmount,
+          shipping_fee: shippingFee,
           invoice_images: formData.invoice_images.length > 0 ? formData.invoice_images : null,
           notes: formData.notes.trim().toUpperCase()
         })
@@ -242,8 +247,10 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       notes: "",
       invoice_images: [],
       invoice_amount: 0,
-      discount_amount: 0
+      discount_amount: 0,
+      shipping_fee: 0
     });
+    setShowShippingFee(false);
     setItems([
       { 
         product_id: null,
@@ -465,7 +472,7 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
 
 
   const totalAmount = items.reduce((sum, item) => sum + item._tempTotalPrice, 0);
-  const finalAmount = totalAmount - formData.discount_amount;
+  const finalAmount = totalAmount - formData.discount_amount + formData.shipping_fee;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -762,6 +769,54 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
                   })}
                 />
               </div>
+              
+              {!showShippingFee ? (
+                <div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowShippingFee(true)}
+                    className="gap-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Truck className="w-4 h-4" />
+                    Thêm tiền ship
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Truck className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium">Tiền ship:</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      className="w-40 text-right"
+                      placeholder="0"
+                      value={formData.shipping_fee || ""}
+                      onChange={(e) => setFormData({
+                        ...formData,
+                        shipping_fee: parseNumberInput(e.target.value)
+                      })}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setShowShippingFee(false);
+                        setFormData({ ...formData, shipping_fee: 0 });
+                      }}
+                      className="h-8 w-8"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-between items-center text-lg font-bold">
                 <span>Thành tiền:</span>
                 <span>{formatVND(finalAmount * 1000)}</span>
