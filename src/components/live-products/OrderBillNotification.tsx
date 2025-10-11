@@ -30,7 +30,7 @@ export function OrderBillNotification({
   const formattedTime = format(zonedDate, 'dd/MM/yyyy HH:mm');
 
   return (
-    <div className="space-y-2 font-mono text-sm">
+    <div className="space-y-2 font-mono text-sm text-center">
       <div className="text-base font-bold">
         #{sessionIndex} - {phone || 'Chưa có SĐT'}
       </div>
@@ -39,16 +39,18 @@ export function OrderBillNotification({
         {productCode} - {cleanedProductName}
       </div>
       {comment && <div className="text-muted-foreground italic">{comment}</div>}
-      <div className="flex justify-center bg-white p-2">
+      <div className="flex justify-center">
         <Barcode 
           value={productCode} 
           width={1.5}
           height={40}
-          fontSize={12}
+          fontSize={0}
           margin={0}
+          background="transparent"
+          displayValue={false}
         />
       </div>
-      <div className="text-xs text-muted-foreground text-center">{formattedTime}</div>
+      <div className="text-xs text-muted-foreground">{formattedTime}</div>
     </div>
   );
 }
