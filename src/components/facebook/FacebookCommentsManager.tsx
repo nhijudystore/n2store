@@ -685,7 +685,7 @@ export function FacebookCommentsManager() {
                 <CardContent className="pt-6">
                   <div className="text-center">
                     <MessageCircle className="mx-auto h-8 w-8 mb-2 text-blue-500" />
-                    <div className="text-2xl font-bold">{stats.totalComments.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(stats.totalComments || 0).toLocaleString()}</div>
                     <div className="text-sm text-muted-foreground">Comments</div>
                   </div>
                 </CardContent>
@@ -694,7 +694,7 @@ export function FacebookCommentsManager() {
                 <CardContent className="pt-6">
                   <div className="text-center">
                     <Heart className="mx-auto h-8 w-8 mb-2 text-red-500" />
-                    <div className="text-2xl font-bold">{stats.totalReactions.toLocaleString()}</div>
+                    <div className="text-2xl font-bold">{(stats.totalReactions || 0).toLocaleString()}</div>
                     <div className="text-sm text-muted-foreground">Reactions</div>
                   </div>
                 </CardContent>
@@ -742,11 +742,11 @@ export function FacebookCommentsManager() {
                     <div className="flex gap-4 text-sm">
                       <div className="flex items-center gap-1">
                         <MessageCircle className="h-4 w-4" />
-                        <span>{video.countComment.toLocaleString()}</span>
+                        <span>{(video.countComment || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <Heart className="h-4 w-4" />
-                        <span>{video.countReaction.toLocaleString()}</span>
+                        <span>{(video.countReaction || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1041,7 +1041,7 @@ export function FacebookCommentsManager() {
                 <div>
                   <label className="text-sm font-medium">Tổng tiền</label>
                   <p className="text-sm text-muted-foreground">
-                    {selectedOrderInfo.TotalAmount.toLocaleString('vi-VN')} đ
+                    {(selectedOrderInfo.TotalAmount || 0).toLocaleString('vi-VN')} đ
                   </p>
                 </div>
                 <div>
