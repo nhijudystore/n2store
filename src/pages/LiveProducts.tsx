@@ -195,7 +195,8 @@ export default function LiveProducts() {
   const [selectedFacebookVideo, setSelectedFacebookVideo] = useState<FacebookVideo | null>(null);
   const [isCommentsAutoRefresh, setIsCommentsAutoRefresh] = useState(true);
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
-  const [hideNames] = useState<string[]>(["Nhi Judy House"]);
+  const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
+  const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   
   const {
     comments,
@@ -1518,6 +1519,7 @@ export default function LiveProducts() {
                     videoId={commentsVideoId}
                     isAutoRefresh={isCommentsAutoRefresh}
                     showOnlyWithOrders={showOnlyWithOrders}
+                    hideNhiJudyHouse={hideNhiJudyHouse}
                     hideNames={hideNames}
                     onPageIdChange={setCommentsPageId}
                     onVideoChange={(video) => {
@@ -1526,6 +1528,7 @@ export default function LiveProducts() {
                     }}
                     onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
                     onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
+                    onHideNhiJudyHouseChange={setHideNhiJudyHouse}
                     onRefresh={() => refetchComments()}
                   />
                   

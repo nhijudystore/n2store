@@ -15,11 +15,13 @@ interface CommentsSettingsCollapsibleProps {
   videoId: string;
   isAutoRefresh: boolean;
   showOnlyWithOrders: boolean;
+  hideNhiJudyHouse: boolean;
   hideNames: string[];
   onPageIdChange: (pageId: string) => void;
   onVideoChange: (video: FacebookVideo | null) => void;
   onAutoRefreshToggle: () => void;
   onShowOnlyWithOrdersChange: (checked: boolean) => void;
+  onHideNhiJudyHouseChange: (checked: boolean) => void;
   onRefresh: () => void;
 }
 
@@ -28,11 +30,13 @@ export function CommentsSettingsCollapsible({
   videoId,
   isAutoRefresh,
   showOnlyWithOrders,
+  hideNhiJudyHouse,
   hideNames,
   onPageIdChange,
   onVideoChange,
   onAutoRefreshToggle,
   onShowOnlyWithOrdersChange,
+  onHideNhiJudyHouseChange,
   onRefresh,
 }: CommentsSettingsCollapsibleProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -202,6 +206,16 @@ export function CommentsSettingsCollapsible({
             />
             <Label htmlFor="showOnlyWithOrders" className="text-sm cursor-pointer">
               Chỉ hiện comment có đơn hàng
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="hideNhiJudyHouse"
+              checked={hideNhiJudyHouse}
+              onCheckedChange={onHideNhiJudyHouseChange}
+            />
+            <Label htmlFor="hideNhiJudyHouse" className="text-sm cursor-pointer">
+              Ẩn "Nhi Judy House"
             </Label>
           </div>
         </div>
