@@ -24,6 +24,7 @@ export interface FacebookComment {
 export interface TPOSOrder {
   Id: string;
   Code: string;
+  SessionIndex?: string | number;
   Facebook_UserId: string | null;
   Facebook_PostId: string;
   Facebook_ASUserId: string;
