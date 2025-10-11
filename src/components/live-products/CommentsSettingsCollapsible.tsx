@@ -23,6 +23,8 @@ interface CommentsSettingsCollapsibleProps {
   onShowOnlyWithOrdersChange: (checked: boolean) => void;
   onHideNhiJudyHouseChange: (checked: boolean) => void;
   onRefresh: () => void;
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
 }
 
 export function CommentsSettingsCollapsible({
@@ -38,8 +40,9 @@ export function CommentsSettingsCollapsible({
   onShowOnlyWithOrdersChange,
   onHideNhiJudyHouseChange,
   onRefresh,
+  isOpen,
+  onOpenChange,
 }: CommentsSettingsCollapsibleProps) {
-  const [isOpen, setIsOpen] = useState(false);
   const [limit, setLimit] = useState("1");
 
   // Fetch Facebook pages
@@ -88,7 +91,7 @@ export function CommentsSettingsCollapsible({
   const selectedVideo = videos.find((v) => v.objectId === videoId);
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <Collapsible open={isOpen} onOpenChange={onOpenChange}>
       <CollapsibleTrigger asChild>
         <Button variant="outline" className="w-full justify-between">
           <div className="flex items-center gap-2">
