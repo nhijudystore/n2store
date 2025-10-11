@@ -49,16 +49,14 @@ serve(async (req) => {
     // Clean comment object - chỉ giữ fields TPOS API cần
     const cleanComment = {
       id: comment.id,
+      is_hidden: comment.is_hidden,
       message: comment.message,
+      created_time: comment.created_time,
+      created_time_converted: comment.created_time,
       from: {
         id: comment.from.id,
         name: comment.from.name
-      },
-      is_hidden: comment.is_hidden,
-      can_hide: comment.can_hide,
-      can_remove: comment.can_remove,
-      created_time: comment.created_time,
-      object: comment.object
+      }
     };
 
     payload = {
