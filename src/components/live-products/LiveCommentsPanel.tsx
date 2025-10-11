@@ -353,11 +353,6 @@ export function LiveCommentsPanel({
                           : comment.from.name.charAt(0).toUpperCase()
                         }
                       </div>
-                      {comment.orderInfo && (
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center text-white text-[10px] font-bold border-2 border-background">
-                          {comment.orderInfo.TotalQuantity || 0}
-                        </div>
-                      )}
                     </div>
 
                     {/* Name, Order Code, Status */}
