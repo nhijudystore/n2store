@@ -115,15 +115,29 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       }
       const tposOrderId = orderData.code_tpos_order_id;
 
-      // 2. Get product details
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('productid_bienthe, product_name, product_code, selling_price')
+      // 2. Get product details - FIXED LOGIC
+      // First, get the live_product to find its product_code
+      const { data: liveProductForCode, error: liveProductError } = await supabase
+        .from('live_products')
+        .select('product_code')
         .eq('id', productId)
         .single();
 
+      if (liveProductError || !liveProductForCode) {
+        throw new Error(`Không tìm thấy sản phẩm live với ID: ${productId}`);
+      }
+
+      const productCodeToSearch = liveProductForCode.product_code;
+
+      // Now, find the product in the main products table using the code
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('id, productid_bienthe, product_name, product_code, selling_price')
+        .eq('product_code', productCodeToSearch)
+        .single();
+
       if (productError || !productData) {
-        throw new Error(`Không tìm thấy thông tin sản phẩm (ID: ${productId})`);
+        throw new Error(`Không tìm thấy thông tin sản phẩm trong kho với mã: ${productCodeToSearch}`);
       }
 
       if (!productData.productid_bienthe) {
