@@ -198,6 +198,7 @@ export default function LiveProducts() {
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
   const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   const productListRef = useRef<HTMLDivElement>(null);
+  const [isCommentsSettingsOpen, setIsCommentsSettingsOpen] = useState(false);
   
   const {
     comments,
@@ -1516,6 +1517,8 @@ export default function LiveProducts() {
                 <>
                   {/* Comments Settings - Collapsible */}
                   <CommentsSettingsCollapsible
+                    isOpen={isCommentsSettingsOpen}
+                    onOpenChange={setIsCommentsSettingsOpen}
                     pageId={commentsPageId}
                     videoId={commentsVideoId}
                     isAutoRefresh={isCommentsAutoRefresh}
@@ -1526,6 +1529,7 @@ export default function LiveProducts() {
                     onVideoChange={(video) => {
                       setSelectedFacebookVideo(video);
                       setCommentsVideoId(video?.objectId || "");
+                      setIsCommentsSettingsOpen(false);
                     }}
                     onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
                     onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
