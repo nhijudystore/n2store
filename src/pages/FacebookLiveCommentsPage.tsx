@@ -234,7 +234,7 @@ export default function FacebookLiveCommentsPage() {
     initialPageParam: undefined,
     enabled: !!selectedVideo && !!pageId,
     // Only auto-refresh when video is LIVE and dialog is open
-    refetchInterval: isAutoRefresh && isCommentsOpen && selectedVideo?.statusLive === 1 ? 30000 : false,
+    refetchInterval: isAutoRefresh && isCommentsOpen && selectedVideo?.statusLive === 1 ? 10000 : false,
   });
 
   const comments = useMemo(() => {
