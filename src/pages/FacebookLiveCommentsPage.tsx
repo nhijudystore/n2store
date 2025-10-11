@@ -337,16 +337,24 @@ export default function FacebookLiveCommentsPage() {
     try {
       console.log('[Fetch] Processing', commentsToProcess.length, 'comments');
 
-      // Step 1: Check existing customers from Supabase
+      // Step 1: Check existing customers from Supabase - chỉ query cho IDs chưa có trong map
       const facebookIds = commentsToProcess.map(c => c.from.id);
       
-      console.log('[Fetch] Querying DB for', facebookIds.length, 'facebook IDs');
+      // Filter out IDs already in map to avoid re-fetching
+      const facebookIdsToFetch = facebookIds.filter(id => !customerStatusMapRef.current.has(id));
+      
+      if (facebookIdsToFetch.length === 0) {
+        console.log('[Fetch] All facebook IDs already in cache, skipping DB query');
+        return;
+      }
+      
+      console.log('[Fetch] Querying DB for', facebookIdsToFetch.length, 'new facebook IDs (skipped', facebookIds.length - facebookIdsToFetch.length, 'cached)');
       const startTime = performance.now();
       
       const { data: existingCustomers = [] } = await supabase
         .from('customers')
         .select('*')
-        .in('facebook_id', facebookIds);
+        .in('facebook_id', facebookIdsToFetch);
       
       const dbTime = performance.now() - startTime;
       console.log('[Fetch] DB query completed in', dbTime.toFixed(2), 'ms');
@@ -506,8 +514,13 @@ export default function FacebookLiveCommentsPage() {
     );
 
     if (commentsNeedingStatus.length > 0) {
-      console.log('[Effect] Found', commentsNeedingStatus.length, 'comments needing status');
+      console.log('[Effect] Found', commentsNeedingStatus.length, 'comments needing status, facebook_ids:', 
+        commentsNeedingStatus.map(c => c.from.id).slice(0, 5)
+      );
+      console.log('[Effect] Current map size:', customerStatusMapRef.current.size);
       debouncedFetchStatus(commentsNeedingStatus, ordersData);
+    } else {
+      console.log('[Effect] All', comments.length, 'comments already have status (map size:', customerStatusMapRef.current.size, ')');
     }
   }, [comments, ordersData, debouncedFetchStatus]);
 
