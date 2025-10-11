@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sparkles, AlertTriangle, Search, Check } from "lucide-react";
+import { Sparkles, AlertTriangle, Search, Check, ChevronRight, X } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { generateAllVariants } from "@/lib/variant-code-generator";
 import { TPOS_ATTRIBUTES } from "@/lib/tpos-attributes";
 import { cn } from "@/lib/utils";
@@ -18,13 +19,16 @@ interface VariantGeneratorDialogProps {
     product_code: string;
     product_name: string;
   };
-  onVariantsGenerated: (variants: Array<{
-    fullCode: string;
-    variantCode: string;
-    productName: string;
-    variantText: string;
-    hasCollision: boolean;
-  }>) => void;
+  onVariantsGenerated: (
+    variants: Array<{
+      fullCode: string;
+      variantCode: string;
+      productName: string;
+      variantText: string;
+      hasCollision: boolean;
+    }>,
+    selectedIndices: number[]
+  ) => void;
 }
 
 export function VariantGeneratorDialog({
@@ -47,6 +51,8 @@ export function VariantGeneratorDialog({
     variantText: string;
     hasCollision: boolean;
   }>>([]);
+  const [selectedVariantIndices, setSelectedVariantIndices] = useState<Set<number>>(new Set());
+  const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
 
   // Auto-generate preview on selection change
   useEffect(() => {
@@ -113,12 +119,15 @@ export function VariantGeneratorDialog({
 
   const handleConfirm = () => {
     if (previewResults.length > 0) {
-      onVariantsGenerated(previewResults);
+      const selectedIndicesArray = Array.from(selectedVariantIndices).sort((a, b) => a - b);
+      onVariantsGenerated(previewResults, selectedIndicesArray);
       onOpenChange(false);
       // Reset selections and filters
       setSelectedSizeText([]);
       setSelectedColors([]);
       setSelectedSizeNumber([]);
+      setSelectedVariantIndices(new Set());
+      setIsPreviewExpanded(false);
       setSizeTextFilter("");
       setColorFilter("");
       setSizeNumberFilter("");
@@ -132,6 +141,8 @@ export function VariantGeneratorDialog({
     setSelectedColors([]);
     setSelectedSizeNumber([]);
     setActiveAttributeType(null);
+    setSelectedVariantIndices(new Set());
+    setIsPreviewExpanded(false);
     setSizeTextFilter("");
     setColorFilter("");
     setSizeNumberFilter("");
@@ -161,17 +172,93 @@ export function VariantGeneratorDialog({
         </DialogHeader>
 
         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-          {/* Product Info (readonly) */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Mã Sản Phẩm Gốc</Label>
-              <Input value={currentItem.product_code} disabled className="bg-muted" />
+          {/* Product Info - Compact */}
+          <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Mã SP:</span>
+              <Badge variant="outline" className="font-mono">
+                {currentItem.product_code}
+              </Badge>
             </div>
-            <div className="space-y-2">
-              <Label>Tên Sản Phẩm Gốc</Label>
-              <Input value={currentItem.product_name} disabled className="bg-muted" />
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Tên SP:</span>
+              <span className="font-medium">{currentItem.product_name}</span>
             </div>
           </div>
+
+          {/* Selected Variants Display */}
+          {(selectedSizeText.length > 0 || selectedColors.length > 0 || selectedSizeNumber.length > 0) && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">
+                Các Biến Thể Đã Chọn
+                <span className="ml-2 text-muted-foreground">
+                  ({selectedSizeText.length + selectedColors.length + selectedSizeNumber.length})
+                </span>
+              </Label>
+              <div className="border rounded-lg p-3 min-h-[60px] bg-muted/30">
+                <div className="flex flex-wrap gap-2">
+                  {selectedSizeText.map((size) => (
+                    <Badge 
+                      key={`st-${size}`}
+                      variant="secondary" 
+                      className="gap-1.5 pl-3 pr-2 py-1 hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="text-xs">{size}</span>
+                      <X 
+                        className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection('sizeText', size);
+                        }}
+                      />
+                    </Badge>
+                  ))}
+                  
+                  {selectedColors.map((color) => (
+                    <Badge 
+                      key={`c-${color}`}
+                      variant="secondary" 
+                      className="gap-1.5 pl-3 pr-2 py-1 hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="text-xs">{color}</span>
+                      <X 
+                        className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection('color', color);
+                        }}
+                      />
+                    </Badge>
+                  ))}
+                  
+                  {selectedSizeNumber.map((size) => (
+                    <Badge 
+                      key={`sn-${size}`}
+                      variant="secondary" 
+                      className="gap-1.5 pl-3 pr-2 py-1 hover:bg-secondary/80 transition-colors"
+                    >
+                      <span className="text-xs">{size}</span>
+                      <X 
+                        className="h-3 w-3 cursor-pointer hover:text-destructive transition-colors" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelection('sizeNumber', size);
+                        }}
+                      />
+                    </Badge>
+                  ))}
+                  
+                  {selectedSizeText.length === 0 && 
+                   selectedColors.length === 0 && 
+                   selectedSizeNumber.length === 0 && (
+                    <span className="text-muted-foreground text-sm italic">
+                      Chưa chọn biến thể nào
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Selection Columns */}
           <div className="grid grid-cols-3 gap-4 flex-1 overflow-hidden">
@@ -314,61 +401,138 @@ export function VariantGeneratorDialog({
             </div>
           </div>
 
-          {/* Preview Table */}
+          {/* Preview Table với Collapse/Expand */}
           {previewResults.length > 0 && (
-            <div className="space-y-2 flex-1 flex flex-col overflow-hidden">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-base">Xem trước kết quả</Label>
-                <Badge variant="secondary" className="gap-1">
-                  <Sparkles className="h-3 w-3" />
-                  {previewResults.length} biến thể
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
+                    className="h-8 gap-2 hover:bg-transparent"
+                  >
+                    <ChevronRight 
+                      className={cn(
+                        "h-4 w-4 transition-transform",
+                        isPreviewExpanded && "rotate-90"
+                      )} 
+                    />
+                    <Label className="text-base cursor-pointer">Xem trước kết quả</Label>
+                  </Button>
+                  <Badge variant="secondary" className="gap-1">
+                    <Sparkles className="h-3 w-3" />
+                    {previewResults.length} biến thể
+                    {selectedVariantIndices.size > 0 && (
+                      <span className="ml-1">
+                        • {selectedVariantIndices.size} đã chọn
+                      </span>
+                    )}
+                  </Badge>
+                </div>
+                {isPreviewExpanded && selectedVariantIndices.size < previewResults.length && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedVariantIndices(new Set(previewResults.map((_, i) => i)));
+                    }}
+                  >
+                    Chọn tất cả
+                  </Button>
+                )}
               </div>
-              <div className="border rounded-lg flex-1 overflow-hidden">
-                <ScrollArea className="h-full">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead className="w-32">Mã Đầy Đủ</TableHead>
-                        <TableHead className="w-24">Mã Variant</TableHead>
-                        <TableHead>Tên Sản Phẩm</TableHead>
-                        <TableHead>Chi Tiết Variant</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {previewResults.map((result, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium text-muted-foreground">{index + 1}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="font-mono text-xs">
-                              {result.fullCode}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <code className="text-xs bg-muted px-2 py-1 rounded">
-                                {result.variantCode}
-                              </code>
-                              {result.hasCollision && (
-                                <Badge variant="destructive" className="text-xs">
-                                  <AlertTriangle className="h-3 w-3" />
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-medium text-sm">
-                            {result.productName}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground text-sm">
-                            {result.variantText}
-                          </TableCell>
+              
+              {isPreviewExpanded && (
+                <div className="border rounded-lg overflow-hidden animate-in slide-in-from-top-2">
+                  <ScrollArea className="h-[300px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedVariantIndices.size === previewResults.length && previewResults.length > 0}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedVariantIndices(new Set(previewResults.map((_, i) => i)));
+                                } else {
+                                  setSelectedVariantIndices(new Set());
+                                }
+                              }}
+                            />
+                          </TableHead>
+                          <TableHead className="w-12">#</TableHead>
+                          <TableHead className="w-32">Mã Đầy Đủ</TableHead>
+                          <TableHead className="w-24">Mã Variant</TableHead>
+                          <TableHead>Tên Sản Phẩm</TableHead>
+                          <TableHead>Chi Tiết Variant</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              </div>
+                      </TableHeader>
+                      <TableBody>
+                        {previewResults.map((result, index) => (
+                          <TableRow 
+                            key={index}
+                            className={cn(
+                              "cursor-pointer hover:bg-muted/50",
+                              selectedVariantIndices.has(index) && "bg-primary/5 border-l-2 border-l-primary"
+                            )}
+                            onClick={() => {
+                              const newSet = new Set(selectedVariantIndices);
+                              if (newSet.has(index)) {
+                                newSet.delete(index);
+                              } else {
+                                newSet.add(index);
+                              }
+                              setSelectedVariantIndices(newSet);
+                            }}
+                          >
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedVariantIndices.has(index)}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(selectedVariantIndices);
+                                  if (checked) {
+                                    newSet.add(index);
+                                  } else {
+                                    newSet.delete(index);
+                                  }
+                                  setSelectedVariantIndices(newSet);
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium text-muted-foreground">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="font-mono text-xs">
+                                {result.fullCode}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <code className="text-xs bg-muted px-2 py-1 rounded">
+                                  {result.variantCode}
+                                </code>
+                                {result.hasCollision && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    <AlertTriangle className="h-3 w-3" />
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-medium text-sm">
+                              {result.productName}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {result.variantText}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
+              )}
             </div>
           )}
         </div>

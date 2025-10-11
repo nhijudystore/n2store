@@ -379,7 +379,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       productName: string;
       variantText: string;
       hasCollision: boolean;
-    }>
+    }>,
+    selectedIndices: number[]
   ) => {
     const baseItem = items[index];
 
@@ -421,26 +422,89 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
       baseProduct: baseProductData,
       childVariants: childVariantsData,
       onSuccessCallback: () => {
-        // Reset dòng về trạng thái ban đầu
-        const emptyItem: PurchaseOrderItem = {
-          product_id: null,
-          quantity: 1,
-          notes: "",
-          _tempProductName: "",
-          _tempVariant: "",
-          _tempProductCode: "",
-          _tempUnitPrice: "",
-          _tempSellingPrice: "",
-          _tempTotalPrice: 0,
-          _tempProductImages: [],
-          _tempPriceImages: []
-        };
-        
-        setItems(prev => {
-          const newItems = [...prev];
-          newItems[index] = emptyItem;
-          return newItems;
-        });
+        // New logic based on selectedIndices
+        if (selectedIndices.length === 0) {
+          // No checkboxes selected → Clear the line
+          const emptyItem: PurchaseOrderItem = {
+            product_id: null,
+            quantity: 1,
+            notes: "",
+            _tempProductName: "",
+            _tempVariant: "",
+            _tempProductCode: "",
+            _tempUnitPrice: "",
+            _tempSellingPrice: "",
+            _tempTotalPrice: 0,
+            _tempProductImages: [],
+            _tempPriceImages: []
+          };
+          
+          setItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = emptyItem;
+            return newItems;
+          });
+        } else if (selectedIndices.length === 1) {
+          // 1 checkbox selected → Fill current line
+          const selectedVariant = variants[selectedIndices[0]];
+          
+          setItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = {
+              ...newItems[index],
+              _tempProductCode: selectedVariant.fullCode,
+              _tempProductName: selectedVariant.productName,
+              _tempVariant: selectedVariant.variantText,
+            };
+            return newItems;
+          });
+          
+          toast({
+            title: "Đã điền thông tin biến thể",
+            description: `Mã sản phẩm: ${selectedVariant.fullCode}`,
+          });
+        } else {
+          // Multiple checkboxes selected → Fill first line + add new lines
+          const selectedVariants = selectedIndices.map(i => variants[i]);
+          
+          setItems(prev => {
+            const newItems = [...prev];
+            
+            // Fill first line
+            const firstVariant = selectedVariants[0];
+            newItems[index] = {
+              ...newItems[index],
+              _tempProductCode: firstVariant.fullCode,
+              _tempProductName: firstVariant.productName,
+              _tempVariant: firstVariant.variantText,
+            };
+            
+            // Add additional lines
+            const additionalItems = selectedVariants.slice(1).map(variant => ({
+              product_id: null,
+              quantity: 1,
+              notes: "",
+              _tempProductName: variant.productName,
+              _tempVariant: variant.variantText,
+              _tempProductCode: variant.fullCode,
+              _tempUnitPrice: baseItem._tempUnitPrice,
+              _tempSellingPrice: baseItem._tempSellingPrice,
+              _tempTotalPrice: Number(baseItem._tempUnitPrice) * 1,
+              _tempProductImages: [...baseItem._tempProductImages],
+              _tempPriceImages: [...baseItem._tempPriceImages]
+            }));
+            
+            // Insert after current line
+            newItems.splice(index + 1, 0, ...additionalItems);
+            
+            return newItems;
+          });
+          
+          toast({
+            title: "Đã thêm biến thể",
+            description: `Đã thêm ${selectedVariants.length} biến thể vào đơn hàng`,
+          });
+        }
       }
     });
   };
@@ -852,8 +916,8 @@ export function CreatePurchaseOrderDialog({ open, onOpenChange }: CreatePurchase
             product_code: items[variantGeneratorIndex]._tempProductCode,
             product_name: items[variantGeneratorIndex]._tempProductName
           }}
-          onVariantsGenerated={(variants) => {
-            handleVariantsGenerated(variantGeneratorIndex, variants);
+          onVariantsGenerated={(variants, selectedIndices) => {
+            handleVariantsGenerated(variantGeneratorIndex, variants, selectedIndices);
             setVariantGeneratorIndex(null);
           }}
         />
