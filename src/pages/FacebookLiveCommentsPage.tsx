@@ -64,6 +64,7 @@ export default function FacebookLiveCommentsPage() {
   const [ordersDebugSearch, setOrdersDebugSearch] = useState("");
   const [statusMapDebugSearch, setStatusMapDebugSearch] = useState("");
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
+  const [hideNames, setHideNames] = useState<string[]>(["Nhi Judy House"]);
 
   // New states for create order response
   const [createOrderResponse, setCreateOrderResponse] = useState<{ data: any; payload: any } | null>(null);
@@ -659,10 +660,13 @@ export default function FacebookLiveCommentsPage() {
         comment.from?.name?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesOrderFilter = !showOnlyWithOrders || (comment.orderInfo && comment.orderInfo.Code);
+      
+      // Filter ẩn theo tên (mặc định ẩn "Nhi Judy House")
+      const notHidden = !hideNames.includes(comment.from?.name || '');
 
-      return matchesSearch && matchesOrderFilter;
+      return matchesSearch && matchesOrderFilter && notHidden;
     });
-  }, [commentsWithStatus, searchQuery, showOnlyWithOrders]);
+  }, [commentsWithStatus, searchQuery, showOnlyWithOrders, hideNames]);
 
   const stats = {
     totalVideos: videos.length,
@@ -928,6 +932,25 @@ export default function FacebookLiveCommentsPage() {
                 <Label htmlFor="show-only-with-orders" className="text-sm font-medium whitespace-nowrap">
                   Chỉ hiển thị comment có đơn
                 </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="hide-page-comments" 
+                  checked={hideNames.includes("Nhi Judy House")} 
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setHideNames(["Nhi Judy House"]);
+                    } else {
+                      setHideNames([]);
+                    }
+                  }} 
+                />
+                <Label htmlFor="hide-page-comments" className="text-sm font-medium whitespace-nowrap">
+                  Ẩn "Nhi Judy House"
+                </Label>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Hiển thị {filteredComments.length} / {commentsWithStatus.length} comments
               </div>
             </div>
 
