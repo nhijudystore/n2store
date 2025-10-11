@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.58.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -145,6 +146,41 @@ serve(async (req) => {
 
     const data = await response.json();
     console.log("TPOS response:", data);
+
+    // Save to facebook_pending_orders table
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL');
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Missing Supabase credentials');
+      } else {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        const { error: insertError } = await supabase
+          .from('facebook_pending_orders')
+          .insert({
+            name: data.Name || comment.from.name,
+            session_index: data.SessionIndex?.toString() || null,
+            code: data.Code || null,
+            phone: data.Telephone || null,
+            comment: comment.message || null,
+            created_time: convertFacebookTimeToISO(comment.created_time),
+            tpos_order_id: data.Id || null,
+            facebook_comment_id: comment.id,
+            facebook_user_id: comment.from.id,
+            facebook_post_id: video.objectId,
+          });
+
+        if (insertError) {
+          console.error('Error saving to facebook_pending_orders:', insertError);
+        } else {
+          console.log('Successfully saved to facebook_pending_orders');
+        }
+      }
+    } catch (dbError) {
+      console.error('Exception saving to database:', dbError);
+    }
 
     // Return both payload and response
     return new Response(JSON.stringify({ payload, response: data }), {
