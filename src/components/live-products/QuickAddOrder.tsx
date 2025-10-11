@@ -45,7 +45,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     queryFn: async () => {
       const { data, error } = await supabase
         .from('live_orders')
-        .select('order_code')
+        .select('order_code, facebook_comment_id')
         .eq('live_phase_id', phaseId);
       
       if (error) throw error;
@@ -73,27 +73,27 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseData?.phase_date,
   });
 
-  // Get used order codes
-  const usedOrderCodes = React.useMemo(() => {
-    return new Set(existingOrders.map(order => order.order_code));
+  // Get used facebook comment IDs
+  const usedCommentIds = React.useMemo(() => {
+    return new Set(existingOrders.map(order => order.facebook_comment_id).filter(Boolean));
   }, [existingOrders]);
 
-  // Group orders by session_index - show all sessionIndexes that have comments
+  // Group orders by session_index - only show comments that haven't been used
   const groupedOrders = React.useMemo(() => {
     const groups = new Map<string, typeof pendingOrders>();
     pendingOrders.forEach(order => {
-      if (order.session_index) {
+      if (order.session_index && order.facebook_comment_id && !usedCommentIds.has(order.facebook_comment_id)) {
         const existing = groups.get(order.session_index) || [];
         groups.set(order.session_index, [...existing, order]);
       }
     });
     return groups;
-  }, [pendingOrders]);
+  }, [pendingOrders, usedCommentIds]);
 
   const uniqueSessionIndexes = Array.from(groupedOrders.keys());
 
   const addOrderMutation = useMutation({
-    mutationFn: async (sessionIndex: string) => {
+    mutationFn: async ({ sessionIndex, commentId }: { sessionIndex: string; commentId: string }) => {
       // Get current product data to check if overselling
       const { data: product, error: fetchError } = await supabase
         .from('live_products')
@@ -107,11 +107,12 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       const newSoldQuantity = (product.sold_quantity || 0) + 1;
       const isOversell = newSoldQuantity > product.prepared_quantity;
 
-      // Insert new order with oversell flag
+      // Insert new order with oversell flag and comment ID
       const { error: orderError } = await supabase
         .from('live_orders')
         .insert({
           order_code: sessionIndex,
+          facebook_comment_id: commentId,
           live_session_id: sessionId,
           live_phase_id: phaseId,
           live_product_id: productId,
@@ -162,9 +163,9 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
   });
 
-  const handleSelectComment = (sessionIndex: string) => {
+  const handleSelectComment = (sessionIndex: string, commentId: string) => {
     setSelectedSessionIndex(sessionIndex);
-    addOrderMutation.mutate(sessionIndex);
+    addOrderMutation.mutate({ sessionIndex, commentId });
   };
 
   const isOutOfStock = availableQuantity <= 0;
@@ -217,22 +218,30 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                           </div>
                           <ScrollArea className="max-h-[300px]">
                             <div className="p-2">
-                              {orders.map((order) => (
-                                <div 
-                                  key={order.id} 
-                                  className="mb-2 cursor-pointer rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent hover:shadow-sm"
-                                  onClick={() => {
-                                    handleSelectComment(sessionIndex);
-                                    setOpen(false);
-                                  }}
-                                >
-                                  {order.comment ? (
-                                    <p className="text-foreground leading-relaxed">{order.comment}</p>
-                                  ) : (
-                                    <p className="text-muted-foreground italic">Không có comment</p>
-                                  )}
+                              {orders.length > 0 ? (
+                                orders.map((order) => (
+                                  <div 
+                                    key={order.id} 
+                                    className="mb-2 cursor-pointer rounded-md border bg-card p-3 text-sm transition-colors hover:bg-accent hover:shadow-sm"
+                                    onClick={() => {
+                                      if (order.facebook_comment_id) {
+                                        handleSelectComment(sessionIndex, order.facebook_comment_id);
+                                        setOpen(false);
+                                      }
+                                    }}
+                                  >
+                                    {order.comment ? (
+                                      <p className="text-foreground leading-relaxed">{order.comment}</p>
+                                    ) : (
+                                      <p className="text-muted-foreground italic">Không có comment</p>
+                                    )}
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-3 text-center text-sm text-muted-foreground">
+                                  Tất cả comments đã được sử dụng
                                 </div>
-                              ))}
+                              )}
                             </div>
                           </ScrollArea>
                         </HoverCardContent>

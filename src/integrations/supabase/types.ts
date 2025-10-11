@@ -271,6 +271,7 @@ export type Database = {
           code_tpos_order_id: string | null
           created_at: string
           customer_status: string | null
+          facebook_comment_id: string | null
           id: string
           is_oversell: boolean | null
           live_phase_id: string | null
@@ -287,6 +288,7 @@ export type Database = {
           code_tpos_order_id?: string | null
           created_at?: string
           customer_status?: string | null
+          facebook_comment_id?: string | null
           id?: string
           is_oversell?: boolean | null
           live_phase_id?: string | null
@@ -303,6 +305,7 @@ export type Database = {
           code_tpos_order_id?: string | null
           created_at?: string
           customer_status?: string | null
+          facebook_comment_id?: string | null
           id?: string
           is_oversell?: boolean | null
           live_phase_id?: string | null
