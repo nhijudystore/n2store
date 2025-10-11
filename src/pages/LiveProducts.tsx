@@ -1806,6 +1806,7 @@ export default function LiveProducts() {
                                               phaseId={selectedPhase}
                                               sessionId={selectedSession}
                                               availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                              quantityToAdd={orderQuantities[product.id] || 1}
                                             />
                                           </div>
                                         )}
@@ -2075,14 +2076,12 @@ export default function LiveProducts() {
                                                     handleEditOrderItem(aggregatedProduct);
                                                   }}
                                                 >
-                                                  {isOversell && (
-                                                    <AlertTriangle className="h-3 w-3 mr-1" />
-                                                  )}
+                                                  {isOversell && <AlertTriangle className="h-3 w-3 mr-1" />}
                                                   {order.quantity === 1 ? order.order_code : `${order.order_code} x${order.quantity}`}
                                                 </Badge>
                                               </TooltipTrigger>
                                               <TooltipContent>
-                                                <p>{isOversell ? "⚠️ Đơn quá số" : `Đơn hàng: ${order.order_code} - Số lượng: ${order.quantity}`}</p>
+                                                <p>{isOversell ? "⚠️ Đơn quá số" : `Đơn: ${order.order_code} - SL: ${order.quantity}`}</p>
                                               </TooltipContent>
                                             </Tooltip>
                                           </TooltipProvider>
@@ -2095,6 +2094,7 @@ export default function LiveProducts() {
                                             phaseId={selectedPhase}
                                             sessionId={selectedSession}
                                             availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                            quantityToAdd={orderQuantities[product.id] || 1}
                                           />
                                         </div>
                                       )}
@@ -2265,6 +2265,7 @@ export default function LiveProducts() {
                                         phaseId={selectedPhase}
                                         sessionId={selectedSession}
                                         availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                        quantityToAdd={orderQuantities[product.id] || 1}
                                       />
                                     )}
                                   </div>
