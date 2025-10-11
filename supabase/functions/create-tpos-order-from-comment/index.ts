@@ -33,7 +33,7 @@ function convertFacebookTimeToISO(facebookTime: string): string {
   return facebookTime.replace('+0000', '.000Z');
 }
 
-async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise<string> {
+async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise<string | null> {
   try {
     console.log('Fetching LiveCampaignId for post:', postId);
     
@@ -52,7 +52,8 @@ async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Failed to fetch LiveCampaignId:', response.status, errorText);
-      throw new Error(`Failed to fetch LiveCampaignId: ${response.status}`);
+      console.log('LiveCampaignId not found, will proceed without it');
+      return null;
     }
 
     const data = await response.json();
@@ -63,10 +64,11 @@ async function fetchLiveCampaignId(postId: string, bearerToken: string): Promise
       return data[0].LiveCampaignId;
     }
 
-    throw new Error(`LiveCampaignId not found for post: ${postId}`);
+    console.log(`LiveCampaignId is null for post: ${postId}. This post may need to be configured in TPOS first.`);
+    return null;
   } catch (error) {
     console.error('Error fetching LiveCampaignId:', error);
-    throw error;
+    return null;
   }
 }
 
@@ -91,6 +93,16 @@ serve(async (req) => {
 
     // Fetch LiveCampaignId dynamically
     const liveCampaignId = await fetchLiveCampaignId(video.objectId, bearerToken);
+
+    if (!liveCampaignId) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'LiveCampaignId không tìm thấy. Vui lòng cấu hình live campaign cho post này trong TPOS trước.',
+          postId: video.objectId 
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const tposUrl = "https://tomato.tpos.vn/odata/SaleOnline_Order?IsIncrease=True&$expand=Details,User,Partner($expand=Addresses)";
 
