@@ -40,7 +40,7 @@ function debounce<T extends (...args: any[]) => any>(
 export default function FacebookLiveCommentsPage() {
   const queryClient = useQueryClient();
   const [pageId, setPageId] = useState("117267091364524");
-  const [limit, setLimit] = useState("10");
+  const [limit, setLimit] = useState("1");
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
@@ -66,10 +66,6 @@ export default function FacebookLiveCommentsPage() {
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
   const [hideNames, setHideNames] = useState<string[]>(["Nhi Judy House"]);
 
-  // New states for create order response
-  const [createOrderResponse, setCreateOrderResponse] = useState<{ data: any; payload: any } | null>(null);
-  const [isCreateOrderResponseOpen, setIsCreateOrderResponseOpen] = useState(false);
-  
   // New state for confirmation dialog
   const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
 
@@ -106,8 +102,6 @@ export default function FacebookLiveCommentsPage() {
       return responseData;
     },
     onSuccess: (data) => {
-      setCreateOrderResponse({ data: data.response, payload: data.payload });
-      setIsCreateOrderResponseOpen(true);
       toast({
         title: "Tạo đơn hàng thành công!",
         description: `Đơn hàng ${data.response.Code} đã được tạo.`,
@@ -128,8 +122,6 @@ export default function FacebookLiveCommentsPage() {
         description: errorData.error || "Có lỗi không xác định",
         variant: "destructive",
       });
-      setCreateOrderResponse({ data: { error: errorData.error }, payload: errorData.payload });
-      setIsCreateOrderResponseOpen(true);
     },
   });
 
@@ -174,7 +166,7 @@ export default function FacebookLiveCommentsPage() {
       const result = await response.json();
       return (Array.isArray(result) ? result : result.data || []) as FacebookVideo[];
     },
-    enabled: false,
+    enabled: !!pageId,
   });
 
   // Fetch comments with infinite scroll
@@ -612,7 +604,7 @@ export default function FacebookLiveCommentsPage() {
     allCommentIdsRef.current = new Set();
     setNewCommentIds(new Set());
     setSearchQuery("");
-    setCustomerStatusMap(new Map()); // Reset status map
+    // Don't reset customerStatusMap - keep existing status data
   };
 
   const handleShowInfo = (orderInfo: TPOSOrder | undefined) => {
@@ -719,6 +711,9 @@ export default function FacebookLiveCommentsPage() {
                 value={pageId}
                 onChange={(e) => setPageId(e.target.value)}
               />
+              {pageId === "117267091364524" && (
+                <p className="text-sm text-muted-foreground mt-1">Fanpage NhiJudyHouse</p>
+              )}
             </div>
             <div className="w-32">
               <Input
@@ -1150,80 +1145,6 @@ export default function FacebookLiveCommentsPage() {
                   </p>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isCreateOrderResponseOpen} onOpenChange={setIsCreateOrderResponseOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>API Response: Tạo đơn hàng</DialogTitle>
-            <DialogDescription>
-              Đây là dữ liệu được gửi đi và nhận về từ TPOS API.
-            </DialogDescription>
-          </DialogHeader>
-          {createOrderResponse && (
-            <div className="space-y-4">
-              {createOrderResponse.payload && (
-                <Collapsible>
-                  <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 bg-muted/50 hover:bg-muted/80">
-                    <span className="font-semibold">Payload đã gửi</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="pt-2">
-                    <div className="space-y-2 rounded-md border p-4">
-                      <h4 className="font-semibold">Giải thích Payload</h4>
-                      <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-1">
-                        <li><code className="bg-muted px-1 rounded">Facebook_PostId</code>: Lấy từ <code className="bg-muted px-1 rounded">video.objectId</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">Facebook_ASUserId</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.from.id</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">Facebook_UserName</code>, <code className="bg-muted px-1 rounded">Name</code>, <code className="bg-muted px-1 rounded">PartnerName</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.from.name</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">Facebook_CommentId</code>: Lấy từ <code className="bg-muted px-1 rounded">comment.id</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">Facebook_Comments</code>: Chứa toàn bộ đối tượng <code className="bg-muted px-1 rounded">comment</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">Note</code>: Nội dung bình luận với tiền tố <code className="bg-muted px-1 rounded">{'{before}'}</code>.</li>
-                        <li><code className="bg-muted px-1 rounded">DateCreated</code>: Thời gian hiện tại khi gửi request.</li>
-                        <li>Các trường khác là giá trị cố định.</li>
-                      </ul>
-                      <div className="flex items-center justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyToClipboard(JSON.stringify(createOrderResponse.payload, null, 2))}
-                        >
-                          <Copy className="h-4 w-4 mr-2" />
-                          Copy Payload
-                        </Button>
-                      </div>
-                      <ScrollArea className="h-[300px] w-full rounded-md border">
-                        <pre className="p-4 text-xs bg-muted">{JSON.stringify(createOrderResponse.payload, null, 2)}</pre>
-                      </ScrollArea>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-              <Collapsible>
-                <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border p-3 bg-muted/50 hover:bg-muted/80">
-                  <span className="font-semibold">Response nhận được</span>
-                  <ChevronDown className="h-4 w-4" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="pt-2">
-                  <div className="space-y-2 rounded-md border p-4">
-                    <div className="flex items-center justify-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyToClipboard(JSON.stringify(createOrderResponse.data, null, 2))}
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy Response
-                      </Button>
-                    </div>
-                    <ScrollArea className="h-[500px] w-full rounded-md border">
-                      <pre className="p-4 text-xs bg-muted">{JSON.stringify(createOrderResponse.data, null, 2)}</pre>
-                    </ScrollArea>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
             </div>
           )}
         </DialogContent>
