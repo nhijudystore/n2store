@@ -7,8 +7,7 @@ import {
   Warehouse,
   Search,
   History,
-  Users,
-  MessageSquare
+  Users
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -57,11 +56,6 @@ const adminItems = [
     title: "Kho Khách Hàng",
     url: "/customers",
     icon: Users,
-  },
-  {
-    title: "Facebook Live",
-    url: "/facebook-live-comments",
-    icon: MessageSquare,
   },
   {
     title: "Tìm Kiếm SP",

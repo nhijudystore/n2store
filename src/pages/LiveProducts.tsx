@@ -2481,15 +2481,7 @@ export default function LiveProducts() {
 
             {/* Facebook Live Comments Feature Tab */}
             <TabsContent value="test-comment" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Facebook Live Comments</CardTitle>
-                  <CardDescription>
-                    Tính năng đã được chuyển sang trang riêng. 
-                    Vui lòng sử dụng menu bên trái để truy cập.
-                  </CardDescription>
-                </CardHeader>
-              </Card>
+              <FacebookCommentsManager />
             </TabsContent>
           </Tabs>
         </>

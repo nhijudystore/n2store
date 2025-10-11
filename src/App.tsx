@@ -17,7 +17,7 @@ import SearchProducts from "./pages/SearchProducts";
 import Settings from "./pages/Settings";
 import ActivityLog from "./pages/ActivityLog";
 import Customers from "./pages/Customers";
-import FacebookLiveCommentsPage from "./pages/FacebookLiveCommentsPage";
+
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -105,13 +105,6 @@ const App = () => (
                 <ProtectedRoute>
                   <Layout>
                     <Customers />
-                  </Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/facebook-live-comments" element={
-                <ProtectedRoute>
-                  <Layout>
-                    <FacebookLiveCommentsPage />
                   </Layout>
                 </ProtectedRoute>
               } />
