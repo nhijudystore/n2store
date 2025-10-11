@@ -98,6 +98,54 @@ export type Database = {
         }
         Relationships: []
       }
+      facebook_pending_orders: {
+        Row: {
+          code: string | null
+          comment: string | null
+          created_at: string
+          created_time: string
+          facebook_comment_id: string | null
+          facebook_post_id: string | null
+          facebook_user_id: string | null
+          id: string
+          name: string
+          phone: string | null
+          session_index: string | null
+          tpos_order_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          comment?: string | null
+          created_at?: string
+          created_time?: string
+          facebook_comment_id?: string | null
+          facebook_post_id?: string | null
+          facebook_user_id?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          session_index?: string | null
+          tpos_order_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          comment?: string | null
+          created_at?: string
+          created_time?: string
+          facebook_comment_id?: string | null
+          facebook_post_id?: string | null
+          facebook_user_id?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          session_index?: string | null
+          tpos_order_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goods_receiving: {
         Row: {
           created_at: string | null
