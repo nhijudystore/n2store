@@ -259,7 +259,9 @@ export default function Customers() {
         );
       }
 
-      if (statusFilter === "Trùng SĐT") {
+      if (statusFilter === "internal") {
+        query = query.like("idkh", "%-%");
+      } else if (statusFilter === "Trùng SĐT") {
         if (!duplicatePhones || duplicatePhones.size === 0) {
           setTotalCustomersCount(0);
           return [];
@@ -337,6 +339,10 @@ export default function Customers() {
         return count || 0;
     },
     enabled: !!duplicatePhones,
+  });
+  const { data: totalInternalCount = 0, isLoading: isLoadingInternal } = useQuery({
+    queryKey: ["customers-count-internal"],
+    queryFn: async () => (await supabase.from("customers").select("*", { count: "exact", head: true }).like("idkh", "%-%")).count || 0,
   });
 
   const createMutation = useMutation({
@@ -551,6 +557,7 @@ export default function Customers() {
     chuacott: totalChuaCoTTCount,
     synced_tpos: totalSyncedTposCount, // New stat
     trungsdt: totalTrungSdtCount,
+    internal: totalInternalCount,
     wholesale: 0, 
     close: 0,
     danger: 0,
@@ -1008,7 +1015,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1095,6 +1102,17 @@ export default function Customers() {
             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
           </div>
         </Card>
+        <Card className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Khách nội bộ</p>
+              <p className="text-2xl font-bold">
+                {isLoadingInternal ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.internal}
+              </p>
+            </div>
+            <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
+          </div>
+        </Card>
       </div>
 
       {selectedIds.size > 0 && (
@@ -1149,6 +1167,7 @@ export default function Customers() {
               <SelectItem value="VIP">VIP</SelectItem>
               <SelectItem value="Chưa có TT">Chưa có TT</SelectItem>
               <SelectItem value="Trùng SĐT">Trùng SĐT</SelectItem>
+              <SelectItem value="internal">Khách nội bộ</SelectItem>
             </SelectContent>
           </Select>
         </div>
