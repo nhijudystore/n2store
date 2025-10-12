@@ -1854,6 +1854,14 @@ export default function LiveProducts() {
                                                 Chưa có đơn
                                               </span>
                                             )}
+                                            {selectedPhase !== "all" && (
+                                              <QuickAddOrder 
+                                                productId={product.id}
+                                                phaseId={selectedPhase}
+                                                sessionId={selectedSession}
+                                                availableQuantity={product.prepared_quantity - product.sold_quantity}
+                                              />
+                                            )}
                                           </>
                                         );
                                       })()}

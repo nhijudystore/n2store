@@ -426,17 +426,18 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
           </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-[400px] p-0" 
+          className="w-[400px] p-0 bg-popover z-50" 
           align="start"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <Command shouldFilter={false}>
+          <Command shouldFilter={false} className="bg-popover">
             <CommandInput 
               placeholder="Tìm mã đơn..." 
               value={inputValue}
               onValueChange={setInputValue}
+              className="bg-background"
             />
-            <CommandList>
+            <CommandList className="bg-popover">
               <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
               <CommandGroup>
                 <ScrollArea className="h-[200px]">
