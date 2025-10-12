@@ -1478,23 +1478,23 @@ export default function LiveProducts() {
               <div className="flex gap-2">
                 {activeTab === "products" && (
                   <>
-                    <Sheet open={isCommentsPanelOpen} onOpenChange={setIsCommentsPanelOpen}>
-                      <SheetTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center gap-2"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          Comments
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="right" className="w-[500px] sm:w-[600px] overflow-y-auto">
-                        <SheetHeader>
-                          <SheetTitle>Facebook Comments</SheetTitle>
-                        </SheetHeader>
-                        <div className="mt-4">
-                          {commentsVideoId ? (
+                    {commentsVideoId && (
+                      <Sheet open={isCommentsPanelOpen} onOpenChange={setIsCommentsPanelOpen}>
+                        <SheetTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Comments
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-[500px] sm:w-[600px] overflow-y-auto">
+                          <SheetHeader>
+                            <SheetTitle>Facebook Comments</SheetTitle>
+                          </SheetHeader>
+                          <div className="mt-4">
                             <LiveCommentsPanel
                               pageId={commentsPageId}
                               videoId={commentsVideoId}
@@ -1508,16 +1508,10 @@ export default function LiveProducts() {
                               hasMore={hasNextPage}
                               onRefresh={refetchComments}
                             />
-                          ) : (
-                            <div className="flex flex-col items-center justify-center h-[400px] text-center text-muted-foreground">
-                              <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-                              <p className="text-lg font-medium mb-2">Chưa chọn video</p>
-                              <p className="text-sm">Vui lòng chọn video từ tab "Livestream Comment" để xem comments</p>
-                            </div>
-                          )}
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    )}
                     <Button
                       variant="default"
                       size="sm"
