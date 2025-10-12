@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Package, Trash2, Store } from "lucide-react";
+import { Package, Trash2, Store, Download } from "lucide-react";
+import { searchTPOSProduct, importProductFromTPOS } from "@/lib/tpos-api";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -122,6 +123,35 @@ export default function Products() {
       toast.error("Có lỗi khi cập nhật NCC");
     },
   });
+
+  // Mutation to import from TPOS
+  const importFromTPOSMutation = useMutation({
+    mutationFn: async (productCode: string) => {
+      const tposProduct = await searchTPOSProduct(productCode);
+      if (!tposProduct) {
+        throw new Error("Không tìm thấy sản phẩm trên TPOS");
+      }
+      await importProductFromTPOS(tposProduct);
+      return tposProduct;
+    },
+    onSuccess: (tposProduct) => {
+      toast.success(`Đã thêm sản phẩm: ${tposProduct.Name}`);
+      queryClient.invalidateQueries({ queryKey: ["products-search"] });
+      queryClient.invalidateQueries({ queryKey: ["products-stats"] });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Có lỗi khi lấy sản phẩm từ TPOS");
+    },
+  });
+
+  const handleImportFromTPOS = () => {
+    if (debouncedSearch.length < 2) {
+      toast.error("Vui lòng nhập mã sản phẩm cần tìm");
+      return;
+    }
+    importFromTPOSMutation.mutate(debouncedSearch.trim());
+  };
 
   const handleClearTPOSIds = async () => {
     setIsClearing(true);
@@ -263,6 +293,18 @@ export default function Products() {
                     >
                       Import Excel
                     </Button>
+                    {debouncedSearch.length >= 2 && (
+                      <Button
+                        onClick={handleImportFromTPOS}
+                        variant="default"
+                        size={isMobile ? "sm" : "default"}
+                        className={isMobile ? "flex-1 text-xs" : ""}
+                        disabled={importFromTPOSMutation.isPending}
+                      >
+                        <Download className="h-4 w-4 mr-2" />
+                        {importFromTPOSMutation.isPending ? "Đang lấy..." : "Lấy từ TPOS"}
+                      </Button>
+                    )}
                     <Button
                       onClick={() => setIsCreateDialogOpen(true)}
                       className={isMobile ? "flex-1" : ""}
