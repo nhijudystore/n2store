@@ -14,12 +14,12 @@ import { UploadTPOSDialog } from "@/components/live-products/UploadTPOSDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
 import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
-import { QuickAddOrderInline } from "@/components/live-products/QuickAddOrderInline";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
+import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
 import { 
   Plus, 
   Calendar,
@@ -64,7 +64,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { useSidebar } from "@/components/ui/sidebar";
 
 interface LiveSession {
   id: string;
@@ -209,10 +208,7 @@ export default function LiveProducts() {
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
   const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   const productListRef = useRef<HTMLDivElement>(null);
-  const [isCommentsPanelOpen, setIsCommentsPanelOpen] = useState(false);
-  
-  // Get navigation sidebar control
-  const { setOpen: setNavSidebarOpen } = useSidebar();
+  const { isCommentsOpen: isCommentsPanelOpen, setIsCommentsOpen: setIsCommentsPanelOpen } = useCommentsSidebar();
   
   const {
     comments,
@@ -228,15 +224,6 @@ export default function LiveProducts() {
     videoId: commentsVideoId,
     isAutoRefresh: isCommentsAutoRefresh,
   });
-  
-  // Auto-toggle navigation sidebar when comments sidebar opens/closes
-  useEffect(() => {
-    if (isCommentsPanelOpen) {
-      setNavSidebarOpen(false);
-    } else {
-      setNavSidebarOpen(true);
-    }
-  }, [isCommentsPanelOpen, setNavSidebarOpen]);
   
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
@@ -1857,7 +1844,7 @@ export default function LiveProducts() {
                                               </span>
                                             )}
                                             {selectedPhase !== "all" && (
-                                              <QuickAddOrderInline 
+                                              <QuickAddOrder 
                                                 productId={product.id}
                                                 phaseId={selectedPhase}
                                                 sessionId={selectedSession}
@@ -2109,7 +2096,7 @@ export default function LiveProducts() {
                                       })}
                                       {selectedPhase !== "all" && (
                                         <div className="flex items-center gap-2 ml-2">
-                                          <QuickAddOrderInline 
+                                          <QuickAddOrder 
                                             productId={product.id}
                                             phaseId={selectedPhase}
                                             sessionId={selectedSession}
@@ -2279,7 +2266,7 @@ export default function LiveProducts() {
                                       );
                                     })}
                                     {selectedPhase !== "all" && (
-                                      <QuickAddOrderInline 
+                                      <QuickAddOrder 
                                         productId={product.id}
                                         phaseId={selectedPhase}
                                         sessionId={selectedSession}

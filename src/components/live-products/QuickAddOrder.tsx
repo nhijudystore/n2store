@@ -7,10 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { OrderBillNotification } from './OrderBillNotification';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ChevronDown } from 'lucide-react';
 
 interface QuickAddOrderProps {
   productId: string;
@@ -20,7 +19,7 @@ interface QuickAddOrderProps {
 }
 
 export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity }: QuickAddOrderProps) {
-  const [searchValue, setSearchValue] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -168,47 +167,49 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
 
   const addOrderMutation = useMutation({
     mutationFn: async ({ sessionIndex, commentId }: { sessionIndex: string; commentId: string }) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("User not authenticated");
+      // Get current product data to check if overselling
+      const { data: product, error: fetchError } = await supabase
+        .from('live_products')
+        .select('sold_quantity, prepared_quantity, product_code, product_name')
+        .eq('id', productId)
+        .single();
+
+      if (fetchError) throw fetchError;
 
       // Get pending order details for bill
       const pendingOrder = pendingOrders.find(order => order.facebook_comment_id === commentId);
 
-      // Call edge function
-      const response = await fetch(
-        `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/create-live-order`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            productId,
-            phaseId,
-            sessionId,
-            orderCode: sessionIndex,
-            commentId
-          }),
-        }
-      );
+      // Check if this order will be an oversell
+      const newSoldQuantity = (product.sold_quantity || 0) + 1;
+      const isOversell = newSoldQuantity > product.prepared_quantity;
 
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || 'Failed to create order');
-      }
+      // Insert new order with oversell flag and comment ID
+      const { error: orderError } = await supabase
+        .from('live_orders')
+        .insert({
+          order_code: sessionIndex,
+          facebook_comment_id: commentId,
+          live_session_id: sessionId,
+          live_phase_id: phaseId,
+          live_product_id: productId,
+          quantity: 1,
+          is_oversell: isOversell
+        });
 
-      // Get product info for bill
-      const { data: product } = await supabase
+      if (orderError) throw orderError;
+
+      // Update sold quantity
+      const { error: updateError } = await supabase
         .from('live_products')
-        .select('product_code, product_name')
-        .eq('id', productId)
-        .single();
+        .update({ sold_quantity: newSoldQuantity })
+        .eq('id', productId);
+
+      if (updateError) throw updateError;
       
       return { 
         sessionIndex, 
-        isOversell: responseData.isOversell,
-        billData: pendingOrder && product ? {
+        isOversell,
+        billData: pendingOrder ? {
           sessionIndex,
           phone: pendingOrder.phone,
           customerName: pendingOrder.name,
@@ -220,12 +221,16 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       };
     },
     onSuccess: ({ sessionIndex, isOversell, billData }) => {
-      setSearchValue('');
-      setIsOpen(false);
-      // Only invalidate queries to prevent UI blocking
+      setInputValue('');
+      // Force refetch all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['orders-with-products', phaseId] });
+      
+      // Also refetch queries to ensure UI updates immediately
+      queryClient.refetchQueries({ queryKey: ['live-orders', phaseId] });
+      queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
+      queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       if (billData) {
         // Get printer config
@@ -334,6 +339,44 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
   });
 
+  const handleAddOrder = () => {
+    const trimmedValue = inputValue.trim();
+    
+    if (!trimmedValue) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập mã đơn hàng",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find the order by session_index
+    const order = flatOrders.find(o => o.session_index === trimmedValue);
+    
+    if (!order) {
+      toast({
+        title: "Không tìm thấy",
+        description: `Không tìm thấy đơn hàng với mã "${trimmedValue}" hoặc đã được sử dụng`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!order.facebook_comment_id) {
+      toast({
+        title: "Lỗi",
+        description: "Đơn hàng không có comment ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addOrderMutation.mutate({ 
+      sessionIndex: order.session_index!, 
+      commentId: order.facebook_comment_id 
+    });
+  };
 
   const handleSelectOrder = (order: typeof flatOrders[0]) => {
     if (!order.facebook_comment_id) {
@@ -344,6 +387,9 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       });
       return;
     }
+
+    setInputValue(order.session_index!);
+    setIsOpen(false);
     
     addOrderMutation.mutate({ 
       sessionIndex: order.session_index!, 
@@ -351,79 +397,98 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     });
   };
 
-  const isOutOfStock = availableQuantity <= 0;
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleAddOrder();
+    }
+  };
 
-  // Filtered orders for display
-  const filteredOrders = flatOrders.filter(order => 
-    !searchValue || 
-    order.session_index?.includes(searchValue) ||
-    order.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
-    order.comment?.toLowerCase().includes(searchValue.toLowerCase())
-  );
+  const isOutOfStock = availableQuantity <= 0;
   
   return (
-    <div className="w-full">
-      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            disabled={addOrderMutation.isPending || flatOrders.length === 0}
-            className={cn(
-              "w-full justify-between h-9 text-sm",
-              isOutOfStock && "border-red-500 text-red-500"
-            )}
-          >
-            <span>{isOutOfStock ? "⚠️ Quá số (đánh dấu đỏ)" : "Chọn mã đơn hàng..."}</span>
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent 
-          className="w-[400px] p-0 bg-popover z-[100]" 
+    <div className="w-full flex gap-2">
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="flex-1 relative">
+            <Input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              onFocus={() => setIsOpen(true)}
+              placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn..."}
+              className={cn(
+                "text-sm h-9",
+                isOutOfStock && "border-red-500"
+              )}
+              disabled={addOrderMutation.isPending}
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-[400px] p-0 bg-popover z-50" 
           align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command shouldFilter={false} className="bg-popover">
             <CommandInput 
               placeholder="Tìm mã đơn..." 
-              value={searchValue}
-              onValueChange={setSearchValue}
+              value={inputValue}
+              onValueChange={setInputValue}
               className="bg-background"
             />
             <CommandList className="bg-popover">
               <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
               <CommandGroup>
                 <ScrollArea className="h-[200px]">
-                  {filteredOrders.map((order) => {
-                    const usedCount = commentUsageCount.get(order.facebook_comment_id!) || 0;
-                    const allowedCount = order.order_count || 1;
-                    const remainingCount = allowedCount - usedCount;
-                    
-                    return (
-                      <CommandItem
-                        key={order.id}
-                        onSelect={() => handleSelectOrder(order)}
-                        className="cursor-pointer flex items-center gap-1"
-                      >
-                        <span className="font-medium shrink-0">{order.session_index}</span>
-                        {remainingCount < allowedCount && (
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            ({remainingCount}/{allowedCount})
+                  {flatOrders
+                    .filter(order => 
+                      !inputValue || 
+                      order.session_index?.includes(inputValue) ||
+                      order.name?.toLowerCase().includes(inputValue.toLowerCase()) ||
+                      order.comment?.toLowerCase().includes(inputValue.toLowerCase())
+                    )
+                    .map((order) => {
+                      const usedCount = commentUsageCount.get(order.facebook_comment_id!) || 0;
+                      const allowedCount = order.order_count || 1;
+                      const remainingCount = allowedCount - usedCount;
+                      
+                      return (
+                        <CommandItem
+                          key={order.id}
+                          onSelect={() => handleSelectOrder(order)}
+                          className="cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="font-medium shrink-0">{order.session_index}</span>
+                          {remainingCount < allowedCount && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              ({remainingCount}/{allowedCount})
+                            </span>
+                          )}
+                          <span className="shrink-0">-</span>
+                          <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
+                          <span className="shrink-0">-</span>
+                          <span className="flex-1 truncate text-muted-foreground">
+                            {order.comment || '(không có comment)'}
                           </span>
-                        )}
-                        <span className="shrink-0">-</span>
-                        <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
-                        <span className="shrink-0">-</span>
-                        <span className="flex-1 truncate text-muted-foreground">
-                          {order.comment || '(không có comment)'}
-                        </span>
-                      </CommandItem>
-                    );
-                  })}
+                        </CommandItem>
+                      );
+                    })}
                 </ScrollArea>
               </CommandGroup>
             </CommandList>
           </Command>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </PopoverContent>
+      </Popover>
+      
+      <Button
+        onClick={handleAddOrder}
+        disabled={addOrderMutation.isPending || !inputValue.trim()}
+        size="sm"
+        className="h-9"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
