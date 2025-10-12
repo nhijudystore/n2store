@@ -22,6 +22,7 @@ import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
 import { FetchTPOSProductsDialog } from "@/components/settings/FetchTPOSProductsDialog";
 import { GetTPOSProductTool } from "@/components/settings/GetTPOSProductTool";
+import { PrinterSettings } from "@/components/settings/PrinterSettings";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -1701,6 +1702,8 @@ const Settings = () => {
       <GetTPOSProductTool />
 
       <BarcodeScannerSettings />
+
+      <PrinterSettings />
 
       <VariantTestTool />
 
