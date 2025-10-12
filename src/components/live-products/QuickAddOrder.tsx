@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { OrderBillNotification } from './OrderBillNotification';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 interface QuickAddOrderProps {
   productId: string;
@@ -19,7 +20,7 @@ interface QuickAddOrderProps {
 }
 
 export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity }: QuickAddOrderProps) {
-  const [inputValue, setInputValue] = useState('');
+  const [searchValue, setSearchValue] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -219,7 +220,8 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       };
     },
     onSuccess: ({ sessionIndex, isOversell, billData }) => {
-      setInputValue('');
+      setSearchValue('');
+      setIsOpen(false);
       // Only invalidate queries to prevent UI blocking
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
@@ -332,44 +334,6 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
   });
 
-  const handleAddOrder = () => {
-    const trimmedValue = inputValue.trim();
-    
-    if (!trimmedValue) {
-      toast({
-        title: "Lỗi",
-        description: "Vui lòng nhập mã đơn hàng",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Find the order by session_index
-    const order = flatOrders.find(o => o.session_index === trimmedValue);
-    
-    if (!order) {
-      toast({
-        title: "Không tìm thấy",
-        description: `Không tìm thấy đơn hàng với mã "${trimmedValue}" hoặc đã được sử dụng`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!order.facebook_comment_id) {
-      toast({
-        title: "Lỗi",
-        description: "Đơn hàng không có comment ID",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    addOrderMutation.mutate({ 
-      sessionIndex: order.session_index!, 
-      commentId: order.facebook_comment_id 
-    });
-  };
 
   const handleSelectOrder = (order: typeof flatOrders[0]) => {
     if (!order.facebook_comment_id) {
@@ -380,9 +344,6 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       });
       return;
     }
-
-    setInputValue(order.session_index!);
-    setIsOpen(false);
     
     addOrderMutation.mutate({ 
       sessionIndex: order.session_index!, 
@@ -390,98 +351,79 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     });
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleAddOrder();
-    }
-  };
-
   const isOutOfStock = availableQuantity <= 0;
+
+  // Filtered orders for display
+  const filteredOrders = flatOrders.filter(order => 
+    !searchValue || 
+    order.session_index?.includes(searchValue) ||
+    order.name?.toLowerCase().includes(searchValue.toLowerCase()) ||
+    order.comment?.toLowerCase().includes(searchValue.toLowerCase())
+  );
   
   return (
-    <div className="w-full flex gap-2">
-      <Popover open={isOpen} onOpenChange={setIsOpen}>
-        <PopoverTrigger asChild>
-          <div className="flex-1 relative">
-            <Input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              onFocus={() => setIsOpen(true)}
-              placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn..."}
-              className={cn(
-                "text-sm h-9",
-                isOutOfStock && "border-red-500"
-              )}
-              disabled={addOrderMutation.isPending}
-            />
-          </div>
-        </PopoverTrigger>
-        <PopoverContent 
-          className="w-[400px] p-0 bg-popover z-50" 
+    <div className="w-full">
+      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            disabled={addOrderMutation.isPending || flatOrders.length === 0}
+            className={cn(
+              "w-full justify-between h-9 text-sm",
+              isOutOfStock && "border-red-500 text-red-500"
+            )}
+          >
+            <span>{isOutOfStock ? "⚠️ Quá số (đánh dấu đỏ)" : "Chọn mã đơn hàng..."}</span>
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent 
+          className="w-[400px] p-0 bg-popover z-[100]" 
           align="start"
-          onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <Command shouldFilter={false} className="bg-popover">
             <CommandInput 
               placeholder="Tìm mã đơn..." 
-              value={inputValue}
-              onValueChange={setInputValue}
+              value={searchValue}
+              onValueChange={setSearchValue}
               className="bg-background"
             />
             <CommandList className="bg-popover">
               <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
               <CommandGroup>
                 <ScrollArea className="h-[200px]">
-                  {flatOrders
-                    .filter(order => 
-                      !inputValue || 
-                      order.session_index?.includes(inputValue) ||
-                      order.name?.toLowerCase().includes(inputValue.toLowerCase()) ||
-                      order.comment?.toLowerCase().includes(inputValue.toLowerCase())
-                    )
-                    .map((order) => {
-                      const usedCount = commentUsageCount.get(order.facebook_comment_id!) || 0;
-                      const allowedCount = order.order_count || 1;
-                      const remainingCount = allowedCount - usedCount;
-                      
-                      return (
-                        <CommandItem
-                          key={order.id}
-                          onSelect={() => handleSelectOrder(order)}
-                          className="cursor-pointer flex items-center gap-1"
-                        >
-                          <span className="font-medium shrink-0">{order.session_index}</span>
-                          {remainingCount < allowedCount && (
-                            <span className="text-xs text-muted-foreground shrink-0">
-                              ({remainingCount}/{allowedCount})
-                            </span>
-                          )}
-                          <span className="shrink-0">-</span>
-                          <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
-                          <span className="shrink-0">-</span>
-                          <span className="flex-1 truncate text-muted-foreground">
-                            {order.comment || '(không có comment)'}
+                  {filteredOrders.map((order) => {
+                    const usedCount = commentUsageCount.get(order.facebook_comment_id!) || 0;
+                    const allowedCount = order.order_count || 1;
+                    const remainingCount = allowedCount - usedCount;
+                    
+                    return (
+                      <CommandItem
+                        key={order.id}
+                        onSelect={() => handleSelectOrder(order)}
+                        className="cursor-pointer flex items-center gap-1"
+                      >
+                        <span className="font-medium shrink-0">{order.session_index}</span>
+                        {remainingCount < allowedCount && (
+                          <span className="text-xs text-muted-foreground shrink-0">
+                            ({remainingCount}/{allowedCount})
                           </span>
-                        </CommandItem>
-                      );
-                    })}
+                        )}
+                        <span className="shrink-0">-</span>
+                        <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
+                        <span className="shrink-0">-</span>
+                        <span className="flex-1 truncate text-muted-foreground">
+                          {order.comment || '(không có comment)'}
+                        </span>
+                      </CommandItem>
+                    );
+                  })}
                 </ScrollArea>
               </CommandGroup>
             </CommandList>
           </Command>
-        </PopoverContent>
-      </Popover>
-      
-      <Button
-        onClick={handleAddOrder}
-        disabled={addOrderMutation.isPending || !inputValue.trim()}
-        size="sm"
-        className="h-9"
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
