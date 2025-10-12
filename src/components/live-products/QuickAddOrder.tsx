@@ -7,6 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { OrderBillNotification } from './OrderBillNotification';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 interface QuickAddOrderProps {
   productId: string;
@@ -17,6 +20,7 @@ interface QuickAddOrderProps {
 
 export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity }: QuickAddOrderProps) {
   const [inputValue, setInputValue] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -336,6 +340,25 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     });
   };
 
+  const handleSelectOrder = (order: typeof flatOrders[0]) => {
+    if (!order.facebook_comment_id) {
+      toast({
+        title: "Lỗi",
+        description: "Đơn hàng không có comment ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setInputValue(order.session_index!);
+    setIsOpen(false);
+    
+    addOrderMutation.mutate({ 
+      sessionIndex: order.session_index!, 
+      commentId: order.facebook_comment_id 
+    });
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       handleAddOrder();
@@ -346,18 +369,69 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
   
   return (
     <div className="w-full flex gap-2">
-      <Input
-        type="text"
-        value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn..."}
-        className={cn(
-          "text-sm h-9 flex-1",
-          isOutOfStock && "border-red-500"
-        )}
-        disabled={addOrderMutation.isPending}
-      />
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="flex-1 relative">
+            <Input
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              onFocus={() => setIsOpen(true)}
+              placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn..."}
+              className={cn(
+                "text-sm h-9",
+                isOutOfStock && "border-red-500"
+              )}
+              disabled={addOrderMutation.isPending}
+            />
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-[400px] p-0" 
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <Command shouldFilter={false}>
+            <CommandInput 
+              placeholder="Tìm mã đơn..." 
+              value={inputValue}
+              onValueChange={setInputValue}
+            />
+            <CommandList>
+              <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
+              <CommandGroup>
+                <ScrollArea className="h-[200px]">
+                  {flatOrders
+                    .filter(order => 
+                      !inputValue || 
+                      order.session_index?.includes(inputValue) ||
+                      order.name?.toLowerCase().includes(inputValue.toLowerCase()) ||
+                      order.comment?.toLowerCase().includes(inputValue.toLowerCase())
+                    )
+                    .map((order) => (
+                      <CommandItem
+                        key={order.id}
+                        value={order.session_index!}
+                        onSelect={() => handleSelectOrder(order)}
+                        className="cursor-pointer"
+                      >
+                        <span className="font-medium">{order.session_index}</span>
+                        <span className="mx-1">-</span>
+                        <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
+                        <span className="mx-1">-</span>
+                        <span className="flex-1 truncate">
+                          {order.comment || '(không có comment)'}
+                        </span>
+                      </CommandItem>
+                    ))}
+                </ScrollArea>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      
       <Button
         onClick={handleAddOrder}
         disabled={addOrderMutation.isPending || !inputValue.trim()}
