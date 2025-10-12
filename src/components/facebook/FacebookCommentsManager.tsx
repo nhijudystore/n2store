@@ -140,6 +140,7 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
         description: `Đơn hàng ${data.response.Code} đã được tạo.`,
       });
       queryClient.invalidateQueries({ queryKey: ["tpos-orders", selectedVideo?.objectId] });
+      queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, selectedVideo?.objectId] });
     },
     onError: (error: any) => {
       let errorData;
@@ -1072,11 +1073,11 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
                                       size="sm" 
                                       className="h-7 text-xs"
                                       onClick={() => handleCreateOrderClick(comment)}
-                                      disabled={(createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id)}
+                                      disabled={createOrderMutation.isPending && createOrderMutation.variables?.comment?.id === comment.id}
                                     >
-                                      {createOrderMutation.isPending && createOrderMutation.variables?.comment.id === comment.id ? (
+                                      {(createOrderMutation.isPending && createOrderMutation.variables?.comment?.id === comment.id) && (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      ) : null}
+                                      )}
                                       Tạo đơn hàng
                                     </Button>
                                     <Button 
