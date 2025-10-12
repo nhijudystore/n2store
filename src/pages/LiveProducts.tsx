@@ -63,6 +63,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface LiveSession {
   id: string;
@@ -209,6 +210,9 @@ export default function LiveProducts() {
   const productListRef = useRef<HTMLDivElement>(null);
   const [isCommentsPanelOpen, setIsCommentsPanelOpen] = useState(false);
   
+  // Get navigation sidebar control
+  const { setOpen: setNavSidebarOpen } = useSidebar();
+  
   const {
     comments,
     ordersData,
@@ -223,6 +227,15 @@ export default function LiveProducts() {
     videoId: commentsVideoId,
     isAutoRefresh: isCommentsAutoRefresh,
   });
+  
+  // Auto-toggle navigation sidebar when comments sidebar opens/closes
+  useEffect(() => {
+    if (isCommentsPanelOpen) {
+      setNavSidebarOpen(false);
+    } else {
+      setNavSidebarOpen(true);
+    }
+  }, [isCommentsPanelOpen, setNavSidebarOpen]);
   
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
