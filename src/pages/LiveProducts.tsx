@@ -20,6 +20,8 @@ import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats"
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
 import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { 
   Plus, 
   Calendar,
@@ -181,6 +183,8 @@ const getHighestPriorityCustomerStatus = (orders: OrderWithProduct[]): string =>
 };
 
 export default function LiveProducts() {
+  const isMobile = useIsMobile();
+  
   // Initialize states from localStorage
   const [selectedSession, setSelectedSession] = useState<string>(() => {
     return localStorage.getItem('liveProducts_selectedSession') || "";
@@ -1381,7 +1385,10 @@ export default function LiveProducts() {
       </div>
 
       {/* Main content wrapper - pushes left when sidebar opens */}
-      <div className={`transition-all duration-300 ease-in-out ${isCommentsPanelOpen ? 'mr-[450px]' : 'mr-0'}`}>
+      <div className={cn(
+        "transition-all duration-300 ease-in-out",
+        isCommentsPanelOpen && !isMobile ? 'mr-[450px]' : 'mr-0'
+      )}>
         {/* Session Selection */}
         {liveSessions.length > 0 && (
         <Card>

@@ -26,6 +26,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { FacebookPageManager } from "@/components/facebook/FacebookPageManager";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 // Helper: Debounce function
 function debounce<T extends (...args: any[]) => any>(
@@ -44,6 +46,7 @@ interface FacebookCommentsManagerProps {
 }
 
 export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsManagerProps = {}) {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [pageId, setPageId] = useState(() => {
     return localStorage.getItem('liveProducts_commentsPageId') || "";
@@ -580,45 +583,61 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       <Card className="border-0 shadow-none">
         <Collapsible defaultOpen={false}>
           <CollapsibleTrigger asChild>
-            <CardHeader className="cursor-pointer flex flex-row items-center justify-between p-4 data-[state=open]:border-b">
+            <CardHeader className={cn(
+              "cursor-pointer flex flex-row items-center justify-between data-[state=open]:border-b",
+              isMobile ? "p-3" : "p-4"
+            )}>
               <div>
-                <CardTitle>Quản lý Facebook Pages</CardTitle>
-                <CardDescription>
+                <CardTitle className={isMobile ? "text-sm" : "text-base"}>
+                  Quản lý Facebook Pages
+                </CardTitle>
+                <CardDescription className={isMobile ? "text-xs" : "text-sm"}>
                   Thêm và cấu hình CRM Team ID cho các Facebook pages
                 </CardDescription>
               </div>
-              <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180" />
+              <ChevronDown className={cn(
+                "transition-transform data-[state=open]:rotate-180",
+                isMobile ? "h-3.5 w-3.5" : "h-4 w-4"
+              )} />
             </CardHeader>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <CardContent className="pt-4">
+            <CardContent className={isMobile ? "pt-3" : "pt-4"}>
               <FacebookPageManager />
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
       </Card>
 
-      <div className="flex-1 overflow-auto p-4">
+      <div className={cn("flex-1 overflow-auto", isMobile ? "p-2" : "p-4")}>
         <div className="space-y-4">
           {/* Video List - now full width */}
           <Card className="border-0 shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Cấu hình và Videos</CardTitle>
-            <CardDescription className="text-sm">
+          <CardHeader className={isMobile ? "pb-2" : "pb-3"}>
+            <CardTitle className={isMobile ? "text-sm" : "text-base"}>
+              Cấu hình và Videos
+            </CardTitle>
+            <CardDescription className={isMobile ? "text-xs" : "text-sm"}>
               Chọn Facebook Page từ danh sách đã thêm ở trên
             </CardDescription>
           </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className={cn("space-y-4", isMobile && "space-y-3")}>
               {selectedPage && selectedPage.crm_team_id && (
-                <div className="text-sm p-3 bg-muted rounded-md space-y-1">
+                <div className={cn(
+                  "p-3 bg-muted rounded-md space-y-1",
+                  isMobile ? "text-xs" : "text-sm"
+                )}>
                   <div><span className="font-medium">Page:</span> {selectedPage.page_name}</div>
                   <div><span className="font-medium">CRM Team:</span> {selectedPage.crm_team_name} ({selectedPage.crm_team_id})</div>
                 </div>
               )}
-              <div className="flex gap-4">
+              <div className={cn(
+                "flex gap-4",
+                isMobile && "flex-col gap-2"
+              )}>
                 <div className="flex-1">
                   <Select value={pageId} onValueChange={setPageId}>
-                    <SelectTrigger>
+                    <SelectTrigger className={isMobile ? "h-9 text-xs" : ""}>
                       <SelectValue placeholder="Chọn fanpage" />
                     </SelectTrigger>
                     <SelectContent>
@@ -636,7 +655,7 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-32">
+                <div className={cn(isMobile ? "w-full" : "w-32")}>
                   <Input
                     type="number"
                     placeholder="Limit"
@@ -644,9 +663,15 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
                     onChange={(e) => setLimit(e.target.value)}
                     min="1"
                     max="50"
+                    className={isMobile ? "h-9 text-xs" : ""}
                   />
                 </div>
-                <Button onClick={handleLoadVideos} disabled={videosLoading}>
+                <Button 
+                  onClick={handleLoadVideos} 
+                  disabled={videosLoading}
+                  size={isMobile ? "sm" : "default"}
+                  className={isMobile ? "w-full" : ""}
+                >
                   {videosLoading ? (
                     <>
                       <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -662,40 +687,97 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
               </div>
 
               {videos.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className={cn(
+                  "grid gap-4",
+                  isMobile ? "grid-cols-2 gap-2" : "grid-cols-2 md:grid-cols-4"
+                )}>
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className={isMobile ? "pt-4" : "pt-6"}>
                       <div className="text-center">
-                        <Video className="mx-auto h-8 w-8 mb-2 text-primary" />
-                        <div className="text-2xl font-bold">{stats.totalVideos}</div>
-                        <div className="text-sm text-muted-foreground">Videos</div>
+                        <Video className={cn(
+                          "mx-auto mb-2 text-primary",
+                          isMobile ? "h-6 w-6" : "h-8 w-8"
+                        )} />
+                        <div className={cn(
+                          "font-bold",
+                          isMobile ? "text-lg" : "text-2xl"
+                        )}>
+                          {stats.totalVideos}
+                        </div>
+                        <div className={cn(
+                          "text-muted-foreground",
+                          isMobile ? "text-xs" : "text-sm"
+                        )}>
+                          Videos
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className={isMobile ? "pt-4" : "pt-6"}>
                       <div className="text-center">
-                        <Badge variant="destructive" className="mb-2">LIVE</Badge>
-                        <div className="text-2xl font-bold">{stats.liveVideos}</div>
-                        <div className="text-sm text-muted-foreground">Đang Live</div>
+                        <Badge 
+                          variant="destructive" 
+                          className={cn("mb-2", isMobile && "text-xs")}
+                        >
+                          LIVE
+                        </Badge>
+                        <div className={cn(
+                          "font-bold",
+                          isMobile ? "text-lg" : "text-2xl"
+                        )}>
+                          {stats.liveVideos}
+                        </div>
+                        <div className={cn(
+                          "text-muted-foreground",
+                          isMobile ? "text-xs" : "text-sm"
+                        )}>
+                          Đang Live
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className={isMobile ? "pt-4" : "pt-6"}>
                       <div className="text-center">
-                        <MessageCircle className="mx-auto h-8 w-8 mb-2 text-blue-500" />
-                        <div className="text-2xl font-bold">{(stats.totalComments || 0).toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">Comments</div>
+                        <MessageCircle className={cn(
+                          "mx-auto mb-2 text-blue-500",
+                          isMobile ? "h-6 w-6" : "h-8 w-8"
+                        )} />
+                        <div className={cn(
+                          "font-bold",
+                          isMobile ? "text-lg" : "text-2xl"
+                        )}>
+                          {(stats.totalComments || 0).toLocaleString()}
+                        </div>
+                        <div className={cn(
+                          "text-muted-foreground",
+                          isMobile ? "text-xs" : "text-sm"
+                        )}>
+                          Comments
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                   <Card>
-                    <CardContent className="pt-6">
+                    <CardContent className={isMobile ? "pt-4" : "pt-6"}>
                       <div className="text-center">
-                        <Heart className="mx-auto h-8 w-8 mb-2 text-red-500" />
-                        <div className="text-2xl font-bold">{(stats.totalReactions || 0).toLocaleString()}</div>
-                        <div className="text-sm text-muted-foreground">Reactions</div>
+                        <Heart className={cn(
+                          "mx-auto mb-2 text-red-500",
+                          isMobile ? "h-6 w-6" : "h-8 w-8"
+                        )} />
+                        <div className={cn(
+                          "font-bold",
+                          isMobile ? "text-lg" : "text-2xl"
+                        )}>
+                          {(stats.totalReactions || 0).toLocaleString()}
+                        </div>
+                        <div className={cn(
+                          "text-muted-foreground",
+                          isMobile ? "text-xs" : "text-sm"
+                        )}>
+                          Reactions
+                        </div>
                       </div>
                     </CardContent>
                   </Card>

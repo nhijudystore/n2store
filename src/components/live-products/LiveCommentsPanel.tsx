@@ -9,6 +9,8 @@ import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, Heart, Search, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import type { FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +50,7 @@ export function LiveCommentsPanel({
   hasMore,
   onRefresh,
 }: LiveCommentsPanelProps) {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
@@ -503,34 +506,46 @@ export function LiveCommentsPanel({
       {/* Search with Refresh Button */}
       <div className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className={cn(
+            "absolute left-2 text-muted-foreground",
+            isMobile ? "top-2 h-3.5 w-3.5" : "top-2.5 h-4 w-4"
+          )} />
           <Input
             placeholder="Tìm comment..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 h-9 text-sm"
+            className={cn(
+              "pl-8",
+              isMobile ? "h-8 text-xs" : "h-9 text-sm"
+            )}
           />
         </div>
         <Button
           variant="outline"
-          size="sm"
-          className="h-9 px-3"
+          size={isMobile ? "sm" : "default"}
+          className={isMobile ? "h-8 px-2" : "h-9 px-3"}
           onClick={onRefresh}
           disabled={isLoading}
         >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={cn(
+            isMobile ? "h-3.5 w-3.5" : "h-4 w-4",
+            isLoading && "animate-spin"
+          )} />
         </Button>
       </div>
 
       {/* Comments List */}
       <ScrollArea ref={scrollRef} className="flex-1">
-        <div className="space-y-2 pr-4">
+        <div className={cn("space-y-2", isMobile ? "pr-2" : "pr-4")}>
           {isLoading && filteredComments.length === 0 ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : filteredComments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
+            <div className={cn(
+              "text-center py-8 text-muted-foreground",
+              isMobile ? "text-xs" : "text-sm"
+            )}>
               Không có comment nào
             </div>
           ) : (
@@ -538,17 +553,24 @@ export function LiveCommentsPanel({
               {filteredComments.map((comment) => (
                 <div
                   key={comment.id}
-                  className={`p-3 rounded-lg border transition-colors ${
+                  className={cn(
+                    "rounded-lg border transition-colors",
+                    isMobile ? "p-2" : "p-3",
                     newCommentIds.has(comment.id) ? 'bg-accent' : 'bg-card'
-                  }`}
+                  )}
                 >
                   {/* Header: Avatar, Name, Order Code, Status, Phone */}
-                  <div className="flex items-start gap-2 mb-2">
+                  <div className={cn(
+                    "flex items-start gap-2",
+                    isMobile ? "mb-1.5" : "mb-2"
+                  )}>
                     {/* Avatar */}
                     <div className="relative flex-shrink-0">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-[10px] ${
+                      <div className={cn(
+                        "rounded-full flex items-center justify-center text-white font-semibold",
+                        isMobile ? "w-8 h-8 text-[9px]" : "w-10 h-10 text-[10px]",
                         comment.orderInfo?.SessionIndex ? 'bg-red-500' : 'bg-blue-500'
-                      }`}>
+                      )}>
                         {comment.orderInfo?.SessionIndex 
                           ? comment.orderInfo.SessionIndex
                           : comment.from.name.charAt(0).toUpperCase()
@@ -558,29 +580,44 @@ export function LiveCommentsPanel({
 
                     {/* Name, Order Code, Status */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <div className={cn(
+                        "flex items-center justify-between gap-1.5",
+                        isMobile ? "mb-0.5" : "mb-1"
+                      )}>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="font-semibold text-sm">
+                          <span className={cn(
+                            "font-semibold",
+                            isMobile ? "text-xs" : "text-sm"
+                          )}>
                             {comment.from.name}
                           </span>
                           
                           {/* Order Code Badge */}
                           {comment.orderInfo?.Code && (
-                            <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 font-semibold">
+                            <Badge className={cn(
+                              "bg-blue-600 text-white font-semibold",
+                              isMobile ? "text-[9px] px-1 py-0" : "text-[10px] px-1.5 py-0"
+                            )}>
                               {comment.orderInfo.Code}
                             </Badge>
                           )}
 
                           {/* Order Count Badge */}
                           {comment.orderInfo?.order_count && comment.orderInfo.order_count > 1 && (
-                            <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0 font-semibold">
+                            <Badge className={cn(
+                              "bg-orange-500 text-white font-semibold",
+                              isMobile ? "text-[9px] px-1 py-0" : "text-[10px] px-1.5 py-0"
+                            )}>
                               Lần {comment.orderInfo.order_count}
                             </Badge>
                           )}
                           
                           {/* Phone Number Badge */}
                           {comment.orderInfo?.Telephone && (
-                            <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
+                            <Badge className={cn(
+                              "bg-slate-700 text-white font-semibold",
+                              isMobile ? "text-[9px] px-1 py-0" : "text-[10px] px-1.5 py-0"
+                            )}>
                               {comment.orderInfo.Telephone}
                             </Badge>
                           )}
@@ -588,33 +625,48 @@ export function LiveCommentsPanel({
 
                         {/* Comment Time */}
                         {comment.created_time && (
-                          <span className="text-sm text-muted-foreground flex-shrink-0">
+                          <span className={cn(
+                            "text-muted-foreground flex-shrink-0",
+                            isMobile ? "text-xs" : "text-sm"
+                          )}>
                             {format(new Date(comment.created_time), 'HH:mm')}
                           </span>
                         )}
                       </div>
 
                       {/* Comment Message */}
-                      <p className="text-sm text-foreground break-words">
+                      <p className={cn(
+                        "text-foreground break-words",
+                        isMobile ? "text-xs" : "text-sm"
+                      )}>
                         {comment.message || "(Không có nội dung)"}
                       </p>
                     </div>
                   </div>
 
                   {/* Buttons */}
-                  <div className="flex gap-1.5">
+                  <div className={cn(
+                    "flex gap-1.5",
+                    isMobile && "flex-wrap"
+                  )}>
                     <Button
-                      size="sm"
-                      className="h-8 text-xs flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                      size={isMobile ? "sm" : "default"}
+                      className={cn(
+                        "flex-1 bg-blue-500 hover:bg-blue-600 text-white",
+                        isMobile ? "h-7 text-xs min-w-[80px]" : "h-8 text-xs"
+                      )}
                       onClick={() => handleCreateOrderClick(comment)}
                       disabled={createOrderMutation.isPending}
                     >
-                      Tạo đơn hàng
+                      Tạo đơn
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="h-8 text-xs bg-green-500 hover:bg-green-600 text-white border-green-500"
+                      size={isMobile ? "sm" : "default"}
+                      className={cn(
+                        "bg-green-500 hover:bg-green-600 text-white border-green-500",
+                        isMobile ? "h-7 text-xs px-2 min-w-[60px]" : "h-8 text-xs"
+                      )}
                       onClick={() => {
                         if (comment.orderInfo) {
                           setSelectedOrderInfo(comment.orderInfo);
@@ -622,12 +674,16 @@ export function LiveCommentsPanel({
                         }
                       }}
                     >
-                      Thông tin
+                      Info
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className={`h-8 text-xs ${getStatusColor(comment.partnerStatus)} text-white border-0`}
+                      size={isMobile ? "sm" : "default"}
+                      className={cn(
+                        "text-white border-0",
+                        isMobile ? "h-7 text-xs px-2 min-w-[70px]" : "h-8 text-xs",
+                        getStatusColor(comment.partnerStatus)
+                      )}
                     >
                       {comment.partnerStatus}
                     </Button>
