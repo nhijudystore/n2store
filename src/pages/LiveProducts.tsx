@@ -1514,25 +1514,6 @@ export default function LiveProducts() {
                 </Card>
               ) : (
                 <>
-                  {/* Comments Settings - Collapsible */}
-                  <CommentsSettingsCollapsible
-                    pageId={commentsPageId}
-                    videoId={commentsVideoId}
-                    isAutoRefresh={isCommentsAutoRefresh}
-                    showOnlyWithOrders={showOnlyWithOrders}
-                    hideNhiJudyHouse={hideNhiJudyHouse}
-                    hideNames={hideNames}
-                    onPageIdChange={setCommentsPageId}
-                    onVideoChange={(video) => {
-                      setSelectedFacebookVideo(video);
-                      setCommentsVideoId(video?.objectId || "");
-                    }}
-                    onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
-                    onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
-                    onHideNhiJudyHouseChange={setHideNhiJudyHouse}
-                    onRefresh={() => refetchComments()}
-                  />
-                  
                   {/* Search box */}
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-lg border">
                     <Search className="h-4 w-4 text-muted-foreground" />
@@ -1555,329 +1536,305 @@ export default function LiveProducts() {
                     )}
                   </div>
 
-                  {/* 2-Column Layout: 70% Products + 30% Comments */}
-                  <div className="flex gap-4 h-[calc(100vh-280px)]">
-                    {/* Left: Products List - 70% */}
-                    <div ref={productListRef} className="flex-[7] overflow-y-auto">
-                      <Card>
-                  <Table>
-                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Mã SP</TableHead>
-                        <TableHead>Tên sản phẩm</TableHead>
-                        <TableHead>Hình ảnh</TableHead>
-                        <TableHead>Biến thể</TableHead>
-                        <TableHead className="text-center w-24">Tạo order</TableHead>
-                        <TableHead className="text-center">SL chuẩn bị</TableHead>
-                        <TableHead className="text-center">SL đã bán</TableHead>
-                        <TableHead>Mã đơn hàng</TableHead>
-                        <TableHead className="text-center">Thao tác</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(() => {
-                        // Filter products based on search - only show hang_dat
-                        const filteredProducts = productSearch.trim()
-                          ? productsHangDat.filter(product => {
-                              const searchLower = productSearch.toLowerCase();
-                              return (
-                                product.product_code.toLowerCase().includes(searchLower) ||
-                                product.product_name.toLowerCase().includes(searchLower) ||
-                                (product.variant?.toLowerCase() || "").includes(searchLower)
-                              );
-                            })
-                          : productsHangDat;
+                  <div ref={productListRef}>
+                    <Card>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Mã SP</TableHead>
+                            <TableHead>Tên sản phẩm</TableHead>
+                            <TableHead>Hình ảnh</TableHead>
+                            <TableHead>Biến thể</TableHead>
+                            <TableHead className="text-center w-24">Tạo order</TableHead>
+                            <TableHead className="text-center">SL chuẩn bị</TableHead>
+                            <TableHead className="text-center">SL đã bán</TableHead>
+                            <TableHead>Mã đơn hàng</TableHead>
+                            <TableHead className="text-center">Thao tác</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(() => {
+                            // Filter products based on search - only show hang_dat
+                            const filteredProducts = productSearch.trim()
+                              ? productsHangDat.filter(product => {
+                                  const searchLower = productSearch.toLowerCase();
+                                  return (
+                                    product.product_code.toLowerCase().includes(searchLower) ||
+                                    product.product_name.toLowerCase().includes(searchLower) ||
+                                    (product.variant?.toLowerCase() || "").includes(searchLower)
+                                  );
+                                })
+                              : productsHangDat;
 
-                        // Group products by base_product_code (or unique key for manual products)
-                        const productGroups = filteredProducts.reduce((groups, product) => {
-                          // Use base_product_code for inventory items, unique key for manual items
-                          const key = product.base_product_code 
-                            ? product.base_product_code 
-                            : `single_${product.id}`;
-                          
-                          if (!groups[key]) {
-                            groups[key] = {
-                              product_code: product.base_product_code || product.product_code,
-                              product_name: product.base_product_code 
-                                ? product.product_name.split('(')[0].trim()
-                                : product.product_name,
-                              products: [],
-                              earliest_created_at: product.created_at,
-                              base_product_code: product.base_product_code
-                            };
-                          }
-                          groups[key].products.push(product);
-                          // Track earliest created_at for group sorting
-                          if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
-                            groups[key].earliest_created_at = product.created_at;
-                          }
-                          return groups;
-                        }, {} as Record<string, {
-                          product_code: string;
-                          product_name: string;
-                          products: LiveProduct[];
-                          earliest_created_at?: string;
-                          base_product_code?: string | null;
-                        }>);
+                            // Group products by base_product_code (or unique key for manual products)
+                            const productGroups = filteredProducts.reduce((groups, product) => {
+                              // Use base_product_code for inventory items, unique key for manual items
+                              const key = product.base_product_code 
+                                ? product.base_product_code 
+                                : `single_${product.id}`;
+                              
+                              if (!groups[key]) {
+                                groups[key] = {
+                                  product_code: product.base_product_code || product.product_code,
+                                  product_name: product.base_product_code 
+                                    ? product.product_name.split('(')[0].trim()
+                                    : product.product_name,
+                                  products: [],
+                                  earliest_created_at: product.created_at,
+                                  base_product_code: product.base_product_code
+                                };
+                              }
+                              groups[key].products.push(product);
+                              // Track earliest created_at for group sorting
+                              if (product.created_at && product.created_at < groups[key].earliest_created_at!) {
+                                groups[key].earliest_created_at = product.created_at;
+                              }
+                              return groups;
+                            }, {} as Record<string, {
+                              product_code: string;
+                              product_name: string;
+                              products: LiveProduct[];
+                              earliest_created_at?: string;
+                              base_product_code?: string | null;
+                            }>);
 
-                        // Sort groups by earliest created_at (newest first)
-                        const sortedGroups = Object.values(productGroups).sort((a, b) => {
-                          const timeA = new Date(a.earliest_created_at || 0).getTime();
-                          const timeB = new Date(b.earliest_created_at || 0).getTime();
-                          return timeB - timeA; // Descending: newest first
-                        });
+                            // Sort groups by earliest created_at (newest first)
+                            const sortedGroups = Object.values(productGroups).sort((a, b) => {
+                              const timeA = new Date(a.earliest_created_at || 0).getTime();
+                              const timeB = new Date(b.earliest_created_at || 0).getTime();
+                              return timeB - timeA; // Descending: newest first
+                            });
 
-                        return sortedGroups.flatMap((group) => {
-                          // Sort products within group by variant name first, then by created_at
-                          const sortedProducts = [...group.products].sort((a, b) => {
-                            // Primary sort: variant name (alphabetically)
-                            const variantA = (a.variant || '').toLowerCase();
-                            const variantB = (b.variant || '').toLowerCase();
-                            const variantCompare = variantA.localeCompare(variantB);
-                            
-                            if (variantCompare !== 0) return variantCompare;
-                            
-                            // Secondary sort: created_at (if variants are the same)
-                            const timeA = new Date(a.created_at || 0).getTime();
-                            const timeB = new Date(b.created_at || 0).getTime();
-                            return timeA - timeB;
-                          });
+                            return sortedGroups.flatMap((group) => {
+                              // Sort products within group by variant name first, then by created_at
+                              const sortedProducts = [...group.products].sort((a, b) => {
+                                // Primary sort: variant name (alphabetically)
+                                const variantA = (a.variant || '').toLowerCase();
+                                const variantB = (b.variant || '').toLowerCase();
+                                const variantCompare = variantA.localeCompare(variantB);
+                                
+                                if (variantCompare !== 0) return variantCompare;
+                                
+                                // Secondary sort: created_at (if variants are the same)
+                                const timeA = new Date(a.created_at || 0).getTime();
+                                const timeB = new Date(b.created_at || 0).getTime();
+                                return timeA - timeB;
+                              });
 
-                          return sortedProducts.map((product, productIndex) => (
-                            <TableRow key={product.id}>
-                              {productIndex === 0 && (
-                                <>
-                                  <TableCell 
-                                    rowSpan={group.products.length} 
-                                    className="font-medium align-top border-r"
-                                  >
-                                    {group.product_code}
-                                  </TableCell>
-                                  <TableCell 
-                                    rowSpan={group.products.length}
-                                    className="align-top border-r"
-                                  >
-                                    {group.product_name}
-                                  </TableCell>
-                                  <TableCell 
-                                    rowSpan={group.products.length}
-                                    className="align-top border-r"
-                                  >
-                                    {product.image_url ? (
-                                      <img 
-                                        src={product.image_url} 
-                                        alt={group.product_name}
-                                        className="w-12 h-12 object-cover rounded"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                                        <Package className="h-6 w-6 text-muted-foreground" />
-                                      </div>
-                                    )}
-                                  </TableCell>
-                                </>
-                              )}
-                              <TableCell className="text-muted-foreground">
-                                {product.variant || "-"}
-                              </TableCell>
-                              <TableCell className="text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-7 w-7 p-0"
-                                    onClick={async () => {
-                                      const qty = orderQuantities[product.id] || 1;
-                                      if (!product.image_url) {
-                                        toast.error("Sản phẩm chưa có hình ảnh");
-                                        return;
-                                      }
-                                      await generateOrderImage(
-                                        product.image_url,
-                                        product.variant || "",
-                                        qty,
-                                        product.product_name
-                                      );
-                                      // Update copy total
-                                      setCopyTotals(prev => ({
-                                        ...prev,
-                                        [product.id]: (prev[product.id] || 0) + qty
-                                      }));
-                                    }}
-                                    disabled={!product.image_url}
-                                    title={product.image_url ? "Copy hình order" : "Chưa có hình ảnh"}
-                                  >
-                                    <Copy className="h-3 w-3" />
-                                  </Button>
-                                  <input
-                                    type="number"
-                                    min="1"
-                                    value={orderQuantities[product.id] || 1}
-                                    onChange={(e) => {
-                                      const value = parseInt(e.target.value) || 1;
-                                      setOrderQuantities(prev => ({
-                                        ...prev,
-                                        [product.id]: value
-                                      }));
-                                    }}
-                                    className="w-12 h-6 text-center text-xs border rounded px-1"
-                                    placeholder="SL"
-                                  />
-                                  {copyTotals[product.id] > 0 && (
-                                    <div className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getCopyStatusColor(copyTotals[product.id], product.sold_quantity)}`}>
-                                      Đã copy: {copyTotals[product.id]}
-                                    </div>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-center">{product.prepared_quantity}</TableCell>
-                              <TableCell className="text-center">{product.sold_quantity}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  {(() => {
-                                    const productOrders = selectedPhase === "all"
-                                      ? ordersWithProducts.filter(order => order.product_code === product.product_code)
-                                      : ordersWithProducts.filter(order => order.live_product_id === product.id);
-                                    
-                                    // Reverse to show newest on the right
-                                    const ordersReversed = [...productOrders].reverse();
-                                    
-                                    return (
-                                      <>
-                                        {ordersReversed.map(order => {
-                                          const isOversell = calculateIsOversell(
-                                            order.live_product_id,
-                                            order.id,
-                                            liveProducts || [],
-                                            ordersWithProducts
-                                          );
-                                          
-                                          // Get badge color based on priority: oversell > customer_status
-                                          let badgeColor = "bg-blue-100 text-blue-700 hover:bg-blue-200"; // default/normal
-                                          
-                                          if (isOversell) {
-                                            badgeColor = "bg-yellow-500 text-white hover:bg-yellow-600 font-bold shadow-md";
-                                          } else if (order.customer_status === 'bom_hang') {
-                                            badgeColor = "bg-red-600 text-white hover:bg-red-700 font-bold";
-                                          } else if (order.customer_status === 'thieu_thong_tin') {
-                                            badgeColor = "bg-gray-500 text-white hover:bg-gray-600";
-                                          }
-                                          
-                                          return (
-                                            <TooltipProvider key={order.id}>
-                                              <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                  <Badge
-                                                    variant="secondary"
-                                                    className={`text-xs cursor-pointer hover:scale-105 transition-transform ${badgeColor}`}
-                                                    onClick={() => {
-                                                      // Handle edit order
-                                                      const aggregatedProduct = {
-                                                        product_code: order.product_code,
-                                                        product_name: order.product_name,
-                                                        live_product_id: order.live_product_id,
-                                                        total_quantity: order.quantity,
-                                                        orders: [order]
-                                                      };
-                                                      handleEditOrderItem(aggregatedProduct);
-                                                    }}
-                                                  >
-                                                    {isOversell && (
-                                                      <AlertTriangle className="h-3 w-3 mr-1" />
-                                                    )}
-                                                    {order.quantity === 1 ? order.order_code : `${order.order_code} x${order.quantity}`}
-                                                  </Badge>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                  <p>{isOversell ? "⚠️ Đơn quá số" : `Đơn hàng: ${order.order_code} - Số lượng: ${order.quantity}`}</p>
-                                                </TooltipContent>
-                                              </Tooltip>
-                                            </TooltipProvider>
-                                          );
-                                        })}
-                                        {selectedPhase !== "all" && (
-                                          <div className="flex items-center gap-2 ml-2">
-                                            <QuickAddOrder 
-                                              productId={product.id}
-                                              phaseId={selectedPhase}
-                                              sessionId={selectedSession}
-                                              availableQuantity={product.prepared_quantity - product.sold_quantity}
-                                            />
+                              return sortedProducts.map((product, productIndex) => (
+                                <TableRow key={product.id}>
+                                  {productIndex === 0 && (
+                                    <>
+                                      <TableCell 
+                                        rowSpan={group.products.length} 
+                                        className="font-medium align-top border-r"
+                                      >
+                                        {group.product_code}
+                                      </TableCell>
+                                      <TableCell 
+                                        rowSpan={group.products.length}
+                                        className="align-top border-r"
+                                      >
+                                        {group.product_name}
+                                      </TableCell>
+                                      <TableCell 
+                                        rowSpan={group.products.length}
+                                        className="align-top border-r"
+                                      >
+                                        {product.image_url ? (
+                                          <img 
+                                            src={product.image_url} 
+                                            alt={group.product_name}
+                                            className="w-12 h-12 object-cover rounded"
+                                          />
+                                        ) : (
+                                          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                            <Package className="h-6 w-6 text-muted-foreground" />
                                           </div>
                                         )}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              </TableCell>
-                              {productIndex === 0 && (
-                                <TableCell 
-                                  rowSpan={group.products.length}
-                                  className="text-center border-l align-top"
-                                >
-                                  <div className="flex items-center justify-center gap-2">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        const productIds = group.products.map(p => p.id);
-                                        changeToHangLeMutation.mutate(productIds);
-                                      }}
-                                      disabled={selectedPhase === "all"}
-                                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể" : "Chuyển sang Hàng Lẻ"}
-                                    >
-                                      <ShoppingBag className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditProduct(product)}
-                                      disabled={selectedPhase === "all"}
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để chỉnh sửa" : "Chỉnh sửa"}
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteAllVariants(group.product_code, group.product_name)}
-                                      disabled={selectedPhase === "all"}
-                                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                      title={selectedPhase === "all" ? "Chọn phiên live cụ thể để xóa" : "Xóa tất cả"}
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          ));
-                        });
-                      })()}
-                     </TableBody>
-                   </Table>
-                      </Card>
-                    </div>
+                                      </TableCell>
+                                    </>
+                                  )}
+                                  <TableCell className="text-muted-foreground">
+                                    {product.variant || "-"}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 w-7 p-0"
+                                        onClick={async () => {
+                                          const qty = orderQuantities[product.id] || 1;
+                                          if (!product.image_url) {
+                                            toast.error("Sản phẩm chưa có hình ảnh");
+                                            return;
+                                          }
+                                          await generateOrderImage(
+                                            product.image_url,
+                                            product.variant || "",
+                                            qty,
+                                            product.product_name
+                                          );
+                                          // Update copy total
+                                          setCopyTotals(prev => ({
+                                            ...prev,
+                                            [product.id]: (prev[product.id] || 0) + qty
+                                          }));
+                                        }}
+                                        disabled={!product.image_url}
+                                        title={product.image_url ? "Copy hình order" : "Chưa có hình ảnh"}
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                      </Button>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={orderQuantities[product.id] || 1}
+                                        onChange={(e) => {
+                                          const value = parseInt(e.target.value) || 1;
+                                          setOrderQuantities(prev => ({
+                                            ...prev,
+                                            [product.id]: value
+                                          }));
+                                        }}
+                                        className="w-12 h-6 text-center text-xs border rounded px-1"
+                                        placeholder="SL"
+                                      />
+                                      {copyTotals[product.id] > 0 && (
+                                        <div className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${getCopyStatusColor(copyTotals[product.id], product.sold_quantity)}`}>
+                                          Đã copy: {copyTotals[product.id]}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-center">{product.prepared_quantity}</TableCell>
+                                  <TableCell className="text-center">{product.sold_quantity}</TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {(() => {
+                                        const productOrders = selectedPhase === "all"
+                                          ? ordersWithProducts.filter(order => order.product_code === product.product_code)
+                                          : ordersWithProducts.filter(order => order.live_product_id === product.id);
+                                        
+                                        // Reverse to show newest on the right
+                                        const ordersReversed = [...productOrders].reverse();
+                                        
+                                        return (
+                                          <>
+                                            {ordersReversed.map(order => {
+                                              const isOversell = calculateIsOversell(
+                                                order.live_product_id,
+                                                order.id,
+                                                liveProducts,
+                                                ordersWithProducts
+                                              );
+                                              
+                                              const badgeVariant = isOversell 
+                                                ? "destructive" 
+                                                : order.uploaded_at 
+                                                  ? "secondary" 
+                                                  : "default";
+                                              
+                                              const getCustomerStatusColor = (status?: string) => {
+                                                switch (status) {
+                                                  case 'bom_hang':
+                                                    return 'bg-red-500 text-white border-red-600';
+                                                  case 'thieu_thong_tin':
+                                                    return 'bg-yellow-500 text-white border-yellow-600';
+                                                  default:
+                                                    return '';
+                                                }
+                                              };
 
-                    {/* Right: Comments Panel - 30% */}
-                    {commentsVideoId && (
-                      <div className="flex-[3] border-l pl-4 overflow-y-auto">
-                        <LiveCommentsPanel
-                          pageId={commentsPageId}
-                          videoId={commentsVideoId}
-                          comments={comments}
-                          ordersData={ordersData}
-                          newCommentIds={newCommentIds}
-                          showOnlyWithOrders={showOnlyWithOrders}
-                          hideNames={hideNames}
-                          isLoading={commentsLoading || isFetchingNextPage}
-                          onLoadMore={() => fetchNextPage()}
-                          hasMore={hasNextPage}
-                          onRefresh={refetchComments}
-                        />
-                      </div>
-                    )}
+                                              const customerStatusColor = getCustomerStatusColor(order.customer_status);
+
+                                              return (
+                                                <TooltipProvider key={order.id}>
+                                                  <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                      <Badge 
+                                                        variant={badgeVariant}
+                                                        className={`cursor-pointer text-xs ${customerStatusColor}`}
+                                                        onClick={() => {
+                                                          const aggregatedProduct = {
+                                                            product_code: product.product_code,
+                                                            product_name: product.product_name,
+                                                            live_product_id: product.id,
+                                                            total_quantity: productOrders.reduce((sum, o) => sum + o.quantity, 0),
+                                                            orders: productOrders
+                                                          };
+                                                          handleEditOrderItem(aggregatedProduct);
+                                                        }}
+                                                      >
+                                                        {order.order_code}
+                                                        {isOversell && " ⚠️"}
+                                                        {order.uploaded_at && " ✓"}
+                                                      </Badge>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                      <div className="text-xs">
+                                                        <div>Mã: {order.order_code}</div>
+                                                        <div>SL: {order.quantity}</div>
+                                                        {isOversell && <div className="text-red-500 font-semibold">⚠️ Vượt số lượng chuẩn bị</div>}
+                                                        {order.uploaded_at && (
+                                                          <div className="text-green-600 font-semibold">
+                                                            ✓ Đã đẩy lên TPOS {format(new Date(order.uploaded_at), 'dd/MM HH:mm', { locale: vi })}
+                                                          </div>
+                                                        )}
+                                                        {order.customer_status === 'bom_hang' && (
+                                                          <div className="text-red-600 font-semibold">🚫 BOM HÀNG</div>
+                                                        )}
+                                                        {order.customer_status === 'thieu_thong_tin' && (
+                                                          <div className="text-yellow-600 font-semibold">⚠️ THIẾU THÔNG TIN</div>
+                                                        )}
+                                                      </div>
+                                                    </TooltipContent>
+                                                  </Tooltip>
+                                                </TooltipProvider>
+                                              );
+                                            })}
+                                            {productOrders.length === 0 && (
+                                              <span className="text-xs text-muted-foreground">
+                                                Chưa có đơn
+                                              </span>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  </TableCell>
+                                  {productIndex === 0 && (
+                                    <TableCell 
+                                      rowSpan={group.products.length}
+                                      className="align-top border-l"
+                                    >
+                                      <div className="flex items-center gap-2 justify-center">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEditProduct(product)}
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteAllVariants(group.product_code, group.product_name)}
+                                          className="text-red-600 hover:text-red-700"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  )}
+                                </TableRow>
+                              ));
+                            });
+                          })()}
+                        </TableBody>
+                      </Table>
+                    </Card>
                   </div>
                 </>
               )}
