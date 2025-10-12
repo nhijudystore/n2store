@@ -123,7 +123,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
 
   // Flat list of orders - only show comments where usage < order_count
   const flatOrders = React.useMemo(() => {
-    return pendingOrders
+    const filtered = pendingOrders
       .filter(order => {
         if (!order.session_index || !order.facebook_comment_id) return false;
         
@@ -132,7 +132,30 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         
         // Only show if usage count is less than allowed count
         return usedCount < allowedCount;
-      })
+      });
+
+    // Deduplicate by session_index, keep the newest one
+    const uniqueMap = new Map<string, typeof filtered[0]>();
+    
+    filtered.forEach(order => {
+      const existing = uniqueMap.get(order.session_index!);
+      
+      if (!existing) {
+        // First occurrence
+        uniqueMap.set(order.session_index!, order);
+      } else {
+        // Keep the newer one
+        const existingTime = new Date(existing.created_time).getTime();
+        const currentTime = new Date(order.created_time).getTime();
+        
+        if (currentTime > existingTime) {
+          uniqueMap.set(order.session_index!, order);
+        }
+      }
+    });
+
+    // Convert back to array and sort
+    return Array.from(uniqueMap.values())
       .sort((a, b) => {
         // Sort by session_index first (numeric), then by created_time (newest first)
         const indexA = parseInt(a.session_index || '0');
