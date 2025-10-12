@@ -87,6 +87,7 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
 
   // State to track which comment is being processed
   const [processingCommentId, setProcessingCommentId] = useState<string | null>(null);
+  const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Fetch Facebook pages from database
   const { data: facebookPages } = useQuery({
@@ -138,17 +139,38 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       return responseData;
     },
     onSuccess: (data) => {
+      console.log('[FacebookCommentsManager] onSuccess - clearing processingCommentId');
+      // Clear timeout if exists
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
+      // Clear processing state FIRST
       setProcessingCommentId(null);
-      createOrderMutation.reset();
+      
       toast({
         title: "Tạo đơn hàng thành công!",
         description: `Đơn hàng ${data.response.Code} đã được tạo.`,
       });
-      queryClient.invalidateQueries({ queryKey: ["tpos-orders", selectedVideo?.objectId] });
-      queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, selectedVideo?.objectId] });
+      
+      // Reset mutation state
+      createOrderMutation.reset();
+      
+      // Then invalidate queries with a slight delay to ensure state is updated
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["tpos-orders", selectedVideo?.objectId] });
+        queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, selectedVideo?.objectId] });
+      }, 100);
     },
     onError: (error: any) => {
+      console.log('[FacebookCommentsManager] onError - clearing processingCommentId');
+      // Clear timeout if exists
+      if (processingTimeoutRef.current) {
+        clearTimeout(processingTimeoutRef.current);
+        processingTimeoutRef.current = null;
+      }
       setProcessingCommentId(null);
+      
       let errorData;
       try {
         errorData = JSON.parse(error.message);
@@ -169,18 +191,42 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       setConfirmCreateOrderComment(comment);
     } else {
       if (!selectedVideo) return;
+      console.log('[FacebookCommentsManager] Setting processingCommentId:', comment.id);
       setProcessingCommentId(comment.id);
+      
+      // Set timeout fallback to force clear state after 5 seconds
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log('[FacebookCommentsManager] Timeout fallback - force clearing processingCommentId');
+        setProcessingCommentId(null);
+      }, 5000);
+      
       createOrderMutation.mutate({ comment, video: selectedVideo });
     }
   };
 
   const confirmCreateOrder = () => {
     if (confirmCreateOrderComment && selectedVideo) {
+      console.log('[FacebookCommentsManager] confirmCreateOrder - Setting processingCommentId:', confirmCreateOrderComment.id);
       setProcessingCommentId(confirmCreateOrderComment.id);
+      
+      // Set timeout fallback to force clear state after 5 seconds
+      processingTimeoutRef.current = setTimeout(() => {
+        console.log('[FacebookCommentsManager] Timeout fallback (confirm) - force clearing processingCommentId');
+        setProcessingCommentId(null);
+      }, 5000);
+      
       createOrderMutation.mutate({ comment: confirmCreateOrderComment, video: selectedVideo });
     }
     setConfirmCreateOrderComment(null);
   };
+
+  // Force clear processingCommentId when mutation completes
+  useEffect(() => {
+    if (!createOrderMutation.isPending && processingCommentId !== null) {
+      console.log('[FacebookCommentsManager] Force clearing processingCommentId:', processingCommentId);
+      setProcessingCommentId(null);
+    }
+  }, [createOrderMutation.isPending, processingCommentId]);
 
   // Fetch videos
   const { data: videos = [], isLoading: videosLoading, refetch: refetchVideos } = useQuery({
