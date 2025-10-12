@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { OrderBillNotification } from './OrderBillNotification';
 
@@ -18,8 +16,7 @@ interface QuickAddOrderProps {
 }
 
 export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity }: QuickAddOrderProps) {
-  const [open, setOpen] = useState(false);
-  const [selectedSessionIndex, setSelectedSessionIndex] = useState('');
+  const [inputValue, setInputValue] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -186,8 +183,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       };
     },
     onSuccess: ({ sessionIndex, isOversell, billData }) => {
-      setSelectedSessionIndex('');
-      setOpen(false);
+      setInputValue('');
       // Force refetch all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
@@ -301,65 +297,75 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
   });
 
-  const handleSelectComment = (sessionIndex: string, commentId: string) => {
-    setSelectedSessionIndex(sessionIndex);
-    addOrderMutation.mutate({ sessionIndex, commentId });
+  const handleAddOrder = () => {
+    const trimmedValue = inputValue.trim();
+    
+    if (!trimmedValue) {
+      toast({
+        title: "Lỗi",
+        description: "Vui lòng nhập mã đơn hàng",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Find the order by session_index
+    const order = flatOrders.find(o => o.session_index === trimmedValue);
+    
+    if (!order) {
+      toast({
+        title: "Không tìm thấy",
+        description: `Không tìm thấy đơn hàng với mã "${trimmedValue}" hoặc đã được sử dụng`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!order.facebook_comment_id) {
+      toast({
+        title: "Lỗi",
+        description: "Đơn hàng không có comment ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addOrderMutation.mutate({ 
+      sessionIndex: order.session_index!, 
+      commentId: order.facebook_comment_id 
+    });
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleAddOrder();
+    }
   };
 
   const isOutOfStock = availableQuantity <= 0;
   
   return (
-    <div className="w-full">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className={cn(
-              "w-full justify-between text-sm h-9",
-              isOutOfStock && "border-red-500 hover:border-red-500"
-            )}
-            disabled={addOrderMutation.isPending}
-          >
-            {selectedSessionIndex || (isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Chọn mã đơn")}
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[300px] p-0" align="start">
-          <Command>
-            <CommandInput placeholder="Tìm mã đơn..." />
-            <CommandList>
-              <CommandEmpty>Không tìm thấy mã đơn.</CommandEmpty>
-              <CommandGroup>
-                <ScrollArea className="h-[200px]">
-                  {flatOrders.map((order) => (
-                    <CommandItem
-                      key={order.id}
-                      value={`${order.session_index}-${order.name || ''}-${order.comment || ''}`}
-                      onSelect={() => {
-                        if (order.facebook_comment_id) {
-                          handleSelectComment(order.session_index!, order.facebook_comment_id);
-                          setOpen(false);
-                        }
-                      }}
-                      className="cursor-pointer"
-                    >
-                      <span className="font-medium">{order.session_index}</span>
-                      <span className="mx-1">-</span>
-                      <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
-                      <span className="mx-1">-</span>
-                      <span className="flex-1 truncate">
-                        {order.comment || '(không có comment)'}
-                      </span>
-                    </CommandItem>
-                  ))}
-                </ScrollArea>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+    <div className="w-full flex gap-2">
+      <Input
+        type="text"
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder={isOutOfStock ? "Quá số (đánh dấu đỏ)" : "Nhập mã đơn..."}
+        className={cn(
+          "text-sm h-9 flex-1",
+          isOutOfStock && "border-red-500"
+        )}
+        disabled={addOrderMutation.isPending}
+      />
+      <Button
+        onClick={handleAddOrder}
+        disabled={addOrderMutation.isPending || !inputValue.trim()}
+        size="sm"
+        className="h-9"
+      >
+        <Plus className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
