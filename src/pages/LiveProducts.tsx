@@ -45,7 +45,6 @@ import {
   MessageSquare,
   ShoppingBag
 } from "lucide-react";
-import { FacebookCommentsManager } from "@/components/facebook/FacebookCommentsManager";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { CommentsSettingsCollapsible } from "@/components/live-products/CommentsSettingsCollapsible";
@@ -1502,10 +1501,6 @@ export default function LiveProducts() {
                   <Store className="h-4 w-4" />
                   Thống kê NCC
                 </TabsTrigger>
-                <TabsTrigger value="test-comment" className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4" />
-                  Livestream Comment
-                </TabsTrigger>
               </TabsList>
 
               <div className="flex gap-2">
@@ -2569,17 +2564,6 @@ export default function LiveProducts() {
                 liveProducts={liveProducts}
                 sessionId={selectedSession}
                 phaseId={selectedPhase}
-              />
-            </TabsContent>
-
-            {/* Facebook Live Comments Feature Tab */}
-            <TabsContent value="test-comment" className="space-y-4">
-              <FacebookCommentsManager 
-                onVideoSelected={(pageId, videoId, video) => {
-                  setCommentsPageId(pageId);
-                  setCommentsVideoId(videoId);
-                  setSelectedFacebookVideo(video);
-                }}
               />
             </TabsContent>
           </Tabs>
