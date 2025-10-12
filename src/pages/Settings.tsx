@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save, TestTube2, Code, Download, Upload } from "lucide-react";
+import { RefreshCw, CheckCircle, AlertCircle, Copy, ChevronDown, ChevronUp, ShoppingCart, Key, Save, TestTube2, Code, Download, Upload, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -22,6 +22,7 @@ import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
 import { FetchTPOSProductsDialog } from "@/components/settings/FetchTPOSProductsDialog";
 import { GetTPOSProductTool } from "@/components/settings/GetTPOSProductTool";
+import { PrinterSettings } from "@/components/settings/PrinterSettings";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
@@ -1717,6 +1718,8 @@ const Settings = () => {
       <GetTPOSProductTool />
 
       <BarcodeScannerSettings />
+
+      <PrinterSettings />
 
       <VariantTestTool />
 
