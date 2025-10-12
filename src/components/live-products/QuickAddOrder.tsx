@@ -40,7 +40,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseId,
   });
 
-  // Fetch existing orders to filter out used comments
+  // Fetch existing orders and count usage per comment
   const { data: existingOrders = [] } = useQuery({
     queryKey: ['live-orders', phaseId],
     queryFn: async () => {
@@ -55,7 +55,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseId,
   });
 
-  // Fetch facebook_pending_orders for the phase date
+  // Fetch facebook_pending_orders for the phase date (include order_count)
   const { data: pendingOrders = [] } = useQuery({
     queryKey: ['facebook-pending-orders', phaseData?.phase_date],
     queryFn: async () => {
@@ -63,7 +63,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       
       const { data, error } = await supabase
         .from('facebook_pending_orders')
-        .select('*')
+        .select('*, order_count')
         .gte('created_time', `${phaseData.phase_date}T00:00:00`)
         .lt('created_time', `${phaseData.phase_date}T23:59:59`)
         .order('created_time', { ascending: false });
@@ -109,19 +109,30 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     };
   }, [phaseData?.phase_date, queryClient]);
 
-  // Get used facebook comment IDs
-  const usedCommentIds = React.useMemo(() => {
-    return new Set(existingOrders.map(order => order.facebook_comment_id).filter(Boolean));
+  // Count how many times each comment has been used
+  const commentUsageCount = React.useMemo(() => {
+    const countMap = new Map<string, number>();
+    existingOrders.forEach(order => {
+      if (order.facebook_comment_id) {
+        const current = countMap.get(order.facebook_comment_id) || 0;
+        countMap.set(order.facebook_comment_id, current + 1);
+      }
+    });
+    return countMap;
   }, [existingOrders]);
 
-  // Flat list of orders - only show comments that haven't been used
+  // Flat list of orders - only show comments where usage < order_count
   const flatOrders = React.useMemo(() => {
     return pendingOrders
-      .filter(order => 
-        order.session_index && 
-        order.facebook_comment_id && 
-        !usedCommentIds.has(order.facebook_comment_id)
-      )
+      .filter(order => {
+        if (!order.session_index || !order.facebook_comment_id) return false;
+        
+        const usedCount = commentUsageCount.get(order.facebook_comment_id) || 0;
+        const allowedCount = order.order_count || 1;
+        
+        // Only show if usage count is less than allowed count
+        return usedCount < allowedCount;
+      })
       .sort((a, b) => {
         // Sort by session_index first (numeric), then by created_time (newest first)
         const indexA = parseInt(a.session_index || '0');
@@ -129,7 +140,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         if (indexA !== indexB) return indexA - indexB;
         return new Date(b.created_time).getTime() - new Date(a.created_time).getTime();
       });
-  }, [pendingOrders, usedCommentIds]);
+  }, [pendingOrders, commentUsageCount]);
 
   const addOrderMutation = useMutation({
     mutationFn: async ({ sessionIndex, commentId }: { sessionIndex: string; commentId: string }) => {
@@ -384,21 +395,32 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                       order.name?.toLowerCase().includes(inputValue.toLowerCase()) ||
                       order.comment?.toLowerCase().includes(inputValue.toLowerCase())
                     )
-                    .map((order) => (
-                      <CommandItem
-                        key={order.id}
-                        onSelect={() => handleSelectOrder(order)}
-                        className="cursor-pointer flex items-center gap-1"
-                      >
-                        <span className="font-medium shrink-0">{order.session_index}</span>
-                        <span className="shrink-0">-</span>
-                        <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
-                        <span className="shrink-0">-</span>
-                        <span className="flex-1 truncate text-muted-foreground">
-                          {order.comment || '(không có comment)'}
-                        </span>
-                      </CommandItem>
-                    ))}
+                    .map((order) => {
+                      const usedCount = commentUsageCount.get(order.facebook_comment_id!) || 0;
+                      const allowedCount = order.order_count || 1;
+                      const remainingCount = allowedCount - usedCount;
+                      
+                      return (
+                        <CommandItem
+                          key={order.id}
+                          onSelect={() => handleSelectOrder(order)}
+                          className="cursor-pointer flex items-center gap-1"
+                        >
+                          <span className="font-medium shrink-0">{order.session_index}</span>
+                          {remainingCount < allowedCount && (
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              ({remainingCount}/{allowedCount})
+                            </span>
+                          )}
+                          <span className="shrink-0">-</span>
+                          <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
+                          <span className="shrink-0">-</span>
+                          <span className="flex-1 truncate text-muted-foreground">
+                            {order.comment || '(không có comment)'}
+                          </span>
+                        </CommandItem>
+                      );
+                    })}
                 </ScrollArea>
               </CommandGroup>
             </CommandList>
