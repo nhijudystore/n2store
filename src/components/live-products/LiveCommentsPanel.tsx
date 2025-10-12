@@ -54,11 +54,13 @@ export function LiveCommentsPanel({
   const [customerStatusMap, setCustomerStatusMap] = useState<Map<string, any>>(new Map());
   const [isLoadingCustomerStatus, setIsLoadingCustomerStatus] = useState(false);
   const fetchInProgress = useRef(false);
+  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const customerStatusMapRef = useRef<Map<string, any>>(new Map());
   const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
   const [selectedOrderInfo, setSelectedOrderInfo] = useState<TPOSOrder | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const mapStatusText = (statusText: string | null | undefined): string => {
     if (!statusText) return 'Bình thường';
@@ -91,8 +93,19 @@ export function LiveCommentsPanel({
   ) => {
     if (fetchInProgress.current || commentsToProcess.length === 0) return;
 
+    console.log(`[LiveCommentsPanel] Starting fetch for ${commentsToProcess.length} comments`);
     fetchInProgress.current = true;
     setIsLoadingCustomerStatus(true);
+
+    // Set timeout protection (15 seconds)
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    fetchTimeoutRef.current = setTimeout(() => {
+      console.warn('[LiveCommentsPanel] Fetch timeout - resetting fetch lock');
+      fetchInProgress.current = false;
+      setIsLoadingCustomerStatus(false);
+    }, 15000);
 
     try {
       const facebookIdsToFetch = [
@@ -104,10 +117,14 @@ export function LiveCommentsPanel({
       ];
       
       if (facebookIdsToFetch.length === 0) {
+        console.log('[LiveCommentsPanel] No new IDs to fetch');
+        if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
         fetchInProgress.current = false;
         setIsLoadingCustomerStatus(false);
         return;
       }
+      
+      console.log(`[LiveCommentsPanel] Fetching ${facebookIdsToFetch.length} new Facebook IDs`);
       
       const userOrderMap = new Map<string, TPOSOrder>();
       for (const order of orders) {
@@ -116,10 +133,15 @@ export function LiveCommentsPanel({
         }
       }
 
-      const { data: existingCustomers = [] } = await supabase
+      const { data: existingCustomers = [], error: fetchError } = await supabase
         .from('customers')
         .select('*')
         .in('facebook_id', facebookIdsToFetch);
+      
+      if (fetchError) {
+        console.error('[LiveCommentsPanel] Error fetching customers:', fetchError);
+      }
+      
       const existingCustomersMap = new Map(existingCustomers.map(c => [c.facebook_id, c]));
 
       const customersToUpsert: any[] = [];
@@ -170,29 +192,58 @@ export function LiveCommentsPanel({
       }
 
       if (customersToUpsert.length > 0) {
-        await supabase
+        console.log(`[LiveCommentsPanel] Upserting ${customersToUpsert.length} customers`);
+        const { error: upsertError } = await supabase
           .from('customers')
           .upsert(customersToUpsert, {
             onConflict: 'facebook_id',
             ignoreDuplicates: false,
           });
+        
+        if (upsertError) {
+          console.error('[LiveCommentsPanel] Error upserting customers:', upsertError);
+        }
       }
 
       customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
+      console.log(`[LiveCommentsPanel] Successfully updated ${newStatusMap.size} customer statuses`);
     } catch (error) {
-      console.error('Error fetching partner status batch:', error);
+      console.error('[LiveCommentsPanel] Error in fetchPartnerStatusBatch:', error);
+      // Don't throw - let the component continue working
     } finally {
+      if (fetchTimeoutRef.current) {
+        clearTimeout(fetchTimeoutRef.current);
+        fetchTimeoutRef.current = null;
+      }
       fetchInProgress.current = false;
       setIsLoadingCustomerStatus(false);
+      console.log('[LiveCommentsPanel] Fetch completed');
     }
   }, []);
 
+  // Debounced effect to prevent excessive fetching
   useEffect(() => {
-    if (comments.length > 0 && ordersData.length >= 0) {
-      fetchPartnerStatusBatch(comments, ordersData);
+    if (comments.length === 0) return;
+
+    console.log(`[LiveCommentsPanel] Effect triggered: ${comments.length} comments, ${ordersData.length} orders`);
+
+    // Clear previous debounce timer
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
-  }, [comments, ordersData, fetchPartnerStatusBatch]);
+
+    // Debounce for 500ms to prevent rapid fetches
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchPartnerStatusBatch(comments, ordersData);
+    }, 500);
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [comments.length, ordersData.length, fetchPartnerStatusBatch]);
 
   const createOrderMutation = useMutation({
     mutationFn: async ({ comment }: { comment: FacebookComment }) => {
@@ -262,11 +313,12 @@ export function LiveCommentsPanel({
   const commentsWithStatus: CommentWithStatus[] = useMemo(() => {
     return comments.map((comment) => {
       const statusInfo = customerStatusMap.get(comment.from.id);
+      // Default to "Khách lạ" instead of "Đang tải..." to prevent stuck loading state
       return {
         ...comment,
-        partnerStatus: statusInfo?.partnerStatus || 'Đang tải...',
+        partnerStatus: statusInfo?.partnerStatus || 'Khách lạ',
         orderInfo: statusInfo?.orderInfo,
-        isLoadingStatus: statusInfo?.isLoadingStatus ?? true,
+        isLoadingStatus: statusInfo?.isLoadingStatus ?? false,
       };
     });
   }, [comments, customerStatusMap]);

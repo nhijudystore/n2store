@@ -14,6 +14,22 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
   const allCommentIdsRef = useRef<Set<string>>(new Set());
+  const [errorCount, setErrorCount] = useState(0);
+  const [hasError, setHasError] = useState(false);
+
+  // Dynamic refetch interval based on error rate
+  const getRefetchInterval = useCallback(() => {
+    if (!isAutoRefresh || selectedVideo?.statusLive !== 1) return false;
+    
+    // If we have errors, increase the interval exponentially
+    if (errorCount > 0) {
+      const interval = Math.min(8000 * Math.pow(2, errorCount), 60000); // Max 60s
+      console.log(`[useFacebookComments] Error count: ${errorCount}, using interval: ${interval}ms`);
+      return interval;
+    }
+    
+    return 8000; // Default 8 seconds
+  }, [isAutoRefresh, selectedVideo?.statusLive, errorCount]);
 
   // Fetch comments with infinite scroll
   const {
@@ -23,10 +39,14 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     isFetchingNextPage,
     refetch: refetchComments,
     isLoading: commentsLoading,
+    error: commentsError,
   } = useInfiniteQuery({
     queryKey: ['facebook-comments', pageId, videoId],
     queryFn: async ({ pageParam }) => {
       if (!pageId || !videoId) return { data: [], paging: {} };
+      
+      console.log(`[useFacebookComments] Fetching comments for video ${videoId}, pageParam: ${pageParam}`);
+      const startTime = Date.now();
       
       const order = 'reverse_chronological'; // Always show newest comments first
       
@@ -37,19 +57,37 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
       
       const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      try {
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to fetch comments');
+        if (!response.ok) {
+          const error = await response.json();
+          console.error('[useFacebookComments] Fetch error:', error);
+          setErrorCount(prev => prev + 1);
+          setHasError(true);
+          throw new Error(error.error || 'Failed to fetch comments');
+        }
+
+        const data = await response.json();
+        const elapsed = Date.now() - startTime;
+        console.log(`[useFacebookComments] Fetched ${data.data?.length || 0} comments in ${elapsed}ms`);
+        
+        // Reset error count on success
+        setErrorCount(0);
+        setHasError(false);
+        
+        return data;
+      } catch (error) {
+        console.error('[useFacebookComments] Exception in queryFn:', error);
+        setErrorCount(prev => prev + 1);
+        setHasError(true);
+        throw error;
       }
-
-      return await response.json();
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage.data || lastPage.data.length === 0) return undefined;
@@ -59,7 +97,12 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     },
     initialPageParam: undefined,
     enabled: !!videoId && !!pageId,
-    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 8000 : false,
+    refetchInterval: getRefetchInterval(),
+    retry: (failureCount, error) => {
+      console.log(`[useFacebookComments] Retry attempt ${failureCount} for error:`, error);
+      return failureCount < 3; // Retry up to 3 times
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 
   const comments = useMemo(() => {
@@ -200,5 +243,7 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     isFetchingNextPage,
     refetchComments,
     commentsLoading,
+    hasError,
+    errorCount,
   };
 }
