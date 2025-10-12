@@ -24,44 +24,35 @@ export function QuickAddOrderInline({ productId, phaseId, sessionId, availableQu
         throw new Error('Vui lòng nhập mã đơn hàng');
       }
 
-      // Get current product data
-      const { data: product, error: fetchError } = await supabase
-        .from('live_products')
-        .select('sold_quantity, prepared_quantity, product_code, product_name')
-        .eq('id', productId)
-        .single();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("User not authenticated");
 
-      if (fetchError) throw fetchError;
+      // Call edge function for fast, non-blocking order creation
+      const response = await fetch(
+        `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/create-live-order`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            productId,
+            phaseId,
+            sessionId,
+            orderCode: sessionIndex.trim()
+          }),
+        }
+      );
 
-      // Check if overselling
-      const newSoldQuantity = (product.sold_quantity || 0) + 1;
-      const isOversell = newSoldQuantity > product.prepared_quantity;
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create order');
+      }
 
-      // Insert new order
-      const { error: orderError } = await supabase
-        .from('live_orders')
-        .insert({
-          order_code: sessionIndex.trim(),
-          live_session_id: sessionId,
-          live_phase_id: phaseId,
-          live_product_id: productId,
-          quantity: 1,
-          is_oversell: isOversell
-        });
-
-      if (orderError) throw orderError;
-
-      // Update sold quantity
-      const { error: updateError } = await supabase
-        .from('live_products')
-        .update({ sold_quantity: newSoldQuantity })
-        .eq('id', productId);
-
-      if (updateError) throw updateError;
-      
-      return { isOversell };
+      return responseData;
     },
-    onSuccess: ({ isOversell }) => {
+    onSuccess: (data) => {
       const currentSessionIndex = sessionIndex;
       setSessionIndex('');
       
@@ -71,11 +62,11 @@ export function QuickAddOrderInline({ productId, phaseId, sessionId, availableQu
       queryClient.invalidateQueries({ queryKey: ['orders-with-products', phaseId] });
       
       toast({
-        title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
-        description: isOversell 
+        title: data.isOversell ? "⚠️ Đơn oversell" : "Thành công",
+        description: data.isOversell 
           ? `Đã thêm đơn ${currentSessionIndex} (vượt số lượng - đánh dấu đỏ)`
           : `Đã thêm đơn hàng ${currentSessionIndex}`,
-        variant: isOversell ? "destructive" : "default",
+        variant: data.isOversell ? "destructive" : "default",
       });
     },
     onError: (error: any) => {
