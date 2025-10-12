@@ -538,6 +538,39 @@ export type Database = {
         }
         Relationships: []
       }
+      printer_settings: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          printer_ip: string
+          printer_name: string
+          printer_port: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          printer_ip: string
+          printer_name: string
+          printer_port?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          printer_ip?: string
+          printer_name?: string
+          printer_port?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       products: {
         Row: {
           barcode: string | null
@@ -979,6 +1012,38 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      search_products_unaccent: {
+        Args: { search_text: string }
+        Returns: {
+          barcode: string | null
+          base_product_code: string | null
+          category: string | null
+          created_at: string
+          id: string
+          price_images: string[] | null
+          product_code: string
+          product_images: string[] | null
+          product_name: string
+          productid_bienthe: number | null
+          purchase_price: number | null
+          selling_price: number | null
+          stock_quantity: number | null
+          supplier_name: string | null
+          tpos_image_url: string | null
+          tpos_product_id: number | null
+          unit: string | null
+          updated_at: string
+          variant: string | null
+        }[]
+      }
+      unaccent: {
+        Args: { "": string }
+        Returns: string
+      }
+      unaccent_init: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       update_missing_suppliers: {
         Args: Record<PropertyKey, never>
