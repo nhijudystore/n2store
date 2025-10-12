@@ -1814,12 +1814,15 @@ export default function LiveProducts() {
                                                         variant={badgeVariant}
                                                         className={`cursor-pointer text-xs ${customerStatusColor}`}
                                                         onClick={() => {
+                                                          const ordersWithSameCode = productOrders.filter(
+                                                            o => o.order_code === order.order_code
+                                                          );
                                                           const aggregatedProduct = {
                                                             product_code: product.product_code,
                                                             product_name: product.product_name,
                                                             live_product_id: product.id,
-                                                            total_quantity: productOrders.reduce((sum, o) => sum + o.quantity, 0),
-                                                            orders: productOrders
+                                                            total_quantity: ordersWithSameCode.reduce((sum, o) => sum + o.quantity, 0),
+                                                            orders: ordersWithSameCode
                                                           };
                                                           handleEditOrderItem(aggregatedProduct);
                                                         }}
