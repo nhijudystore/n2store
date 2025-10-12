@@ -476,6 +476,20 @@ export function LiveCommentsPanel({
                             {comment.from.name}
                           </span>
                           
+                          {/* Order Code Badge */}
+                          {comment.orderInfo?.Code && (
+                            <Badge className="bg-blue-600 text-white text-[10px] px-1.5 py-0 font-semibold">
+                              {comment.orderInfo.Code}
+                            </Badge>
+                          )}
+
+                          {/* Order Count Badge */}
+                          {comment.orderInfo?.order_count && comment.orderInfo.order_count > 1 && (
+                            <Badge className="bg-orange-500 text-white text-[10px] px-1.5 py-0 font-semibold">
+                              Lần {comment.orderInfo.order_count}
+                            </Badge>
+                          )}
+                          
                           {/* Phone Number Badge */}
                           {comment.orderInfo?.Telephone && (
                             <Badge className="bg-slate-700 text-white text-[10px] px-1.5 py-0 font-semibold">
