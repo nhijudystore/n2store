@@ -71,6 +71,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       return data || [];
     },
     enabled: !!phaseData?.phase_date,
+    refetchInterval: 5000,
   });
 
   // Get used facebook comment IDs
