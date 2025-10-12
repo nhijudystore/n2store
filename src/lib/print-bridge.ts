@@ -66,48 +66,30 @@ export async function printBill(
   const isHttps = window.location.protocol === 'https:';
   const protocol = isHttps ? 'https' : 'http';
   
+  // Build plain text content for thermal printer
+  const lines = [
+    `#${billData.sessionIndex} - ${billData.customerName}`,
+    '',
+    billData.customerName,
+    billData.phone || '',
+    '',
+    `${billData.productCode} - ${billData.productName}`,
+  ];
+  
+  if (billData.comment) {
+    lines.push('');
+    lines.push(billData.comment);
+  }
+  
+  lines.push('');
+  lines.push(billData.createdTime);
+  lines.push('');
+  
+  const textContent = lines.join('\n');
+  
   const printContent = {
-    type: "receipt",
-    content: [
-      { 
-        type: "text", 
-        value: `#${billData.sessionIndex}`, 
-        align: "center", 
-        size: "large", 
-        bold: true 
-      },
-      { 
-        type: "text", 
-        value: billData.customerName, 
-        align: "center",
-        size: "medium"
-      },
-      ...(billData.phone ? [{ 
-        type: "text", 
-        value: billData.phone, 
-        align: "center" 
-      }] : []),
-      { type: "line" },
-      { 
-        type: "text", 
-        value: `${billData.productCode} - ${billData.productName}`, 
-        align: "left",
-        bold: true
-      },
-      ...(billData.comment ? [{ 
-        type: "text", 
-        value: billData.comment, 
-        align: "left"
-      }] : []),
-      { type: "line" },
-      { 
-        type: "text", 
-        value: billData.createdTime, 
-        align: "center", 
-        size: "small" 
-      },
-      { type: "cut" }
-    ]
+    type: "TEXT",
+    content: textContent
   };
 
   const response = await fetch(`${protocol}://${printerIp}:${printerPort}/print`, {
