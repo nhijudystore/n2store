@@ -243,33 +243,42 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
               body { 
                 margin: 0; 
                 padding: 20px; 
-                font-family: 'Courier New', monospace; 
+                font-family: Tahoma, sans-serif; 
               }
               .bill-container {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
-                font-size: 14px;
+                gap: 0;
                 text-align: center;
+                line-height: 1.0;
               }
               .session-name {
-                font-size: 2.5em;
+                font-size: 13pt;
                 font-weight: bold;
-                line-height: 1.2;
+                line-height: 1.0;
               }
               .phone {
-                font-weight: 600;
+                font-size: 8pt;
+                font-weight: bold;
+                line-height: 1.0;
               }
               .product {
-                margin: 4px 0;
+                font-size: 10pt;
+                font-weight: bold;
+                line-height: 1.0;
               }
               .comment {
+                font-size: 10pt;
+                font-weight: bold;
                 font-style: italic;
-                color: #666;
+                color: #000;
+                line-height: 1.0;
               }
               .time {
-                font-size: 12px;
-                color: #888;
+                font-size: 6pt;
+                font-weight: normal;
+                color: #000;
+                line-height: 1.0;
               }
             </style>
           </head>
