@@ -19,6 +19,7 @@ import { FullScreenProductView } from "@/components/live-products/FullScreenProd
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
+import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
 import { 
   Plus, 
   Calendar,
@@ -207,7 +208,7 @@ export default function LiveProducts() {
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
   const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   const productListRef = useRef<HTMLDivElement>(null);
-  const [isCommentsPanelOpen, setIsCommentsPanelOpen] = useState(false);
+  const { isCommentsOpen: isCommentsPanelOpen, setIsCommentsOpen: setIsCommentsPanelOpen } = useCommentsSidebar();
   
   const {
     comments,
