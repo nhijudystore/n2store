@@ -538,39 +538,6 @@ export type Database = {
         }
         Relationships: []
       }
-      printer_settings: {
-        Row: {
-          created_at: string
-          id: string
-          is_active: boolean
-          printer_ip: string
-          printer_name: string
-          printer_port: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          printer_ip: string
-          printer_name: string
-          printer_port?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          printer_ip?: string
-          printer_name?: string
-          printer_port?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       products: {
         Row: {
           barcode: string | null

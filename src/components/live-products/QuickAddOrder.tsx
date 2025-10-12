@@ -199,41 +199,72 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       if (billData) {
-        // Send to thermal printer via edge function
-        (async () => {
-          try {
-            const { data, error } = await supabase.functions.invoke('print-bill', {
-              body: { billData }
-            });
+        // Trigger print using hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
 
-            if (error) throw error;
-
-            if (data.success) {
-              toast({
-                title: "✅ Đã in bill",
-                description: data.message,
-              });
-            } else {
-              throw new Error(data.error || 'Unknown error');
-            }
-          } catch (error: any) {
-            console.error('Print error:', error);
-            toast({
-              variant: "destructive",
-              title: "❌ Lỗi in bill",
-              description: error.message || "Không thể in. Kiểm tra cài đặt máy in.",
-            });
-          }
-        })();
-      }
-
-      toast({
-        title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
-        description: isOversell
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <title>Bill #${billData.sessionIndex}</title>
+                <style>
+                  @media print {
+                    @page { margin: 0; size: 80mm auto; }
+                    body { margin: 0; padding: 10px; }
+                  }
+                  @media screen {
+                    body { visibility: hidden; }
+                  }
+                  body { 
+                    font-family: monospace; 
+                    text-align: center;
+                    font-size: 12px;
+                  }
+                </style>
+              </head>
+              <body>
+                <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
+                  #${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}
+                </div>
+                <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
+                <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+                ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
+                <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                  ${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}
+                </div>
+              </body>
+            </html>
+          `);
+          doc.close();
+          
+          // Wait for content to load then print
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            
+            // Remove iframe after printing
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 100);
+        }
+      } else {
+        toast({
+          title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
+          description: isOversell 
             ? `Đã thêm đơn ${sessionIndex} (vượt số lượng - đánh dấu đỏ)`
             : `Đã thêm đơn hàng ${sessionIndex}`,
           variant: isOversell ? "destructive" : "default",
-      });
+        });
+      }
     },
     onError: (error) => {
       console.error('Error adding order:', error);
