@@ -132,7 +132,42 @@ export async function importProductFromTPOS(tposProduct: TPOSProductSearchResult
 
     const supplierName = extractSupplier(tposProduct.Name);
     
-    // Insert vào products table
+    // Check if product already exists
+    const { data: existing, error: checkError } = await supabase
+      .from('products')
+      .select('id, product_code, product_name')
+      .eq('product_code', tposProduct.DefaultCode)
+      .maybeSingle();
+    
+    if (checkError) throw checkError;
+    
+    if (existing) {
+      // Product exists → UPDATE instead of INSERT
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          product_name: tposProduct.Name,
+          barcode: tposProduct.Barcode || null,
+          selling_price: tposProduct.ListPrice || 0,
+          purchase_price: tposProduct.StandardPrice || 0,
+          unit: tposProduct.UOMName || 'Cái',
+          tpos_product_id: tposProduct.Id,
+          tpos_image_url: tposProduct.ImageUrl || null,
+          product_images: tposProduct.ImageUrl ? [tposProduct.ImageUrl] : null,
+          supplier_name: supplierName,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      console.log(`✅ Product UPDATED from TPOS:`, data);
+      return { ...data, isUpdated: true };
+    }
+    
+    // Product doesn't exist → INSERT as usual
     const { data, error } = await supabase
       .from('products')
       .insert({
@@ -153,8 +188,8 @@ export async function importProductFromTPOS(tposProduct: TPOSProductSearchResult
 
     if (error) throw error;
 
-    console.log(`✅ Product imported successfully:`, data);
-    return data;
+    console.log(`✅ Product INSERTED from TPOS:`, data);
+    return { ...data, isUpdated: false };
   } catch (error) {
     console.error('Error importing product from TPOS:', error);
     throw error;

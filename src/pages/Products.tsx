@@ -131,11 +131,14 @@ export default function Products() {
       if (!tposProduct) {
         throw new Error("Không tìm thấy sản phẩm trên TPOS");
       }
-      await importProductFromTPOS(tposProduct);
-      return tposProduct;
+      const result = await importProductFromTPOS(tposProduct);
+      return { tposProduct, result };
     },
-    onSuccess: (tposProduct) => {
-      toast.success(`Đã thêm sản phẩm: ${tposProduct.Name}`);
+    onSuccess: ({ tposProduct, result }) => {
+      const message = result.isUpdated 
+        ? `Đã cập nhật sản phẩm: ${tposProduct.Name}` 
+        : `Đã thêm sản phẩm mới: ${tposProduct.Name}`;
+      toast.success(message);
       queryClient.invalidateQueries({ queryKey: ["products-search"] });
       queryClient.invalidateQueries({ queryKey: ["products-stats"] });
       refetch();
