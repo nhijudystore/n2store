@@ -14,6 +14,7 @@ import { UploadTPOSDialog } from "@/components/live-products/UploadTPOSDialog";
 import { EditProductDialog } from "@/components/live-products/EditProductDialog";
 import { EditOrderItemDialog } from "@/components/live-products/EditOrderItemDialog";
 import { QuickAddOrder } from "@/components/live-products/QuickAddOrder";
+import { QuickAddOrderInline } from "@/components/live-products/QuickAddOrderInline";
 import { LiveSessionStats } from "@/components/live-products/LiveSessionStats";
 import { FullScreenProductView } from "@/components/live-products/FullScreenProductView";
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
@@ -1856,7 +1857,7 @@ export default function LiveProducts() {
                                               </span>
                                             )}
                                             {selectedPhase !== "all" && (
-                                              <QuickAddOrder 
+                                              <QuickAddOrderInline 
                                                 productId={product.id}
                                                 phaseId={selectedPhase}
                                                 sessionId={selectedSession}
@@ -2108,7 +2109,7 @@ export default function LiveProducts() {
                                       })}
                                       {selectedPhase !== "all" && (
                                         <div className="flex items-center gap-2 ml-2">
-                                          <QuickAddOrder 
+                                          <QuickAddOrderInline 
                                             productId={product.id}
                                             phaseId={selectedPhase}
                                             sessionId={selectedSession}
@@ -2278,7 +2279,7 @@ export default function LiveProducts() {
                                       );
                                     })}
                                     {selectedPhase !== "all" && (
-                                      <QuickAddOrder 
+                                      <QuickAddOrderInline 
                                         productId={product.id}
                                         phaseId={selectedPhase}
                                         sessionId={selectedSession}
