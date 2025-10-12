@@ -38,38 +38,39 @@ export default function Products() {
   const { data: products = [], isLoading, refetch } = useQuery({
     queryKey: ["products-search", debouncedSearch],
     queryFn: async () => {
-      let query = supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-      
-      // If search query exists (>= 2 chars), search in database
+      // If search query exists (>= 2 chars), use RPC function with unaccent
       if (debouncedSearch.length >= 2) {
-        // Split search query into keywords
-        const keywords = debouncedSearch.trim().split(/\s+/).filter(k => k.length > 0);
+        const { data, error } = await supabase
+          .rpc("search_products_unaccent", { search_text: debouncedSearch });
         
-        if (keywords.length === 1) {
-          // Single keyword: search in product_code, product_name, barcode
-          query = query.or(
-            `product_code.ilike.%${keywords[0]}%,` +
-            `product_name.ilike.%${keywords[0]}%,` +
-            `barcode.ilike.%${keywords[0]}%`
-          );
-        } else {
-          // Multiple keywords: ALL must be present in product_name (in any order)
-          // Also check if full search matches product_code or barcode
-          keywords.forEach((keyword) => {
-            query = query.ilike("product_name", `%${keyword}%`);
+        if (error) throw error;
+        
+        // If multiple keywords, filter results to match ALL keywords
+        const keywords = debouncedSearch.trim().toLowerCase().split(/\s+/).filter(k => k.length > 0);
+        if (keywords.length > 1) {
+          return (data || []).filter((product: any) => {
+            const searchableText = `${product.product_code} ${product.product_name} ${product.barcode || ''}`.toLowerCase();
+            // Remove accents for comparison
+            const normalizedText = searchableText.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            return keywords.every(keyword => {
+              const normalizedKeyword = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+              return normalizedText.includes(normalizedKeyword);
+            });
           });
         }
+        
+        return data || [];
       } else {
         // Otherwise, load 50 latest products
-        query = query.range(0, 49);
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .range(0, 49);
+        
+        if (error) throw error;
+        return data || [];
       }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
     },
     staleTime: 30000,
     gcTime: 60000,
