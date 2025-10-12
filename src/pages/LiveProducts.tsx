@@ -47,6 +47,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { CommentsSettingsCollapsible } from "@/components/live-products/CommentsSettingsCollapsible";
 import { LiveCommentsPanel } from "@/components/live-products/LiveCommentsPanel";
+import { CommentsSidebar } from "@/components/live-products/CommentsSidebar";
 import { useFacebookComments } from "@/hooks/use-facebook-comments";
 import type { FacebookVideo } from "@/types/facebook";
 import { toast } from "sonner";
@@ -1498,38 +1499,39 @@ export default function LiveProducts() {
                 {activeTab === "products" && (
                   <>
                     {commentsVideoId && (
-                      <Sheet open={isCommentsPanelOpen} onOpenChange={setIsCommentsPanelOpen}>
-                        <SheetTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center gap-2"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            Comments
-                          </Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-[500px] sm:w-[600px] overflow-y-auto">
-                          <SheetHeader>
-                            <SheetTitle>Facebook Comments</SheetTitle>
-                          </SheetHeader>
-                          <div className="mt-4">
-                            <LiveCommentsPanel
-                              pageId={commentsPageId}
-                              videoId={commentsVideoId}
-                              comments={comments}
-                              ordersData={ordersData}
-                              newCommentIds={newCommentIds}
-                              showOnlyWithOrders={showOnlyWithOrders}
-                              hideNames={hideNames}
-                              isLoading={commentsLoading || isFetchingNextPage}
-                              onLoadMore={() => fetchNextPage()}
-                              hasMore={hasNextPage}
-                              onRefresh={refetchComments}
-                            />
-                          </div>
-                        </SheetContent>
-                      </Sheet>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={() => setIsCommentsPanelOpen(!isCommentsPanelOpen)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Comments
+                          {isCommentsPanelOpen && (
+                            <Badge variant="secondary" className="ml-1">Đang mở</Badge>
+                          )}
+                        </Button>
+                        
+                        <CommentsSidebar
+                          isOpen={isCommentsPanelOpen}
+                          onClose={() => setIsCommentsPanelOpen(false)}
+                        >
+                          <LiveCommentsPanel
+                            pageId={commentsPageId}
+                            videoId={commentsVideoId}
+                            comments={comments}
+                            ordersData={ordersData}
+                            newCommentIds={newCommentIds}
+                            showOnlyWithOrders={showOnlyWithOrders}
+                            hideNames={hideNames}
+                            isLoading={commentsLoading || isFetchingNextPage}
+                            onLoadMore={() => fetchNextPage()}
+                            hasMore={hasNextPage}
+                            onRefresh={refetchComments}
+                          />
+                        </CommentsSidebar>
+                      </>
                     )}
                     <Button
                       variant="default"
