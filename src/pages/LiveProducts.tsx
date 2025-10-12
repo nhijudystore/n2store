@@ -299,10 +299,10 @@ export default function LiveProducts() {
       }
 
       try {
-        // 1. Tìm sản phẩm được quét
+        // 1. Tìm sản phẩm được quét (lấy cả product_name để kiểm tra)
         const { data: scannedProduct, error: productError } = await supabase
           .from("products")
-          .select("product_code, base_product_code")
+          .select("*")
           .eq("product_code", code.trim())
           .maybeSingle();
 
@@ -313,35 +313,38 @@ export default function LiveProducts() {
           return;
         }
 
-        // 2. Xác định base_product_code
-        const baseCode = scannedProduct.base_product_code || scannedProduct.product_code;
+        let productsToAdd = [];
 
-        // 3. Lấy TẤT CẢ biến thể (loại trừ sản phẩm gốc mặc định)
-        const { data: variants, error: variantsError } = await supabase
-          .from("products")
-          .select("*")
-          .eq("base_product_code", baseCode)
-          .not("variant", "is", null)
-          .neq("variant", "")
-          .neq("product_code", baseCode);
-
-        if (variantsError) throw variantsError;
-
-        // Nếu không tìm thấy biến thể, sử dụng chính sản phẩm được quét
-        let productsToAdd = variants && variants.length > 0 ? variants : [];
-
-        if (productsToAdd.length === 0) {
-          // Không có biến thể → Lấy chính sản phẩm được quét
-          const { data: singleProduct, error: singleError } = await supabase
+        // 2. Kiểm tra xem tên sản phẩm có dấu "-" không
+        if (scannedProduct.product_name.includes('-')) {
+          // CASE 1: Tên có dấu "-" → Split và tìm theo tên
+          const baseNamePrefix = scannedProduct.product_name.split('-')[0].trim();
+          
+          const { data: matchingProducts, error: matchError } = await supabase
             .from("products")
             .select("*")
-            .eq("product_code", code.trim())
-            .maybeSingle();
+            .ilike("product_name", `${baseNamePrefix}%`);
           
-          if (singleError) throw singleError;
-          if (singleProduct) {
-            productsToAdd = [singleProduct];
-          }
+          if (matchError) throw matchError;
+          productsToAdd = matchingProducts || [];
+          
+        } else {
+          // CASE 2: Không có "-" → Dùng base_product_code như cũ
+          const baseCode = scannedProduct.base_product_code || scannedProduct.product_code;
+
+          // Lấy TẤT CẢ biến thể (loại trừ sản phẩm gốc mặc định)
+          const { data: variants, error: variantsError } = await supabase
+            .from("products")
+            .select("*")
+            .eq("base_product_code", baseCode)
+            .not("variant", "is", null)
+            .neq("variant", "")
+            .neq("product_code", baseCode);
+
+          if (variantsError) throw variantsError;
+
+          // Nếu không tìm thấy biến thể, sử dụng chính sản phẩm được quét
+          productsToAdd = variants && variants.length > 0 ? variants : [scannedProduct];
         }
 
         if (productsToAdd.length === 0) {

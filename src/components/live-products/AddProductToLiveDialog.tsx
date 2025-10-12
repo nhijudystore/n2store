@@ -220,23 +220,55 @@ export function AddProductToLiveDialog({ open, onOpenChange, phaseId, sessionId,
   }, [handlePaste]);
 
   // Handle product selection from suggestions or dialog
-  const handleSelectProduct = (product: any) => {
-    // Check if this is a base product (has base_product_code equal to product_code or no variant)
-    const isBaseProduct = !product.variant || product.base_product_code === product.product_code;
-    
-    if (isBaseProduct) {
-      // Set base product code to trigger variant loading
+  const handleSelectProduct = async (product: any) => {
+    // Kiểm tra nếu tên có dấu "-"
+    if (product.product_name.includes('-')) {
+      // Tìm tất cả sản phẩm có cùng baseNamePrefix
+      const baseNamePrefix = product.product_name.split('-')[0].trim();
+      
+      const { data: matchingProducts } = await supabase
+        .from("products")
+        .select("*")
+        .ilike("product_name", `${baseNamePrefix}%`);
+      
+      // Set form data để load variants
       form.setValue("product_code", product.product_code);
-      form.setValue("product_name", product.product_name);
+      form.setValue("product_name", baseNamePrefix);
       setBaseProductCode(product.product_code);
-      setSelectedVariantIds(new Set()); // Reset selection to trigger auto-population
-      setIsVariantsOpen(true); // Auto-open variants section
+      
+      // Populate variants từ matchingProducts
+      if (matchingProducts && matchingProducts.length > 0) {
+        const variantData = matchingProducts.map(p => ({
+          name: p.variant || p.product_name,
+          quantity: 1
+        }));
+        form.setValue("variants", variantData);
+        
+        // Auto-select all variants
+        const variantIds = new Set(matchingProducts.map(p => p.id));
+        setSelectedVariantIds(variantIds);
+      }
+      
+      setIsVariantsOpen(true);
+      
     } else {
-      // Single variant selected - just add that one
-      form.setValue("product_code", product.product_code);
-      form.setValue("product_name", product.product_name);
-      form.setValue("variants", [{ name: product.variant || "", quantity: 1 }]);
-      setBaseProductCode(""); // Clear base product code
+      // Logic cũ: Kiểm tra base product
+      const isBaseProduct = !product.variant || product.base_product_code === product.product_code;
+      
+      if (isBaseProduct) {
+        // Set base product code to trigger variant loading
+        form.setValue("product_code", product.product_code);
+        form.setValue("product_name", product.product_name);
+        setBaseProductCode(product.product_code);
+        setSelectedVariantIds(new Set()); // Reset selection to trigger auto-population
+        setIsVariantsOpen(true); // Auto-open variants section
+      } else {
+        // Single variant selected - just add that one
+        form.setValue("product_code", product.product_code);
+        form.setValue("product_name", product.product_name);
+        form.setValue("variants", [{ name: product.variant || "", quantity: 1 }]);
+        setBaseProductCode(""); // Clear base product code
+      }
     }
     
     // Auto-fill image if available
