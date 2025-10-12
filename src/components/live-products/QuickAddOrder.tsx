@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -73,6 +73,40 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     enabled: !!phaseData?.phase_date,
     refetchInterval: 5000,
   });
+
+  // Real-time subscription for instant updates
+  useEffect(() => {
+    if (!phaseData?.phase_date) return;
+
+    const channel = supabase
+      .channel('facebook-pending-orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'facebook_pending_orders',
+        },
+        (payload) => {
+          // Only refetch if the new order is for today's phase
+          const createdTime = new Date(payload.new.created_time);
+          const phaseDate = new Date(phaseData.phase_date);
+          
+          if (
+            createdTime.getDate() === phaseDate.getDate() &&
+            createdTime.getMonth() === phaseDate.getMonth() &&
+            createdTime.getFullYear() === phaseDate.getFullYear()
+          ) {
+            queryClient.invalidateQueries({ queryKey: ['facebook-pending-orders', phaseData.phase_date] });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [phaseData?.phase_date, queryClient]);
 
   // Get used facebook comment IDs
   const usedCommentIds = React.useMemo(() => {
