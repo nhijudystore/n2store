@@ -6,8 +6,11 @@ interface OrderBillProps {
   sessionIndex: string;
   phone?: string | null;
   customerName: string;
-  productCode: string;
-  productName: string;
+  products: Array<{
+    product_code: string;
+    product_name: string;
+    quantity: number;
+  }>;
   comment?: string | null;
   createdTime: string;
 }
@@ -16,14 +19,10 @@ export function OrderBillNotification({
   sessionIndex,
   phone,
   customerName,
-  productCode,
-  productName,
+  products,
   comment,
   createdTime,
 }: OrderBillProps) {
-  // Remove the number before the first space in product name
-  const cleanedProductName = productName.replace(/^\d+\s+/, '');
-  
   // Convert created_time to GMT+7
   const zonedDate = toZonedTime(new Date(createdTime), 'Asia/Bangkok');
   const formattedTime = format(zonedDate, 'dd/MM/yyyy HH:mm');
@@ -34,8 +33,16 @@ export function OrderBillNotification({
         #{sessionIndex} - {phone || 'Chưa có SĐT'}
       </div>
       <div className="font-semibold">{customerName}</div>
-      <div>
-        {productCode} - {cleanedProductName}
+      <div className="space-y-1">
+        {products.map((p, idx) => {
+          // Remove the number before the first space in product name
+          const cleanedName = p.product_name.replace(/^\d+\s+/, '');
+          return (
+            <div key={idx}>
+              {p.product_code} - {cleanedName} (SL: {p.quantity})
+            </div>
+          );
+        })}
       </div>
       {comment && <div className="text-muted-foreground italic">{comment}</div>}
       <div className="text-xs text-muted-foreground">{formattedTime}</div>

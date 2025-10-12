@@ -37,12 +37,10 @@ serve(async (req) => {
 	}
 
 	try {
-		const { tposOrderId, productToAdd, quantity } = await req.json();
+		const { tposOrderId, fullDetails } = await req.json();
 
-		if (!tposOrderId || !productToAdd || !quantity) {
-			throw new Error(
-				"tposOrderId, productToAdd, and quantity are required",
-			);
+		if (!tposOrderId || !fullDetails || !Array.isArray(fullDetails)) {
+			throw new Error("tposOrderId and fullDetails array are required");
 		}
 
 		const bearerToken = Deno.env.get("FACEBOOK_BEARER_TOKEN");
@@ -50,47 +48,18 @@ serve(async (req) => {
 			throw new Error("Facebook bearer token not configured");
 		}
 
-		// Step 1: GET existing order from TPOS
-		const getUrl = `https://tomato.tpos.vn/odata/SaleOnline_Order(${tposOrderId})?$expand=Details,Partner,User,CRMTeam`;
-		const getResponse = await fetch(getUrl, {
-			method: "GET",
-			headers: getTPOSHeaders(bearerToken),
-		});
-
-		if (!getResponse.ok) {
-			const errorText = await getResponse.text();
-			throw new Error(
-				`Failed to GET TPOS order (${getResponse.status}): ${errorText}`,
-			);
-		}
-
-		const currentOrderData = await getResponse.json();
-
-		// Step 2: Prepare the new product detail
-		const newDetail = {
-			ProductId: productToAdd.productid_bienthe,
-			ProductName: productToAdd.product_name,
-			ProductNameGet: `[${productToAdd.product_code}] ${productToAdd.product_name}`,
-			UOMId: 1,
-			UOMName: "Cái",
-			Quantity: quantity,
-			Price: productToAdd.selling_price,
-			Factor: 1,
-			ProductWeight: 0,
-		};
-
-		// Step 3: Create the PUT payload by appending the new detail
-		const updatedDetails = [...(currentOrderData.Details || []), newDetail];
-
+		// Prepare the PUT payload with full details
+		// Remove product_code field added for reference
+		const cleanDetails = fullDetails.map(({ product_code, ...detail }) => detail);
+		
 		const updatePayload = {
-			...currentOrderData,
-			Details: updatedDetails,
+			Id: tposOrderId,
+			Details: cleanDetails,
 		};
 
-		// Clean up payload
-		delete updatePayload["@odata.context"];
+		console.log(`Updating TPOS order ${tposOrderId} with ${cleanDetails.length} products`);
 
-		// Step 4: PUT the updated order to TPOS
+		// PUT the updated order to TPOS
 		const putUrl = `https://tomato.tpos.vn/odata/SaleOnline_Order(${tposOrderId})`;
 		const putResponse = await fetch(putUrl, {
 			method: "PUT",
@@ -103,16 +72,20 @@ serve(async (req) => {
 
 		if (!putResponse.ok) {
 			const errorText = await putResponse.text();
+			console.error(`TPOS PUT failed (${putResponse.status}):`, errorText);
 			throw new Error(
 				`Failed to PUT TPOS order (${putResponse.status}): ${errorText}`,
 			);
 		}
 
+		console.log(`Successfully updated TPOS order ${tposOrderId}`);
+
 		// TPOS PUT returns 204 No Content on success
 		return new Response(
 			JSON.stringify({
 				success: true,
-				message: "Product added to TPOS order",
+				message: "Products updated in TPOS order",
+				product_count: cleanDetails.length,
 			}),
 			{
 				headers: { ...corsHeaders, "Content-Type": "application/json" },

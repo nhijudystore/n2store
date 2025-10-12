@@ -101,7 +101,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("User not authenticated");
 
-      // 1. Find TPOS Order ID
+      // Step 1: Lấy TPOS Order ID từ session
       const { data: orderData, error: orderError } = await supabase
         .from('live_orders')
         .select('code_tpos_order_id')
@@ -115,57 +115,123 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       }
       const tposOrderId = orderData.code_tpos_order_id;
 
-      // 2. Get product details - FIXED LOGIC
-      // First, get the live_product to find its product_code
-      const { data: liveProductForCode, error: liveProductError } = await supabase
-        .from('live_products')
-        .select('product_code')
-        .eq('id', productId)
-        .single();
+      // Step 2: Lấy TẤT CẢ orders trong session này
+      const { data: allOrdersInSession, error: allOrdersError } = await supabase
+        .from('live_orders')
+        .select(`
+          quantity,
+          live_products (
+            product_code
+          )
+        `)
+        .eq('order_code', sessionIndex);
 
-      if (liveProductError || !liveProductForCode) {
-        throw new Error(`Không tìm thấy sản phẩm live với ID: ${productId}`);
-      }
+      if (allOrdersError) throw allOrdersError;
 
-      const productCodeToSearch = liveProductForCode.product_code;
-
-      // Now, find the product in the main products table using the code
-      const { data: productData, error: productError } = await supabase
-        .from('products')
-        .select('id, productid_bienthe, product_name, product_code, selling_price')
-        .eq('product_code', productCodeToSearch)
-        .single();
-
-      if (productError || !productData) {
-        throw new Error(`Không tìm thấy thông tin sản phẩm trong kho với mã: ${productCodeToSearch}`);
-      }
-
-      if (!productData.productid_bienthe) {
-        throw new Error(`Sản phẩm ${productData.product_code} chưa có "productid_bienthe". Vui lòng đồng bộ TPOS IDs trong Cài đặt.`);
-      }
-
-      const productToAdd = {
-        productid_bienthe: productData.productid_bienthe,
-        product_name: productData.product_name,
-        product_code: productData.product_code,
-        selling_price: productData.selling_price || 0,
-      };
-
-      // 3. Call Edge Function to update TPOS
-      const { error: functionError } = await supabase.functions.invoke('add-product-to-tpos-order', {
-        body: { tposOrderId, productToAdd, quantity },
+      // Step 3: Group by product_code và sum quantity
+      const productSummary: Record<string, number> = {};
+      allOrdersInSession?.forEach(order => {
+        const code = (order.live_products as any)?.product_code;
+        if (code) {
+          productSummary[code] = (productSummary[code] || 0) + order.quantity;
+        }
       });
+
+      // Step 4: Lấy thông tin products từ database
+      const productCodes = Object.keys(productSummary);
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('product_code, productid_bienthe, product_name, selling_price, id')
+        .in('product_code', productCodes);
+
+      if (productsError) throw productsError;
+      if (!productsData || productsData.length === 0) {
+        throw new Error('Không tìm thấy thông tin sản phẩm trong kho');
+      }
+
+      // Step 5: Build Details array
+      const details = await Promise.all(
+        productsData.map(async (prod) => {
+          let productId = prod.productid_bienthe;
+
+          // Nếu chưa có productid_bienthe, gọi TPOS để lấy
+          if (!productId) {
+            const { data: tposData, error: tposError } = await supabase.functions.invoke(
+              'get-tpos-product-details',
+              { 
+                body: { 
+                  product_code: prod.product_code,
+                  fallback_name: prod.product_name,
+                  fallback_price: prod.selling_price
+                } 
+              }
+            );
+
+            if (tposError) {
+              console.error(`Error fetching TPOS details for ${prod.product_code}:`, tposError);
+              throw new Error(`Không thể lấy thông tin TPOS cho sản phẩm ${prod.product_code}`);
+            }
+
+            if (tposData?.ProductId) {
+              productId = tposData.ProductId;
+              
+              // Cập nhật lại database
+              await supabase
+                .from('products')
+                .update({ productid_bienthe: productId })
+                .eq('id', prod.id);
+            } else {
+              throw new Error(`Không tìm thấy sản phẩm ${prod.product_code} trên TPOS`);
+            }
+          }
+
+          // Lấy thông tin real-time từ TPOS (luôn fetch để có data mới nhất)
+          const { data: tposDetails, error: tposDetailsError } = await supabase.functions.invoke(
+            'get-tpos-product-details',
+            { 
+              body: { 
+                product_code: prod.product_code,
+                fallback_name: prod.product_name,
+                fallback_price: prod.selling_price
+              } 
+            }
+          );
+
+          if (tposDetailsError) {
+            console.warn(`Warning: Could not fetch fresh TPOS details for ${prod.product_code}, using database values`);
+          }
+
+          return {
+            ProductId: productId,
+            ProductName: tposDetails?.ProductName || prod.product_name,
+            ProductNameGet: tposDetails?.ProductNameGet || `[${prod.product_code}] ${prod.product_name}`,
+            UOMId: 1,
+            UOMName: "Cái",
+            Quantity: productSummary[prod.product_code],
+            Price: tposDetails?.Price || prod.selling_price || 0,
+            Factor: 1,
+            ProductWeight: 0,
+            product_code: prod.product_code,
+          };
+        })
+      );
+
+      // Step 6: Gọi Edge Function để update TPOS
+      const { error: functionError } = await supabase.functions.invoke(
+        'add-product-to-tpos-order',
+        { body: { tposOrderId, fullDetails: details } }
+      );
 
       if (functionError) {
         let detailedError = functionError.message;
         try {
-            const parsed = JSON.parse(functionError.context?.error_message || '{}');
-            if (parsed.error) detailedError = parsed.error;
+          const parsed = JSON.parse(functionError.context?.error_message || '{}');
+          if (parsed.error) detailedError = parsed.error;
         } catch(e) {}
         throw new Error(`Lỗi cập nhật TPOS: ${detailedError}`);
       }
 
-      // 4. Update local database
+      // Step 7: Update database với order mới
       const { data: liveProduct, error: fetchError } = await supabase
         .from('live_products')
         .select('sold_quantity, prepared_quantity, product_code, product_name')
@@ -200,6 +266,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       if (updateError) throw updateError;
       
       const pendingOrder = pendingOrders.find(order => order.facebook_comment_id === commentId);
+      
       return { 
         sessionIndex, 
         isOversell,
@@ -207,8 +274,11 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
           sessionIndex,
           phone: pendingOrder.phone,
           customerName: pendingOrder.name,
-          productCode: liveProduct.product_code,
-          productName: liveProduct.product_name,
+          products: details.map(d => ({
+            product_code: d.product_code,
+            product_name: d.ProductName,
+            quantity: d.Quantity
+          })),
           comment: pendingOrder.comment,
           createdTime: pendingOrder.created_time,
         } : null
@@ -232,7 +302,43 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         
         const printWindow = window.open('', '_blank', 'width=400,height=600');
         if (printWindow) {
-          printWindow.document.write(`...`); // Print logic remains the same
+          printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+              <head>
+                <meta charset="UTF-8">
+                <title>Bill - ${billData.sessionIndex}</title>
+                <style>
+                  body { font-family: 'Courier New', monospace; padding: 20px; text-align: center; }
+                  .bill { max-width: 300px; margin: 0 auto; }
+                  .header { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+                  .customer { font-size: 16px; font-weight: 600; margin: 10px 0; }
+                  .product { font-size: 14px; margin: 5px 0; }
+                  .comment { font-style: italic; color: #666; margin: 10px 0; }
+                  .time { font-size: 12px; color: #999; margin-top: 10px; }
+                </style>
+              </head>
+              <body>
+                <div class="bill">
+                  <div class="header">#${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}</div>
+                  <div class="customer">${billData.customerName}</div>
+                  <div class="products">
+                    ${billData.products.map(p => 
+                      `<div class="product">${p.product_code} - ${p.product_name} (SL: ${p.quantity})</div>`
+                    ).join('')}
+                  </div>
+                  ${billData.comment ? `<div class="comment">${billData.comment}</div>` : ''}
+                  <div class="time">${new Date(billData.createdTime).toLocaleString('vi-VN')}</div>
+                </div>
+                <script>
+                  window.onload = () => {
+                    window.print();
+                    setTimeout(() => window.close(), 500);
+                  };
+                </script>
+              </body>
+            </html>
+          `);
           printWindow.document.close();
         }
       } else {
