@@ -113,7 +113,7 @@ export async function printBill(
   const response = await fetch(`${protocol}://${printerIp}:${printerPort}/print`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
     },
     body: JSON.stringify(printContent),
     signal: AbortSignal.timeout(10000), // 10 second timeout
