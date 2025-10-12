@@ -232,6 +232,78 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
+      // Print bill automatically
+      if (billData) {
+        const billHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { 
+                margin: 0; 
+                padding: 20px; 
+                font-family: 'Courier New', monospace; 
+              }
+              .bill-container {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                font-size: 14px;
+                text-align: center;
+              }
+              .session-name {
+                font-size: 2.5em;
+                font-weight: bold;
+                line-height: 1.2;
+              }
+              .phone {
+                font-weight: 600;
+              }
+              .product {
+                margin: 4px 0;
+              }
+              .comment {
+                font-style: italic;
+                color: #666;
+              }
+              .time {
+                font-size: 12px;
+                color: #888;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="bill-container">
+              <div class="session-name">#${billData.sessionIndex} - ${billData.customerName}</div>
+              <div class="phone">${billData.phone || 'Chưa có SĐT'}</div>
+              <div class="product">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+              ${billData.comment ? `<div class="comment">${billData.comment}</div>` : ''}
+              <div class="time">${new Date(billData.createdTime).toLocaleString('vi-VN', { 
+                timeZone: 'Asia/Bangkok',
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</div>
+            </div>
+          </body>
+          </html>
+        `;
+        
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+          printWindow.document.write(billHtml);
+          printWindow.document.close();
+          printWindow.focus();
+          
+          printWindow.onload = () => {
+            printWindow.print();
+          };
+        }
+      }
+      
       toast({
         title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
         description: isOversell 
