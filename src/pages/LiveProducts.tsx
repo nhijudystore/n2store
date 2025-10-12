@@ -1376,8 +1376,10 @@ export default function LiveProducts() {
         </div>
       </div>
 
-      {/* Session Selection */}
-      {liveSessions.length > 0 && (
+      {/* Main content wrapper - pushes left when sidebar opens */}
+      <div className={`transition-all duration-300 ease-in-out ${isCommentsPanelOpen ? 'mr-[450px]' : 'mr-0'}`}>
+        {/* Session Selection */}
+        {liveSessions.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1512,25 +1514,6 @@ export default function LiveProducts() {
                             <Badge variant="secondary" className="ml-1">Đang mở</Badge>
                           )}
                         </Button>
-                        
-                        <CommentsSidebar
-                          isOpen={isCommentsPanelOpen}
-                          onClose={() => setIsCommentsPanelOpen(false)}
-                        >
-                          <LiveCommentsPanel
-                            pageId={commentsPageId}
-                            videoId={commentsVideoId}
-                            comments={comments}
-                            ordersData={ordersData}
-                            newCommentIds={newCommentIds}
-                            showOnlyWithOrders={showOnlyWithOrders}
-                            hideNames={hideNames}
-                            isLoading={commentsLoading || isFetchingNextPage}
-                            onLoadMore={() => fetchNextPage()}
-                            hasMore={hasNextPage}
-                            onRefresh={refetchComments}
-                          />
-                        </CommentsSidebar>
                       </>
                     )}
                     <Button
@@ -2698,6 +2681,29 @@ export default function LiveProducts() {
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
+      )}
+      </div>
+
+      {/* Comments Sidebar - outside content wrapper */}
+      {commentsVideoId && (
+        <CommentsSidebar
+          isOpen={isCommentsPanelOpen}
+          onClose={() => setIsCommentsPanelOpen(false)}
+        >
+          <LiveCommentsPanel
+            pageId={commentsPageId}
+            videoId={commentsVideoId}
+            comments={comments}
+            ordersData={ordersData}
+            newCommentIds={newCommentIds}
+            showOnlyWithOrders={showOnlyWithOrders}
+            hideNames={hideNames}
+            isLoading={commentsLoading || isFetchingNextPage}
+            onLoadMore={() => fetchNextPage()}
+            hasMore={hasNextPage}
+            onRefresh={refetchComments}
+          />
+        </CommentsSidebar>
       )}
     </div>
   );
