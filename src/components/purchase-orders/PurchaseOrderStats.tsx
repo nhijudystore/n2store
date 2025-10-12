@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, DollarSign, TrendingUp, Clock, Link2 } from "lucide-react";
 import { format } from "date-fns";
 import { formatVND } from "@/lib/currency-utils";
+import { cn } from "@/lib/utils";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -46,9 +47,10 @@ interface PurchaseOrderStatsProps {
   filteredOrders: PurchaseOrder[];
   allOrders: PurchaseOrder[];
   isLoading: boolean;
+  isMobile?: boolean;
 }
 
-export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: PurchaseOrderStatsProps) {
+export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading, isMobile = false }: PurchaseOrderStatsProps) {
   // Calculate stats from filteredOrders for filtered data
   const totalOrders = filteredOrders.length;
   const totalAmount = filteredOrders.reduce((sum, order) => sum + Number(order.final_amount || 0), 0);
@@ -67,24 +69,45 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className={cn(
+      "grid gap-4",
+      isMobile ? "grid-cols-2" : "md:grid-cols-2 lg:grid-cols-5"
+    )}>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng đơn hàng</CardTitle>
-          <FileText className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>Tổng đơn hàng</CardTitle>
+          <FileText className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : totalOrders}</div>
+        <CardContent className={isMobile ? "pt-0" : ""}>
+          <div className={cn(
+            "font-bold",
+            isMobile ? "text-lg" : "text-2xl"
+          )}>{isLoading ? "..." : totalOrders}</div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị (VND)</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>Tổng giá trị</CardTitle>
+          <DollarSign className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
+        <CardContent className={isMobile ? "pt-0" : ""}>
+          <div className={cn(
+            "font-bold",
+            isMobile ? "text-sm" : "text-2xl"
+          )}>
             {isLoading ? "..." : formatVND(totalAmount)}
           </div>
         </CardContent>
@@ -92,21 +115,39 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Đơn hôm nay</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>Đơn hôm nay</CardTitle>
+          <Clock className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">{isLoading ? "..." : todayOrdersCount}</div>
+        <CardContent className={isMobile ? "pt-0" : ""}>
+          <div className={cn(
+            "font-bold",
+            isMobile ? "text-lg" : "text-2xl"
+          )}>{isLoading ? "..." : todayOrdersCount}</div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Tổng giá trị hôm nay (VND)</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>Giá trị hôm nay</CardTitle>
+          <TrendingUp className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">
+        <CardContent className={isMobile ? "pt-0" : ""}>
+          <div className={cn(
+            "font-bold",
+            isMobile ? "text-sm" : "text-2xl"
+          )}>
             {isLoading ? "..." : formatVND(todayTotalAmount)}
           </div>
         </CardContent>
@@ -114,11 +155,20 @@ export function PurchaseOrderStats({ filteredOrders, allOrders, isLoading }: Pur
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Đồng bộ TPOS</CardTitle>
-          <Link2 className="h-4 w-4 text-muted-foreground" />
+          <CardTitle className={cn(
+            "font-medium",
+            isMobile ? "text-xs" : "text-sm"
+          )}>Đồng bộ TPOS</CardTitle>
+          <Link2 className={cn(
+            "text-muted-foreground",
+            isMobile ? "h-3 w-3" : "h-4 w-4"
+          )} />
         </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-600">
+        <CardContent className={isMobile ? "pt-0" : ""}>
+          <div className={cn(
+            "font-bold text-green-600",
+            isMobile ? "text-sm" : "text-2xl"
+          )}>
             {isLoading ? "..." : `${syncedItems.length}/${allItems.length}`}
           </div>
           <p className="text-xs text-muted-foreground mt-1">

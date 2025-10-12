@@ -22,6 +22,8 @@ import { BarcodeProductTest } from "@/components/settings/BarcodeProductTest";
 import { BarcodeScannerSettings } from "@/components/settings/BarcodeScannerSettings";
 import { FetchTPOSProductsDialog } from "@/components/settings/FetchTPOSProductsDialog";
 import { GetTPOSProductTool } from "@/components/settings/GetTPOSProductTool";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const Settings = () => {
   const [isChecking, setIsChecking] = useState(false);
@@ -29,6 +31,7 @@ const Settings = () => {
   const [checkResult, setCheckResult] = useState<any>(null);
   const [syncResult, setSyncResult] = useState<any>(null);
   const [isJsonOpen, setIsJsonOpen] = useState(false);
+  const isMobile = useIsMobile();
   
   const [topValue, setTopValue] = useState("20");
   const [isFetchingOrders, setIsFetchingOrders] = useState(false);
@@ -624,16 +627,29 @@ const Settings = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={cn(
+      "mx-auto space-y-6",
+      isMobile ? "p-4" : "container p-6"
+    )}>
+      <div className={cn(
+        "flex items-center",
+        isMobile ? "flex-col items-start gap-3 w-full" : "justify-between"
+      )}>
         <div>
-          <h1 className="text-3xl font-bold">Cài đặt</h1>
-          <p className="text-muted-foreground mt-2">Quản lý các cài đặt hệ thống</p>
+          <h1 className={cn(
+            "font-bold",
+            isMobile ? "text-xl" : "text-3xl"
+          )}>Cài đặt</h1>
+          <p className={cn(
+            "text-muted-foreground mt-2",
+            isMobile ? "text-sm" : "text-base"
+          )}>Quản lý các cài đặt hệ thống</p>
         </div>
         <Button 
           variant="default" 
-          size="lg"
+          size={isMobile ? "sm" : "lg"}
           onClick={() => setIsSimpleUploadOpen(true)}
+          className={isMobile ? "w-full" : ""}
         >
           <Upload className="mr-2 h-4 w-4" />
           Upload sản phẩm đơn giản

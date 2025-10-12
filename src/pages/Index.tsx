@@ -14,9 +14,12 @@ import {
   Clock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const Index = () => {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const quickStats = [
     { 
@@ -100,36 +103,70 @@ const Index = () => {
   return (
     <div className="space-y-8">
       {/* Welcome Header */}
-      <div className="text-center space-y-4 py-8">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-primary text-white mb-4">
-          <Store className="w-5 h-5" />
+      <div className={cn(
+        "text-center space-y-4",
+        isMobile ? "py-4" : "py-8"
+      )}>
+        <div className={cn(
+          "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-primary text-white",
+          isMobile ? "mb-2 text-sm" : "mb-4"
+        )}>
+          <Store className={isMobile ? "w-4 h-4" : "w-5 h-5"} />
           <span className="font-medium">Hệ Thống Bán Hàng Nội Bộ</span>
         </div>
-        <h1 className="text-4xl font-bold bg-gradient-text bg-clip-text text-transparent">
+        <h1 className={cn(
+          "font-bold bg-gradient-text bg-clip-text text-transparent",
+          isMobile ? "text-2xl" : "text-4xl"
+        )}>
           Chào mừng trở lại!
         </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+        <p className={cn(
+          "text-muted-foreground max-w-2xl mx-auto",
+          isMobile ? "text-sm px-4" : "text-xl"
+        )}>
           Quản lý đơn hàng, theo dõi doanh số và phân tích hiệu suất kinh doanh một cách hiệu quả
         </p>
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={cn(
+        "grid gap-6",
+        isMobile ? "grid-cols-2 gap-3" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+      )}>
         {quickStats.map((stat, index) => {
           const Icon = stat.icon;
           return (
-            <Card key={index} className="shadow-soft hover:shadow-glow transition-all duration-300 cursor-pointer hover:scale-105">
-              <CardContent className="p-6">
+            <Card key={index} className={cn(
+              "shadow-soft hover:shadow-glow transition-all duration-300 cursor-pointer",
+              !isMobile && "hover:scale-105"
+            )}>
+              <CardContent className={isMobile ? "p-3" : "p-6"}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-muted-foreground text-sm font-medium">{stat.title}</p>
-                    <p className="text-2xl font-bold mt-2">{stat.value}</p>
-                    <p className="text-success text-sm font-medium mt-1">
+                    <p className={cn(
+                      "text-muted-foreground font-medium",
+                      isMobile ? "text-xs" : "text-sm"
+                    )}>{stat.title}</p>
+                    <p className={cn(
+                      "font-bold mt-2",
+                      isMobile ? "text-lg" : "text-2xl"
+                    )}>{stat.value}</p>
+                    <p className={cn(
+                      "text-success font-medium mt-1",
+                      isMobile ? "text-xs" : "text-sm"
+                    )}>
                       {stat.change} từ hôm qua
                     </p>
                   </div>
-                  <div className={`p-3 rounded-lg ${stat.bgColor}`}>
-                    <Icon className={`w-6 h-6 ${stat.color}`} />
+                  <div className={cn(
+                    "rounded-lg",
+                    stat.bgColor,
+                    isMobile ? "p-2" : "p-3"
+                  )}>
+                    <Icon className={cn(
+                      stat.color,
+                      isMobile ? "w-4 h-4" : "w-6 h-6"
+                    )} />
                   </div>
                 </div>
               </CardContent>
@@ -142,29 +179,51 @@ const Index = () => {
       <Card className="shadow-soft">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ArrowRight className="w-5 h-5 text-primary" />
-            Thao tác nhanh
+            <ArrowRight className={isMobile ? "w-4 h-4" : "w-5 h-5"} />
+            <span className={isMobile ? "text-base" : "text-lg"}>Thao tác nhanh</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={cn(
+            "grid gap-4",
+            isMobile ? "grid-cols-1" : "grid-cols-1 md:grid-cols-3"
+          )}>
             {quickActions.map((action, index) => {
               const Icon = action.icon;
               return (
                 <Card 
                   key={index} 
-                  className="cursor-pointer hover:shadow-soft transition-all duration-200 hover:scale-105 border-muted"
+                  className={cn(
+                    "cursor-pointer transition-all duration-200 border-muted",
+                    !isMobile && "hover:shadow-soft hover:scale-105"
+                  )}
                 >
-                  <CardContent className="p-6 text-center space-y-4">
-                    <div className="mx-auto w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-primary" />
+                  <CardContent className={cn(
+                    "text-center space-y-4",
+                    isMobile ? "p-4" : "p-6"
+                  )}>
+                    <div className={cn(
+                      "mx-auto rounded-lg bg-primary/10 flex items-center justify-center",
+                      isMobile ? "w-10 h-10" : "w-12 h-12"
+                    )}>
+                      <Icon className={cn(
+                        "text-primary",
+                        isMobile ? "w-5 h-5" : "w-6 h-6"
+                      )} />
                     </div>
                     <div>
-                      <h3 className="font-semibold mb-1">{action.title}</h3>
-                      <p className="text-sm text-muted-foreground mb-4">{action.description}</p>
+                      <h3 className={cn(
+                        "font-semibold mb-1",
+                        isMobile ? "text-sm" : "text-base"
+                      )}>{action.title}</h3>
+                      <p className={cn(
+                        "text-muted-foreground mb-4",
+                        isMobile ? "text-xs" : "text-sm"
+                      )}>{action.description}</p>
                       <Button 
                         variant={action.variant} 
                         onClick={action.action}
+                        size={isMobile ? "sm" : "default"}
                         className="w-full"
                       >
                         Truy cập ngay
@@ -179,52 +238,87 @@ const Index = () => {
       </Card>
 
       {/* Recent Orders */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 shadow-soft">
+      <div className={cn(
+        "grid gap-6",
+        isMobile ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"
+      )}>
+        <Card className={cn(
+          "shadow-soft",
+          !isMobile && "lg:col-span-2"
+        )}>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
+            <CardTitle className={cn(
+              "flex items-center gap-2",
+              isMobile ? "text-base" : "text-lg"
+            )}>
+              <Clock className={isMobile ? "w-4 h-4" : "w-5 h-5"} />
               Đơn hàng gần đây
             </CardTitle>
             <Button variant="outline" size="sm" onClick={() => navigate("/orders")}>
               <Eye className="w-4 h-4 mr-2" />
-              Xem tất cả
+              {!isMobile && "Xem tất cả"}
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentOrders.map((order) => (
-                <div 
-                  key={order.id} 
-                  className="flex items-center justify-between p-4 rounded-lg bg-gradient-card hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-2 h-2 rounded-full bg-primary"></div>
+            {isMobile ? (
+              // Mobile: Card view
+              <div className="space-y-2">
+                {recentOrders.map((order) => (
+                  <Card key={order.id} className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-primary"></div>
+                        <p className="font-medium text-sm">{order.id}</p>
+                      </div>
+                      {getStatusBadge(order.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-1">{order.customer}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-primary">{order.amount}</p>
+                      <p className="text-xs text-muted-foreground">{order.time}</p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              // Desktop: Original layout
+              <div className="space-y-4">
+                {recentOrders.map((order) => (
+                  <div 
+                    key={order.id} 
+                    className="flex items-center justify-between p-4 rounded-lg bg-gradient-card hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-2 h-2 rounded-full bg-primary"></div>
+                      <div>
+                        <p className="font-medium">{order.id}</p>
+                        <p className="text-sm text-muted-foreground">{order.customer}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">{order.amount}</p>
+                      <p className="text-xs text-muted-foreground">{order.time}</p>
+                    </div>
                     <div>
-                      <p className="font-medium">{order.id}</p>
-                      <p className="text-sm text-muted-foreground">{order.customer}</p>
+                      {getStatusBadge(order.status)}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">{order.amount}</p>
-                    <p className="text-xs text-muted-foreground">{order.time}</p>
-                  </div>
-                  <div>
-                    {getStatusBadge(order.status)}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>Truy cập nhanh</CardTitle>
+            <CardTitle className={isMobile ? "text-base" : "text-lg"}>
+              Truy cập nhanh
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button 
               variant="outline" 
+              size={isMobile ? "sm" : "default"}
               className="w-full justify-start" 
               onClick={() => navigate("/dashboard")}
             >
@@ -233,6 +327,7 @@ const Index = () => {
             </Button>
             <Button 
               variant="outline" 
+              size={isMobile ? "sm" : "default"}
               className="w-full justify-start" 
               onClick={() => navigate("/customers")}
             >
@@ -241,6 +336,7 @@ const Index = () => {
             </Button>
             <Button 
               variant="outline" 
+              size={isMobile ? "sm" : "default"}
               className="w-full justify-start" 
               onClick={() => navigate("/reports")}
             >

@@ -18,6 +18,7 @@ import { checkTPOSProductsExist } from "@/lib/tpos-api";
 import { format } from "date-fns";
 import { convertVietnameseToUpperCase, cn } from "@/lib/utils";
 import { generateVariantCode, generateProductNameWithVariant } from "@/lib/variant-attributes";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PurchaseOrderItem {
   id?: string;
@@ -68,6 +69,7 @@ const PurchaseOrders = () => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [isCheckingTPOS, setIsCheckingTPOS] = useState(false);
   const [deletedTPOSIds, setDeletedTPOSIds] = useState<Set<number>>(new Set());
+  const isMobile = useIsMobile();
   
   const queryClient = useQueryClient();
 
@@ -725,17 +727,30 @@ const PurchaseOrders = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={cn(
+      "mx-auto space-y-6",
+      isMobile ? "p-4" : "container p-6"
+    )}>
+      <div className={cn(
+        "flex items-center",
+        isMobile ? "flex-col items-start gap-3 w-full" : "justify-between"
+      )}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Quản lý đặt hàng</h1>
-          <p className="text-muted-foreground">
+          <h1 className={cn(
+            "font-bold tracking-tight",
+            isMobile ? "text-xl" : "text-3xl"
+          )}>Quản lý đặt hàng</h1>
+          <p className={cn(
+            "text-muted-foreground",
+            isMobile ? "text-sm" : "text-base"
+          )}>
             Theo dõi và quản lý đơn đặt hàng với các nhà cung cấp
           </p>
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          className="gap-2"
+          size={isMobile ? "sm" : "default"}
+          className={cn("gap-2", isMobile && "w-full")}
         >
           <Plus className="w-4 h-4" />
           Tạo đơn đặt hàng
@@ -746,6 +761,7 @@ const PurchaseOrders = () => {
         filteredOrders={filteredOrders}
         allOrders={orders || []}
         isLoading={isLoading}
+        isMobile={isMobile}
       />
 
       <Tabs defaultValue="orders" className="w-full">

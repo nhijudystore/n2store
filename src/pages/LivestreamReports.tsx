@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Plus, Edit, Trash2, BarChart3, CalendarIcon } from "lucide-react";
+import { Plus, Edit, Trash2, BarChart3, CalendarIcon, Filter } from "lucide-react";
 import { CreateLivestreamReportDialog } from "@/components/livestream-reports/CreateLivestreamReportDialog";
 import { EditLivestreamReportDialog } from "@/components/livestream-reports/EditLivestreamReportDialog";
 import { toast } from "@/hooks/use-toast";
@@ -17,6 +17,8 @@ import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, end
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { parseTimeRangeForDisplay } from "@/lib/time-utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface LivestreamReport {
   id: string;
@@ -36,6 +38,7 @@ const LivestreamReports = () => {
   const [fromDate, setFromDate] = React.useState<Date | undefined>();
   const [toDate, setToDate] = React.useState<Date | undefined>();
   const [datePreset, setDatePreset] = React.useState<string>("");
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
   const { data: reports = [], isLoading } = useQuery({
@@ -127,13 +130,26 @@ const LivestreamReports = () => {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className={cn(
+      "mx-auto space-y-6",
+      isMobile ? "p-4" : "container p-6"
+    )}>
+      <div className={cn(
+        "flex items-center",
+        isMobile ? "flex-col items-start gap-3 w-full" : "justify-between"
+      )}>
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-6 w-6" />
-          <h1 className="text-2xl font-bold">Báo Cáo Livestream</h1>
+          <BarChart3 className={isMobile ? "h-5 w-5" : "h-6 w-6"} />
+          <h1 className={cn(
+            "font-bold",
+            isMobile ? "text-xl" : "text-2xl"
+          )}>Báo Cáo Livestream</h1>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button
+          onClick={() => setIsCreateDialogOpen(true)}
+          size={isMobile ? "sm" : "default"}
+          className={isMobile ? "w-full" : ""}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Thêm báo cáo
         </Button>
@@ -141,94 +157,189 @@ const LivestreamReports = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Danh sách báo cáo</CardTitle>
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Date Range Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Từ ngày:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[140px] justify-start text-left font-normal",
-                      !fromDate && "text-muted-foreground"
-                    )}
+          <CardTitle className={isMobile ? "text-base" : "text-lg"}>
+            Danh sách báo cáo
+          </CardTitle>
+          {isMobile ? (
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full mt-2">
+                  <Filter className="h-4 w-4 mr-2" />
+                  Bộ lọc
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-2 mt-2">
+                {/* Date pickers */}
+                <div className="grid grid-cols-2 gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal text-xs",
+                          !fromDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {fromDate ? format(fromDate, "dd/MM") : "Từ"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={fromDate}
+                        onSelect={setFromDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          "justify-start text-left font-normal text-xs",
+                          !toDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-3 w-3" />
+                        {toDate ? format(toDate, "dd/MM") : "Đến"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={toDate}
+                        onSelect={setToDate}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                
+                {/* Quick filters */}
+                <Select value={datePreset} onValueChange={handleDatePreset}>
+                  <SelectTrigger className="text-xs">
+                    <SelectValue placeholder="Lọc nhanh" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Hôm nay</SelectItem>
+                    <SelectItem value="yesterday">Hôm qua</SelectItem>
+                    <SelectItem value="this-week">Tuần này</SelectItem>
+                    <SelectItem value="this-month">Tháng này</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {(fromDate || toDate || datePreset) && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setFromDate(undefined);
+                      setToDate(undefined);
+                      setDatePreset("");
+                    }}
+                    className="w-full text-xs"
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {fromDate ? format(fromDate, "dd/MM/yyyy") : "Chọn ngày"}
+                    Xóa bộ lọc
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={fromDate}
-                    onSelect={setFromDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Date Range Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Từ ngày:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !fromDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {fromDate ? format(fromDate, "dd/MM/yyyy") : "Chọn ngày"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={fromDate}
+                      onSelect={setFromDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Đến ngày:</span>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-[140px] justify-start text-left font-normal",
-                      !toDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {toDate ? format(toDate, "dd/MM/yyyy") : "Chọn ngày"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={toDate}
-                    onSelect={setToDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Đến ngày:</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !toDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {toDate ? format(toDate, "dd/MM/yyyy") : "Chọn ngày"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={toDate}
+                      onSelect={setToDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            {/* Preset Date Filter */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">Lọc nhanh:</span>
-              <Select value={datePreset} onValueChange={handleDatePreset}>
-                <SelectTrigger className="w-[140px]">
-                  <SelectValue placeholder="Chọn thời gian" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="today">Hôm nay</SelectItem>
-                  <SelectItem value="yesterday">Hôm qua</SelectItem>
-                  <SelectItem value="this-week">Tuần này</SelectItem>
-                  <SelectItem value="this-month">Tháng này</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Preset Date Filter */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">Lọc nhanh:</span>
+                <Select value={datePreset} onValueChange={handleDatePreset}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Chọn thời gian" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Hôm nay</SelectItem>
+                    <SelectItem value="yesterday">Hôm qua</SelectItem>
+                    <SelectItem value="this-week">Tuần này</SelectItem>
+                    <SelectItem value="this-month">Tháng này</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Clear Filters */}
-            {(fromDate || toDate || datePreset) && (
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  setFromDate(undefined);
-                  setToDate(undefined);
-                  setDatePreset("");
-                }}
-              >
-                Xóa bộ lọc
-              </Button>
-            )}
-          </div>
+              {/* Clear Filters */}
+              {(fromDate || toDate || datePreset) && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    setFromDate(undefined);
+                    setToDate(undefined);
+                    setDatePreset("");
+                  }}
+                >
+                  Xóa bộ lọc
+                </Button>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
