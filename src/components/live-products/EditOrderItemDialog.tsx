@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,18 +32,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 const formSchema = z.object({
   quantity: z.coerce.number().min(0, "Số lượng không được âm"),
-  customer_status: z.enum(['normal', 'bom_hang', 'thieu_thong_tin']).default('normal'),
 });
 
 interface EditOrderItemDialogProps {
@@ -54,7 +47,7 @@ interface EditOrderItemDialogProps {
     product_id: string;
     product_name: string;
     quantity: number;
-    orders?: Array<{
+      orders?: Array<{
       id: string;
       live_product_id: string;
       product_name: string;
@@ -66,7 +59,7 @@ interface EditOrderItemDialogProps {
       live_session_id: string;
       live_phase_id?: string;
       sold_quantity?: number;
-      customer_status?: string;
+      facebook_comment_id?: string;
     }>;
   } | null;
   phaseId: string;
@@ -86,18 +79,31 @@ export function EditOrderItemDialog({
     resolver: zodResolver(formSchema),
     defaultValues: {
       quantity: 1,
-      customer_status: 'normal',
     },
+  });
+
+  // Fetch comment text from facebook_pending_orders
+  const { data: commentText } = useQuery({
+    queryKey: ['facebook-comment', orderItem?.orders?.[0]?.facebook_comment_id],
+    queryFn: async () => {
+      const commentId = orderItem?.orders?.[0]?.facebook_comment_id;
+      if (!commentId) return null;
+      
+      const { data } = await supabase
+        .from('facebook_pending_orders')
+        .select('comment')
+        .eq('facebook_comment_id', commentId)
+        .maybeSingle();
+      
+      return data?.comment || null;
+    },
+    enabled: !!orderItem?.orders?.[0]?.facebook_comment_id,
   });
 
   useEffect(() => {
     if (orderItem) {
-      const customerStatus = orderItem.orders?.[0]?.customer_status || 'normal';
       form.reset({
         quantity: orderItem.quantity,
-        customer_status: ['normal', 'bom_hang', 'thieu_thong_tin'].includes(customerStatus) 
-          ? customerStatus as 'normal' | 'bom_hang' | 'thieu_thong_tin'
-          : 'normal',
       });
     }
   }, [orderItem, form]);
@@ -112,22 +118,19 @@ export function EditOrderItemDialog({
         const currentTotalQty = orders.reduce((sum, o) => sum + o.quantity, 0);
         const newTotalQty = values.quantity;
         const diff = newTotalQty - currentTotalQty;
-        const currentStatus = orders[0]?.customer_status || 'normal';
-        const statusChanged = currentStatus !== values.customer_status;
 
         // Only return early if nothing changed
-        if (diff === 0 && !statusChanged) return;
+        if (diff === 0) return;
 
         // Keep the first order and delete the rest
         const firstOrder = orders[0];
         const ordersToDelete = orders.slice(1).map(o => o.id);
 
-        // Update the first order with new total quantity and customer status
+        // Update the first order with new total quantity
         const { error: updateError } = await supabase
           .from("live_orders")
           .update({ 
             quantity: newTotalQty,
-            customer_status: values.customer_status 
           })
           .eq("id", firstOrder.id);
 
@@ -167,12 +170,11 @@ export function EditOrderItemDialog({
         // Single order item - update quantity directly
         const quantityDiff = values.quantity - orderItem.quantity;
 
-        // Update order quantity and customer status
+        // Update order quantity
         const { error: orderError } = await supabase
           .from("live_orders")
           .update({ 
             quantity: values.quantity,
-            customer_status: values.customer_status 
           })
           .eq("id", orderItem.id);
 
@@ -370,34 +372,18 @@ export function EditOrderItemDialog({
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="customer_status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Trạng thái khách hàng</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Chọn trạng thái" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="normal">
-                          Bình thường
-                        </SelectItem>
-                        <SelectItem value="bom_hang">
-                          <span className="text-red-600 font-semibold">Bom hàng</span>
-                        </SelectItem>
-                        <SelectItem value="thieu_thong_tin">
-                          <span className="text-gray-500 font-semibold">Thiếu thông tin</span>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormItem>
+                <FormLabel>Comment được chọn</FormLabel>
+                <FormControl>
+                  <Textarea
+                    value={commentText || "Không có comment"}
+                    readOnly
+                    disabled
+                    className="resize-none bg-muted"
+                    rows={3}
+                  />
+                </FormControl>
+              </FormItem>
               <DialogFooter>
                 <Button
                   type="button"
