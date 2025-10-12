@@ -34,7 +34,7 @@ serve(async (req) => {
       );
     }
 
-    let tposUrl = `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&facebook_type=Page&postId=${postId}&limit=${limit}&order=${order}&fields=id,message,from{id,name,picture},created_time,like_count`;
+    let tposUrl = `https://tomato.tpos.vn/api/facebook-graph/comment?pageid=${pageId}&facebook_type=Page&postId=${postId}&limit=${limit}&order=${order}`;
     if (after) {
       tposUrl += `&after=${after}`;
     }
@@ -72,8 +72,7 @@ serve(async (req) => {
       hasPaging: !!data?.paging,
       hasCursors: !!data?.paging?.cursors,
       afterCursor: data?.paging?.cursors?.after,
-      nextUrl: data?.paging?.next,
-      sampleComment: data?.data?.[0] // Log first comment to see structure
+      nextUrl: data?.paging?.next
     });
     
     let responsePayload;
