@@ -30,10 +30,10 @@ export function OrderBillNotification({
 
   return (
     <div className="space-y-2 font-mono text-sm text-center">
-      <div className="text-base font-bold">
-        #{sessionIndex} - {phone || 'Chưa có SĐT'}
+      <div className="text-[2.5em] font-bold leading-tight">
+        #{sessionIndex} - {customerName}
       </div>
-      <div className="font-semibold">{customerName}</div>
+      <div className="font-semibold">{phone || 'Chưa có SĐT'}</div>
       <div>
         {productCode} - {cleanedProductName}
       </div>
