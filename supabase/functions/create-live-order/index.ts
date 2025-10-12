@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { productId, phaseId, sessionId, orderCode } = await req.json();
+    const { productId, phaseId, sessionId, orderCode, commentId } = await req.json();
 
     if (!productId || !orderCode) {
       throw new Error('Missing required fields');
@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       .from('live_orders')
       .insert({
         order_code: orderCode.trim(),
+        facebook_comment_id: commentId || null,
         live_session_id: sessionId,
         live_phase_id: phaseId,
         live_product_id: productId,

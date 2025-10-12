@@ -167,49 +167,47 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
 
   const addOrderMutation = useMutation({
     mutationFn: async ({ sessionIndex, commentId }: { sessionIndex: string; commentId: string }) => {
-      // Get current product data to check if overselling
-      const { data: product, error: fetchError } = await supabase
-        .from('live_products')
-        .select('sold_quantity, prepared_quantity, product_code, product_name')
-        .eq('id', productId)
-        .single();
-
-      if (fetchError) throw fetchError;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("User not authenticated");
 
       // Get pending order details for bill
       const pendingOrder = pendingOrders.find(order => order.facebook_comment_id === commentId);
 
-      // Check if this order will be an oversell
-      const newSoldQuantity = (product.sold_quantity || 0) + 1;
-      const isOversell = newSoldQuantity > product.prepared_quantity;
+      // Call edge function
+      const response = await fetch(
+        `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/create-live-order`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            productId,
+            phaseId,
+            sessionId,
+            orderCode: sessionIndex,
+            commentId
+          }),
+        }
+      );
 
-      // Insert new order with oversell flag and comment ID
-      const { error: orderError } = await supabase
-        .from('live_orders')
-        .insert({
-          order_code: sessionIndex,
-          facebook_comment_id: commentId,
-          live_session_id: sessionId,
-          live_phase_id: phaseId,
-          live_product_id: productId,
-          quantity: 1,
-          is_oversell: isOversell
-        });
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create order');
+      }
 
-      if (orderError) throw orderError;
-
-      // Update sold quantity
-      const { error: updateError } = await supabase
+      // Get product info for bill
+      const { data: product } = await supabase
         .from('live_products')
-        .update({ sold_quantity: newSoldQuantity })
-        .eq('id', productId);
-
-      if (updateError) throw updateError;
+        .select('product_code, product_name')
+        .eq('id', productId)
+        .single();
       
       return { 
         sessionIndex, 
-        isOversell,
-        billData: pendingOrder ? {
+        isOversell: responseData.isOversell,
+        billData: pendingOrder && product ? {
           sessionIndex,
           phone: pendingOrder.phone,
           customerName: pendingOrder.name,
@@ -222,15 +220,10 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
     },
     onSuccess: ({ sessionIndex, isOversell, billData }) => {
       setInputValue('');
-      // Force refetch all related queries immediately
+      // Only invalidate queries to prevent UI blocking
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['orders-with-products', phaseId] });
-      
-      // Also refetch queries to ensure UI updates immediately
-      queryClient.refetchQueries({ queryKey: ['live-orders', phaseId] });
-      queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
-      queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       if (billData) {
         // Get printer config
