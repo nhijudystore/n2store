@@ -1502,25 +1502,6 @@ export default function LiveProducts() {
             </div>
 
             <TabsContent value="products" className="space-y-4">
-              {/* Comments Settings - Always visible */}
-              <CommentsSettingsCollapsible
-                pageId={commentsPageId}
-                videoId={commentsVideoId}
-                isAutoRefresh={isCommentsAutoRefresh}
-                showOnlyWithOrders={showOnlyWithOrders}
-                hideNhiJudyHouse={hideNhiJudyHouse}
-                hideNames={hideNames}
-                onPageIdChange={setCommentsPageId}
-                onVideoChange={(video) => {
-                  setSelectedFacebookVideo(video);
-                  setCommentsVideoId(video?.objectId || "");
-                }}
-                onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
-                onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
-                onHideNhiJudyHouseChange={setHideNhiJudyHouse}
-                onRefresh={() => refetchComments()}
-              />
-
               {liveProducts.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12">
@@ -1533,6 +1514,24 @@ export default function LiveProducts() {
                 </Card>
               ) : (
                 <>
+                  {/* Comments Settings - Collapsible */}
+                  <CommentsSettingsCollapsible
+                    pageId={commentsPageId}
+                    videoId={commentsVideoId}
+                    isAutoRefresh={isCommentsAutoRefresh}
+                    showOnlyWithOrders={showOnlyWithOrders}
+                    hideNhiJudyHouse={hideNhiJudyHouse}
+                    hideNames={hideNames}
+                    onPageIdChange={setCommentsPageId}
+                    onVideoChange={(video) => {
+                      setSelectedFacebookVideo(video);
+                      setCommentsVideoId(video?.objectId || "");
+                    }}
+                    onAutoRefreshToggle={() => setIsCommentsAutoRefresh(!isCommentsAutoRefresh)}
+                    onShowOnlyWithOrdersChange={setShowOnlyWithOrders}
+                    onHideNhiJudyHouseChange={setHideNhiJudyHouse}
+                    onRefresh={() => refetchComments()}
+                  />
                   
                   {/* Search box */}
                   <div className="flex items-center gap-2 px-4 py-3 bg-muted/50 rounded-lg border">
