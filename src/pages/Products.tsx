@@ -288,6 +288,7 @@ export default function Products() {
               onRefetch={refetch}
               supplierFilter={supplierFilter}
               isAdmin={isAdmin}
+              searchQuery={debouncedSearch}
             />
           </TabsContent>
 

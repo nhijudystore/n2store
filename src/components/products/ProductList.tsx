@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Download } from "lucide-react";
 import { formatVND } from "@/lib/currency-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EditProductDialog } from "./EditProductDialog";
@@ -10,6 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ProductImage } from "./ProductImage";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { searchTPOSProduct, importProductFromTPOS } from "@/lib/tpos-api";
+import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,15 +49,48 @@ interface ProductListProps {
   onRefetch: () => void;
   supplierFilter?: string | null;
   isAdmin: boolean;
+  searchQuery?: string;
 }
 
-export function ProductList({ products, isLoading, onRefetch, supplierFilter, isAdmin }: ProductListProps) {
+export function ProductList({ products, isLoading, onRefetch, supplierFilter, isAdmin, searchQuery }: ProductListProps) {
   const isMobile = useIsMobile();
-  const { toast } = useToast();
+  const { toast: toastHook } = useToast();
+  const queryClient = useQueryClient();
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
+  const importFromTPOSMutation = useMutation({
+    mutationFn: async (productCode: string) => {
+      // Step 1: Search in TPOS
+      const tposProduct = await searchTPOSProduct(productCode);
+      if (!tposProduct) {
+        throw new Error(`Không tìm thấy sản phẩm "${productCode}" trong TPOS`);
+      }
+
+      // Step 2: Import to database
+      return await importProductFromTPOS(tposProduct);
+    },
+    onSuccess: (data) => {
+      toast.success(`✅ Đã import sản phẩm: ${data.product_name}`);
+      // Refresh search results
+      queryClient.invalidateQueries({ queryKey: ["products-search"] });
+      onRefetch();
+    },
+    onError: (error: Error) => {
+      toast.error(`❌ Lỗi: ${error.message}`);
+      console.error(error);
+    },
+  });
+
+  const handleImportFromTPOS = () => {
+    if (!searchQuery || searchQuery.trim().length === 0) {
+      toast.error("Vui lòng nhập mã sản phẩm");
+      return;
+    }
+    importFromTPOSMutation.mutate(searchQuery.trim());
+  };
 
   const toggleSelectAll = () => {
     if (selectedIds.size === products.length) {
@@ -92,13 +128,13 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter, is
         errorMessage = `Không thể xóa sản phẩm: ${error.message}`;
       }
       
-      toast({
+      toastHook({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
       });
     } else {
-      toast({
+      toastHook({
         title: "Thành công",
         description: "Đã xóa sản phẩm",
       });
@@ -125,13 +161,13 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter, is
         errorMessage = `Không thể xóa sản phẩm: ${error.message}`;
       }
       
-      toast({
+      toastHook({
         title: "Lỗi",
         description: errorMessage,
         variant: "destructive",
       });
     } else {
-      toast({
+      toastHook({
         title: "Thành công",
         description: `Đã xóa ${selectedIds.size} sản phẩm`,
       });
@@ -152,8 +188,21 @@ export function ProductList({ products, isLoading, onRefetch, supplierFilter, is
   if (products.length === 0) {
     return (
       <Card className="p-8">
-        <div className="text-center text-muted-foreground">
-          Không có sản phẩm nào
+        <div className="text-center space-y-4">
+          <div className="text-muted-foreground">
+            Không có sản phẩm nào
+          </div>
+          {searchQuery && searchQuery.trim().length >= 2 && isAdmin && (
+            <Button
+              onClick={handleImportFromTPOS}
+              disabled={importFromTPOSMutation.isPending}
+              variant="outline"
+              className="gap-2"
+            >
+              <Download className="w-4 h-4" />
+              {importFromTPOSMutation.isPending ? "Đang lấy từ TPOS..." : "Lấy sản phẩm từ TPOS"}
+            </Button>
+          )}
         </div>
       </Card>
     );
