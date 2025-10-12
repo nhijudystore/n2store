@@ -1,13 +1,16 @@
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useEffect } from "react";
+import { cn } from "@/lib/utils";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -15,6 +18,7 @@ function LayoutContent({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
   const { setOpen: setNavSidebarOpen } = useSidebar();
   const { isCommentsOpen } = useCommentsSidebar();
+  const isMobile = useIsMobile();
   
   // Auto-close navigation sidebar when comments sidebar opens
   useEffect(() => {
@@ -34,13 +38,19 @@ function LayoutContent({ children }: LayoutProps) {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar />
+        {/* Desktop Sidebar - Hidden on mobile */}
+        {!isMobile && <AppSidebar />}
         
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 shadow-soft">
+          <header className={cn(
+            "h-16 border-b border-border bg-card flex items-center justify-between shadow-soft",
+            isMobile ? "px-4" : "px-6"
+          )}>
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all hover:scale-105 shadow-md hover:shadow-lg" />
+              {!isMobile && (
+                <SidebarTrigger className="p-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-all hover:scale-105 shadow-md hover:shadow-lg" />
+              )}
               <div className="relative">
                 
                 
@@ -48,12 +58,14 @@ function LayoutContent({ children }: LayoutProps) {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" className="relative">
-                <Bell className="w-5 h-5" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center">
-                  <span className="text-xs text-destructive-foreground font-bold">3</span>
-                </div>
-              </Button>
+              {!isMobile && (
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="w-5 h-5" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full flex items-center justify-center">
+                    <span className="text-xs text-destructive-foreground font-bold">3</span>
+                  </div>
+                </Button>
+              )}
               
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -90,9 +102,15 @@ function LayoutContent({ children }: LayoutProps) {
           </header>
 
           {/* Main Content */}
-          <main className="flex-1 p-6 overflow-auto">
+          <main className={cn(
+            "flex-1 overflow-auto",
+            isMobile ? "pb-20 p-4" : "p-6"
+          )}>
             {children}
           </main>
+          
+          {/* Mobile Bottom Navigation */}
+          {isMobile && <MobileBottomNav />}
         </div>
       </div>
     </SidebarProvider>
