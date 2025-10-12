@@ -87,11 +87,11 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         !usedCommentIds.has(order.facebook_comment_id)
       )
       .sort((a, b) => {
-        // Sort by session_index first (numeric), then by created_time
+        // Sort by session_index first (numeric), then by created_time (newest first)
         const indexA = parseInt(a.session_index || '0');
         const indexB = parseInt(b.session_index || '0');
         if (indexA !== indexB) return indexA - indexB;
-        return new Date(a.created_time).getTime() - new Date(b.created_time).getTime();
+        return new Date(b.created_time).getTime() - new Date(a.created_time).getTime();
       });
   }, [pendingOrders, usedCommentIds]);
 

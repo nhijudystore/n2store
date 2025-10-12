@@ -27,7 +27,7 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     queryFn: async ({ pageParam }) => {
       if (!pageId || !videoId) return { data: [], paging: {} };
       
-      const order = selectedVideo?.statusLive === 1 ? 'reverse_chronological' : 'chronological';
+      const order = 'reverse_chronological'; // Always show newest comments first
       
       let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${videoId}&limit=500&order=${order}`;
       if (pageParam) {
