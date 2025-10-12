@@ -300,21 +300,42 @@ serve(async (req) => {
 
     // Save to facebook_pending_orders table
     try {
-      // Check for existing orders with the same comment_id to determine order_count
-      const { data: existingOrders } = await supabase
+      // Check for existing order with the same comment_id
+      const { data: existingOrder } = await supabase
         .from('facebook_pending_orders')
-        .select('order_count')
+        .select('id, order_count')
         .eq('facebook_comment_id', comment.id)
-        .order('order_count', { ascending: false })
-        .limit(1);
+        .maybeSingle();
 
-      const newOrderCount = existingOrders && existingOrders.length > 0 
-        ? existingOrders[0].order_count + 1 
-        : 1;
+      if (existingOrder) {
+        // Update existing record, increment count
+        const newOrderCount = existingOrder.order_count + 1;
+        console.log(`Updating existing order, incrementing count to: ${newOrderCount}`);
 
-      console.log(`Creating order with count: ${newOrderCount}`);
+        const { error: updateError } = await supabase
+          .from('facebook_pending_orders')
+          .update({
+            name: data.Name || comment.from.name,
+            session_index: data.SessionIndex?.toString() || null,
+            code: data.Code || null,
+            phone: data.Telephone || null,
+            comment: comment.message || null,
+            tpos_order_id: data.Id || null,
+            order_count: newOrderCount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingOrder.id);
 
-      const { error: insertError } = await supabase
+        if (updateError) {
+          console.error('Error updating facebook_pending_orders:', updateError);
+        } else {
+          console.log(`Successfully updated order with count: ${newOrderCount}`);
+        }
+      } else {
+        // Insert new record with count = 1
+        console.log('Creating new order with count: 1');
+
+        const { error: insertError } = await supabase
           .from('facebook_pending_orders')
           .insert({
             name: data.Name || comment.from.name,
@@ -327,13 +348,14 @@ serve(async (req) => {
             facebook_comment_id: comment.id,
             facebook_user_id: comment.from.id,
             facebook_post_id: video.objectId,
-            order_count: newOrderCount,
+            order_count: 1,
           });
 
         if (insertError) {
           console.error('Error saving to facebook_pending_orders:', insertError);
-      } else {
-        console.log(`Successfully saved to facebook_pending_orders with order_count: ${newOrderCount}`);
+        } else {
+          console.log('Successfully created new order with count: 1');
+        }
       }
     } catch (dbError) {
       console.error('Exception saving to database:', dbError);
