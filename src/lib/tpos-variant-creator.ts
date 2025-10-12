@@ -84,6 +84,55 @@ export async function getTPOSProduct(tposProductId: number, retries = 3, delayMs
 // STEP 2: PARSE VARIANT TO SELECTED ATTRIBUTES
 // =====================================================
 
+/**
+ * Helper function: Match exact attribute (no splitting, no multi-word matching)
+ * Used when comma delimiter is detected
+ */
+function matchExactAttribute(text: string, result: SelectedAttributes): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  
+  // Try sizeText (case-insensitive)
+  const sizeText = TPOS_ATTRIBUTES.sizeText.find(s => 
+    s.Name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (sizeText) {
+    if (!result.sizeText) result.sizeText = [];
+    if (!result.sizeText.find(s => s.Id === sizeText.Id)) {
+      result.sizeText.push(sizeText);
+      console.log(`✓ Matched sizeText: "${trimmed}" → "${sizeText.Name}"`);
+    }
+    return true;
+  }
+  
+  // Try sizeNumber (exact)
+  const sizeNumber = TPOS_ATTRIBUTES.sizeNumber.find(s => s.Name === trimmed);
+  if (sizeNumber) {
+    if (!result.sizeNumber) result.sizeNumber = [];
+    if (!result.sizeNumber.find(s => s.Id === sizeNumber.Id)) {
+      result.sizeNumber.push(sizeNumber);
+      console.log(`✓ Matched sizeNumber: "${trimmed}" → "${sizeNumber.Name}"`);
+    }
+    return true;
+  }
+  
+  // Try color (case-insensitive)
+  const color = TPOS_ATTRIBUTES.color.find(c => 
+    c.Name.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (color) {
+    if (!result.color) result.color = [];
+    if (!result.color.find(c => c.Id === color.Id)) {
+      result.color.push(color);
+      console.log(`✓ Matched color: "${trimmed}" → "${color.Name}"`);
+    }
+    return true;
+  }
+  
+  console.warn(`⚠️ Không tìm thấy attribute: "${trimmed}"`);
+  return false;
+}
+
 export function parseVariantToAttributes(variant: string): SelectedAttributes {
   const result: SelectedAttributes = {};
   
@@ -91,10 +140,29 @@ export function parseVariantToAttributes(variant: string): SelectedAttributes {
     return result;
   }
   
-  // Step 1: Normalize input - trim, replace separators with space
+  // Step 0: Detect delimiter strategy
+  const hasComma = variant.includes(',');
+  
+  if (hasComma) {
+    // STRATEGY A: Comma-delimited → exact match for each part
+    console.log(`🔍 Parsing variant: "${variant}" (Strategy: COMMA)`);
+    const parts = variant.split(',').map(p => p.trim()).filter(p => p.length > 0);
+    
+    for (const part of parts) {
+      matchExactAttribute(part, result);
+    }
+    
+    console.log(`   Result:`, result);
+    return result;
+  }
+  
+  // STRATEGY B: No comma → use multi-word matching (original logic)
+  console.log(`🔍 Parsing variant: "${variant}" (Strategy: SPACE/MULTI-WORD)`);
+  
+  // Step 1: Normalize input - trim, replace separators with space (exclude comma)
   const normalized = variant
     .trim()
-    .replace(/[-,/]/g, ' ')     // Replace -, comma, / with space
+    .replace(/[-/]/g, ' ')       // Replace -, / with space (NOT comma)
     .replace(/\s+/g, ' ');       // Multiple spaces → single space
   
   // Step 2: Try to match multi-word variants first (e.g., "Xám Đậm", "Jean Xanh")
@@ -204,6 +272,7 @@ export function parseVariantToAttributes(variant: string): SelectedAttributes {
     console.warn(`   Từ variant gốc: "${variant}"`);
   }
   
+  console.log(`   Result:`, result);
   return result;
 }
 
