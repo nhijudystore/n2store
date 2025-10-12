@@ -250,7 +250,7 @@ export default function Customers() {
       if (error) throw error;
       return data as Customer[];
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    staleTime: 0, // Always refetch when queryKey changes
   });
 
   const { data: totalNormalCount = 0, isLoading: isLoadingNormal } = useQuery({
@@ -535,6 +535,29 @@ export default function Customers() {
     let customersToUpsertBatch: any[] = []; // Collect updates for Supabase
     const newResults: Array<{ idkh: string; status: 'success' | 'failed'; message?: string }> = [];
 
+    // Helper function to upsert to Supabase
+    const upsertToSupabase = async (batch: any[]) => {
+      const { error: upsertError } = await supabase
+        .from("customers")
+        .upsert(batch, {
+          onConflict: "id",
+          ignoreDuplicates: false
+        });
+
+      if (upsertError) {
+        console.error(`Supabase upsert error for batch of ${batch.length}:`, upsertError);
+        batch.forEach(item => {
+          newResults.push({ idkh: item.idkh, status: 'failed', message: `Lỗi cập nhật Supabase: ${upsertError.message}` });
+        });
+      } else {
+        console.log(`✅ Successfully upserted ${batch.length} customers to Supabase`);
+        batch.forEach(item => {
+          newResults.push({ idkh: item.idkh, status: 'success' });
+        });
+      }
+    };
+
+    // Loop through TPOS batches
     for (let i = 0; i < idkhsToFetch.length; i += TPOS_FETCH_BATCH_SIZE) {
       const batchIdkhs = idkhsToFetch.slice(i, i + TPOS_FETCH_BATCH_SIZE);
       
@@ -558,9 +581,10 @@ export default function Customers() {
 
         const batchResults = await response.json(); // Array of { idkh, data?, error? }
 
+        // Process each result from TPOS
         for (const result of batchResults) {
           currentProgress++;
-          setBatchFetchProgress(currentProgress); // Update UI progress
+          setBatchFetchProgress(currentProgress);
 
           if (result.data) {
             const customer = customersToProcess.find(c => c.idkh === result.idkh);
@@ -583,39 +607,14 @@ export default function Customers() {
           } else {
             newResults.push({ idkh: result.idkh, status: 'failed', message: result.error || 'Lỗi không xác định từ TPOS' });
           }
-
-          // Check if it's time to upsert to Supabase or if it's the last item
-          if (customersToUpsertBatch.length >= SUPABASE_UPSERT_BATCH_SIZE || (currentProgress === batchFetchTotal && customersToUpsertBatch.length > 0)) {
-            if (customersToUpsertBatch.length > 0) {
-              const { error: upsertError } = await supabase
-                .from("customers")
-                .upsert(customersToUpsertBatch, {
-                  onConflict: "id", // Conflict on 'id' since we are updating existing records
-                  ignoreDuplicates: false
-                });
-
-              if (upsertError) {
-                console.error(`Supabase upsert error for batch of ${customersToUpsertBatch.length}:`, upsertError);
-                customersToUpsertBatch.forEach(item => {
-                  const existingResultIndex = newResults.findIndex(r => r.idkh === item.idkh);
-                  if (existingResultIndex !== -1) {
-                    newResults[existingResultIndex] = { ...newResults[existingResultIndex], status: 'failed', message: `Lỗi cập nhật Supabase: ${upsertError.message}` };
-                  } else {
-                    newResults.push({ idkh: item.idkh, status: 'failed', message: `Lỗi cập nhật Supabase: ${upsertError.message}` });
-                  }
-                });
-              } else {
-                customersToUpsertBatch.forEach(item => {
-                  const existingResultIndex = newResults.findIndex(r => r.idkh === item.idkh);
-                  if (existingResultIndex === -1) { // Only add if not already marked as failed by TPOS fetch
-                    newResults.push({ idkh: item.idkh, status: 'success' });
-                  }
-                });
-              }
-              customersToUpsertBatch = []; // Clear batch
-            }
-          }
         }
+
+        // Upsert every 1000 items
+        if (customersToUpsertBatch.length >= SUPABASE_UPSERT_BATCH_SIZE) {
+          await upsertToSupabase(customersToUpsertBatch);
+          customersToUpsertBatch = [];
+        }
+
       } catch (error: any) {
         console.error("Batch fetch error:", error);
         batchIdkhs.forEach(idkh => {
@@ -631,6 +630,11 @@ export default function Customers() {
       }
     }
 
+    // Upsert remaining items (< 1000)
+    if (customersToUpsertBatch.length > 0) {
+      await upsertToSupabase(customersToUpsertBatch);
+    }
+
     // Final calculation of success/failed counts
     const finalSuccessCount = newResults.filter(r => r.status === 'success').length;
     const finalFailedCount = newResults.filter(r => r.status === 'failed').length;
@@ -641,8 +645,8 @@ export default function Customers() {
 
     setIsBatchFetching(false);
     queryClient.invalidateQueries({ queryKey: ["customers"] });
-    queryClient.invalidateQueries({ queryKey: ["customers-count-synced_tpos"] }); // Invalidate new count
-    queryClient.invalidateQueries({ queryKey: ["all-customers-needing-fetch"] }); // Invalidate new query
+    queryClient.invalidateQueries({ queryKey: ["customers-count-synced_tpos"] });
+    queryClient.invalidateQueries({ queryKey: ["all-customers-needing-fetch"] });
     toast.success(`Hoàn tất fetch: ${finalSuccessCount} thành công, ${finalFailedCount} thất bại.`);
   };
 
