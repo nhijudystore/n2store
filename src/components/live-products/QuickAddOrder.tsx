@@ -10,7 +10,6 @@ import { OrderBillNotification } from './OrderBillNotification';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { getActivePrinter, printBill } from '@/lib/print-bridge';
 
 interface QuickAddOrderProps {
   productId: string;
@@ -221,7 +220,7 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         } : null
       };
     },
-    onSuccess: async ({ sessionIndex, isOversell, billData }) => {
+    onSuccess: ({ sessionIndex, isOversell, billData }) => {
       setInputValue('');
       // Force refetch all related queries immediately
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
@@ -233,129 +232,84 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
-      // Try to print via Print Bridge
+      // Print bill automatically
       if (billData) {
-        try {
-          const activePrinter = await getActivePrinter();
+        const billHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <style>
+              body { 
+                margin: 0; 
+                padding: 20px; 
+                font-family: Tahoma, sans-serif; 
+              }
+              .bill-container {
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                text-align: center;
+                line-height: 2.0;
+              }
+              .session-name {
+                font-size: 19.5pt;
+                font-weight: bold;
+                line-height: 2.0;
+              }
+              .phone {
+                font-size: 8pt;
+                font-weight: bold;
+                line-height: 2.0;
+              }
+              .product {
+                font-size: 10pt;
+                font-weight: bold;
+                line-height: 2.0;
+              }
+              .comment {
+                font-size: 15pt;
+                font-weight: bold;
+                font-style: italic;
+                color: #000;
+                line-height: 2.0;
+              }
+              .time {
+                font-size: 6pt;
+                font-weight: bold;
+                color: #000;
+                line-height: 2.0;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="bill-container">
+              <div class="session-name">#${billData.sessionIndex} - ${billData.customerName}</div>
+              <div class="phone">${billData.phone || 'Chưa có SĐT'}</div>
+              <div class="product">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
+              ${billData.comment ? `<div class="comment">${billData.comment}</div>` : ''}
+              <div class="time">${new Date(billData.createdTime).toLocaleString('vi-VN', { 
+                timeZone: 'Asia/Bangkok',
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}</div>
+            </div>
+          </body>
+          </html>
+        `;
+        
+        const printWindow = window.open('', '_blank', 'width=400,height=600');
+        if (printWindow) {
+          printWindow.document.write(billHtml);
+          printWindow.document.close();
+          printWindow.focus();
           
-          if (activePrinter) {
-            // Print via Print Bridge
-            await printBill(
-              {
-                sessionIndex: billData.sessionIndex,
-                phone: billData.phone,
-                customerName: billData.customerName,
-                productCode: billData.productCode,
-                productName: billData.productName,
-                comment: billData.comment,
-                createdTime: new Date(billData.createdTime).toLocaleString('vi-VN', { 
-                  timeZone: 'Asia/Bangkok',
-                  day: '2-digit',
-                  month: '2-digit', 
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
-              },
-              activePrinter.printer_ip,
-              activePrinter.printer_port
-            );
-            
-            toast({
-              title: "✅ Đã in",
-              description: `In qua ${activePrinter.printer_name}`,
-            });
-          } else {
-            // No active printer - show manual print fallback
-            const billHtml = `
-              <!DOCTYPE html>
-              <html>
-              <head>
-                <meta charset="UTF-8">
-                <style>
-                  body { 
-                    margin: 0; 
-                    padding: 20px; 
-                    font-family: Tahoma, sans-serif; 
-                  }
-                  .bill-container {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 0;
-                    text-align: center;
-                    line-height: 2.0;
-                  }
-                  .session-name {
-                    font-size: 19.5pt;
-                    font-weight: bold;
-                    line-height: 2.0;
-                  }
-                  .phone {
-                    font-size: 8pt;
-                    font-weight: bold;
-                    line-height: 2.0;
-                  }
-                  .product {
-                    font-size: 10pt;
-                    font-weight: bold;
-                    line-height: 2.0;
-                  }
-                  .comment {
-                    font-size: 15pt;
-                    font-weight: bold;
-                    font-style: italic;
-                    color: #000;
-                    line-height: 2.0;
-                  }
-                  .time {
-                    font-size: 6pt;
-                    font-weight: bold;
-                    color: #000;
-                    line-height: 2.0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="bill-container">
-                  <div class="session-name">#${billData.sessionIndex} - ${billData.customerName}</div>
-                  <div class="phone">${billData.phone || 'Chưa có SĐT'}</div>
-                  <div class="product">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
-                  ${billData.comment ? `<div class="comment">${billData.comment}</div>` : ''}
-                  <div class="time">${new Date(billData.createdTime).toLocaleString('vi-VN', { 
-                    timeZone: 'Asia/Bangkok',
-                    day: '2-digit',
-                    month: '2-digit', 
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}</div>
-                </div>
-              </body>
-              </html>
-            `;
-            
-            const printWindow = window.open('', '_blank', 'width=400,height=600');
-            if (printWindow) {
-              printWindow.document.write(billHtml);
-              printWindow.document.close();
-              printWindow.focus();
-              
-              printWindow.onload = () => {
-                printWindow.print();
-              };
-            }
-          }
-        } catch (error: any) {
-          console.error('Print Bridge error:', error);
-          
-          toast({
-            variant: "destructive",
-            title: "❌ Không thể in tự động",
-            description: window.location.protocol === 'https:' 
-              ? "Trang HTTPS không kết nối được HTTP Print Bridge. Vui lòng kiểm tra cấu hình hoặc truy cập qua HTTP."
-              : "Không thể kết nối Print Bridge. Vui lòng kiểm tra cài đặt máy in.",
-            duration: 6000,
-          });
+          printWindow.onload = () => {
+            printWindow.print();
+          };
         }
       }
       
