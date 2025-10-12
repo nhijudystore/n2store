@@ -61,6 +61,8 @@ export function LiveCommentsPanel({
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const processedCommentIds = useRef<Set<string>>(new Set());
+  const initialFetchDone = useRef(false);
 
   const mapStatusText = (statusText: string | null | undefined): string => {
     if (!statusText) return 'Bình thường';
@@ -249,7 +251,16 @@ export function LiveCommentsPanel({
   useEffect(() => {
     if (comments.length === 0) return;
 
-    console.log(`[LiveCommentsPanel] Effect triggered: ${comments.length} comments, ${ordersData.length} orders`);
+    // Find truly new comments (not yet processed)
+    const newComments = comments.filter(c => !processedCommentIds.current.has(c.id));
+    
+    // Skip if already did initial fetch and no new comments
+    if (initialFetchDone.current && newComments.length === 0) {
+      console.log('[LiveCommentsPanel] No new comments, skipping fetch');
+      return;
+    }
+
+    console.log(`[LiveCommentsPanel] Found ${newComments.length} new comments out of ${comments.length} total`);
 
     // Clear previous debounce timer
     if (debounceTimeoutRef.current) {
@@ -258,7 +269,12 @@ export function LiveCommentsPanel({
 
     // Debounce for 500ms to prevent rapid fetches
     debounceTimeoutRef.current = setTimeout(() => {
-      fetchPartnerStatusBatch(comments, ordersData);
+      // Fetch only for new comments if we have some, otherwise fetch all
+      fetchPartnerStatusBatch(newComments.length > 0 ? newComments : comments, ordersData);
+      
+      // Mark as done and track processed IDs
+      initialFetchDone.current = true;
+      comments.forEach(c => processedCommentIds.current.add(c.id));
     }, 500);
 
     return () => {
@@ -266,7 +282,16 @@ export function LiveCommentsPanel({
         clearTimeout(debounceTimeoutRef.current);
       }
     };
-  }, [comments.length, ordersData.length, fetchPartnerStatusBatch]);
+  }, [comments, ordersData, fetchPartnerStatusBatch]);
+
+  // Reset tracking when video changes
+  useEffect(() => {
+    console.log('[LiveCommentsPanel] Video changed, resetting tracking');
+    initialFetchDone.current = false;
+    processedCommentIds.current = new Set();
+    customerStatusMapRef.current = new Map();
+    setCustomerStatusMap(new Map());
+  }, [videoId]);
 
   const createOrderMutation = useMutation({
     mutationFn: async ({ comment }: { comment: FacebookComment }) => {
