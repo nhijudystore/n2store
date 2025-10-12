@@ -24,17 +24,33 @@ export interface PrinterSettings {
 export async function testPrinterConnection(
   printerIp: string,
   printerPort: number
-): Promise<boolean> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`http://${printerIp}:${printerPort}/status`, {
+    // Check if running on HTTPS
+    const isHttps = window.location.protocol === 'https:';
+    const protocol = isHttps ? 'https' : 'http';
+    
+    const response = await fetch(`${protocol}://${printerIp}:${printerPort}/status`, {
       method: 'GET',
       signal: AbortSignal.timeout(5000), // 5 second timeout
     });
     
-    return response.ok;
-  } catch (error) {
+    return { success: response.ok };
+  } catch (error: any) {
     console.error('Print Bridge connection error:', error);
-    return false;
+    
+    // Check if it's a mixed content error
+    if (window.location.protocol === 'https:') {
+      return {
+        success: false,
+        error: 'mixed_content'
+      };
+    }
+    
+    return {
+      success: false,
+      error: error.message || 'connection_failed'
+    };
   }
 }
 
@@ -46,6 +62,15 @@ export async function printBill(
   printerIp: string,
   printerPort: number
 ): Promise<void> {
+  // Check if running on HTTPS
+  const isHttps = window.location.protocol === 'https:';
+  
+  if (isHttps) {
+    throw new Error('MIXED_CONTENT: Không thể kết nối HTTP Print Bridge từ trang HTTPS. Vui lòng cấu hình Print Bridge với HTTPS hoặc truy cập trang web qua HTTP.');
+  }
+  
+  const protocol = isHttps ? 'https' : 'http';
+  
   const printContent = {
     type: "receipt",
     content: [
@@ -90,7 +115,7 @@ export async function printBill(
     ]
   };
 
-  const response = await fetch(`http://${printerIp}:${printerPort}/print`, {
+  const response = await fetch(`${protocol}://${printerIp}:${printerPort}/print`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

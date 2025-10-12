@@ -158,12 +158,19 @@ export function PrinterSettings() {
   const handleTestConnection = async (printer: PrinterConfig) => {
     setTestingPrinterId(printer.id);
     try {
-      const isConnected = await testPrinterConnection(printer.printer_ip, printer.printer_port);
+      const result = await testPrinterConnection(printer.printer_ip, printer.printer_port);
       
-      if (isConnected) {
+      if (result.success) {
         toast({
           title: "✅ Kết nối thành công",
           description: `Print Bridge tại ${printer.printer_ip}:${printer.printer_port} đang hoạt động`,
+        });
+      } else if (result.error === 'mixed_content') {
+        toast({
+          variant: "destructive",
+          title: "❌ Lỗi Mixed Content",
+          description: "Trang HTTPS không thể kết nối HTTP Print Bridge. Vui lòng cấu hình Print Bridge với HTTPS hoặc truy cập trang web qua HTTP.",
+          duration: 10000,
         });
       } else {
         toast({
