@@ -232,7 +232,7 @@ export function FacebookCommentsManager() {
     },
     initialPageParam: undefined,
     enabled: !!selectedVideo && !!pageId,
-    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 5000 : false,
+    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 8000 : false,
   });
 
   const comments = useMemo(() => {

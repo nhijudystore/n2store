@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, Heart, Search, Loader2 } from "lucide-react";
+import { MessageCircle, Heart, Search, Loader2, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import type { FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
 import {
@@ -32,6 +32,7 @@ interface LiveCommentsPanelProps {
   isLoading?: boolean;
   onLoadMore?: () => void;
   hasMore?: boolean;
+  onRefresh?: () => void;
 }
 
 export function LiveCommentsPanel({
@@ -45,6 +46,7 @@ export function LiveCommentsPanel({
   isLoading,
   onLoadMore,
   hasMore,
+  onRefresh,
 }: LiveCommentsPanelProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -310,15 +312,26 @@ export function LiveCommentsPanel({
 
   return (
     <div className="h-full flex flex-col space-y-2">
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Tìm comment..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8 h-9 text-sm"
-        />
+      {/* Search with Refresh Button */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Tìm comment..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9 px-3"
+          onClick={onRefresh}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+        </Button>
       </div>
 
       {/* Comments List */}

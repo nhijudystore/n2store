@@ -1874,6 +1874,7 @@ export default function LiveProducts() {
                           isLoading={commentsLoading || isFetchingNextPage}
                           onLoadMore={() => fetchNextPage()}
                           hasMore={hasNextPage}
+                          onRefresh={refetchComments}
                         />
                       </div>
                     )}
