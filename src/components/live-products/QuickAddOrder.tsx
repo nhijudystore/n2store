@@ -189,23 +189,35 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
           duration: 10000,
         });
         
-        // Trigger print
-        const printWindow = window.open('', '_blank', 'width=400,height=600');
-        if (printWindow) {
-          printWindow.document.write(`
+        // Trigger print using hidden iframe
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(`
             <!DOCTYPE html>
             <html>
               <head>
                 <title>Bill #${billData.sessionIndex}</title>
                 <style>
+                  @media print {
+                    @page { margin: 0; size: 80mm auto; }
+                    body { margin: 0; padding: 10px; }
+                  }
+                  @media screen {
+                    body { visibility: hidden; }
+                  }
                   body { 
                     font-family: monospace; 
-                    margin: 0; 
-                    padding: 20px;
                     text-align: center;
-                  }
-                  @media print {
-                    body { margin: 0; padding: 10px; }
+                    font-size: 12px;
                   }
                 </style>
               </head>
@@ -216,17 +228,23 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                 <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
                 <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
                 ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
-                <div style="font-size: 12px; color: #666; margin-top: 10px;">${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}</div>
-                <script>
-                  setTimeout(() => {
-                    window.print();
-                    setTimeout(() => window.close(), 100);
-                  }, 500);
-                </script>
+                <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                  ${new Date(billData.createdTime).toLocaleString('vi-VN', { timeZone: 'Asia/Bangkok', hour12: false })}
+                </div>
               </body>
             </html>
           `);
-          printWindow.document.close();
+          doc.close();
+          
+          // Wait for content to load then print
+          setTimeout(() => {
+            iframe.contentWindow?.print();
+            
+            // Remove iframe after printing
+            setTimeout(() => {
+              document.body.removeChild(iframe);
+            }, 1000);
+          }, 100);
         }
       } else {
         toast({
