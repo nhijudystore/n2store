@@ -62,22 +62,19 @@ export function QuickAddOrderInline({ productId, phaseId, sessionId, availableQu
       return { isOversell };
     },
     onSuccess: ({ isOversell }) => {
+      const currentSessionIndex = sessionIndex;
       setSessionIndex('');
       
-      // Invalidate and refetch queries
+      // Only invalidate queries (non-blocking) - they will refetch automatically
       queryClient.invalidateQueries({ queryKey: ['live-orders', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['live-products', phaseId] });
       queryClient.invalidateQueries({ queryKey: ['orders-with-products', phaseId] });
       
-      queryClient.refetchQueries({ queryKey: ['live-orders', phaseId] });
-      queryClient.refetchQueries({ queryKey: ['live-products', phaseId] });
-      queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
-      
       toast({
         title: isOversell ? "⚠️ Đơn oversell" : "Thành công",
         description: isOversell 
-          ? `Đã thêm đơn ${sessionIndex} (vượt số lượng - đánh dấu đỏ)`
-          : `Đã thêm đơn hàng ${sessionIndex}`,
+          ? `Đã thêm đơn ${currentSessionIndex} (vượt số lượng - đánh dấu đỏ)`
+          : `Đã thêm đơn hàng ${currentSessionIndex}`,
         variant: isOversell ? "destructive" : "default",
       });
     },
