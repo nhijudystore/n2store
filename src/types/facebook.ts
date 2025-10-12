@@ -41,6 +41,7 @@ export interface TPOSOrder {
   TotalQuantity: number;
   DateCreated: string;
   StatusText: string;
+  order_count?: number;
 }
 
 export interface TPOSPartner {

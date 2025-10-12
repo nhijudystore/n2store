@@ -133,6 +133,21 @@ export function LiveCommentsPanel({
         }
       }
 
+      // Fetch pending orders with order_count
+      const { data: pendingOrders = [] } = await supabase
+        .from('facebook_pending_orders')
+        .select('facebook_comment_id, code, tpos_order_id, order_count, phone')
+        .in('facebook_user_id', facebookIdsToFetch)
+        .order('order_count', { ascending: false });
+
+      // Create a map to get the latest order info for each comment
+      const commentOrderMap = new Map<string, any>();
+      for (const order of pendingOrders) {
+        if (!commentOrderMap.has(order.facebook_comment_id)) {
+          commentOrderMap.set(order.facebook_comment_id, order);
+        }
+      }
+
       const { data: existingCustomers = [], error: fetchError } = await supabase
         .from('customers')
         .select('*')
@@ -151,9 +166,17 @@ export function LiveCommentsPanel({
         const order = userOrderMap.get(facebookId);
         const existingCustomer = existingCustomersMap.get(facebookId);
         const commentAuthorName = commentsToProcess.find(c => c.from.id === facebookId)?.from.name || 'Unknown';
+        const commentId = commentsToProcess.find(c => c.from.id === facebookId)?.id;
+        const pendingOrderInfo = commentId ? commentOrderMap.get(commentId) : null;
 
         let partnerStatus: string;
         let customerDataForUpsert: any;
+        let orderInfoWithCount = order;
+
+        // Add order_count from pending orders if available
+        if (order && pendingOrderInfo?.order_count) {
+          orderInfoWithCount = { ...order, order_count: pendingOrderInfo.order_count };
+        }
 
         if (order && order.Telephone) {
           partnerStatus = mapStatusText(existingCustomer?.customer_status || order.PartnerStatusText);
@@ -186,7 +209,7 @@ export function LiveCommentsPanel({
 
         newStatusMap.set(facebookId, {
           partnerStatus,
-          orderInfo: order,
+          orderInfo: orderInfoWithCount,
           isLoadingStatus: false,
         });
       }
@@ -506,12 +529,26 @@ export function LiveCommentsPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>Xác nhận tạo đơn hàng</AlertDialogTitle>
             <AlertDialogDescription>
-              Comment này đã có đơn hàng trên TPOS. Bạn có chắc muốn tạo đơn mới?
+              {confirmCreateOrderComment?.orderInfo && (
+                <div className="space-y-2">
+                  <p>Comment này đã có đơn hàng. Bạn có muốn tạo thêm đơn mới không?</p>
+                  <div className="bg-muted p-3 rounded-md text-sm">
+                    <div><strong>Đơn hiện tại:</strong> {confirmCreateOrderComment.orderInfo.Code}</div>
+                    {confirmCreateOrderComment.orderInfo.order_count && (
+                      <div><strong>Số lần tạo:</strong> {confirmCreateOrderComment.orderInfo.order_count}</div>
+                    )}
+                    <div><strong>Tổng tiền:</strong> {confirmCreateOrderComment.orderInfo.TotalAmount?.toLocaleString()} đ</div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Đơn mới sẽ là lần thứ {(confirmCreateOrderComment.orderInfo.order_count || 0) + 1}
+                  </p>
+                </div>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Hủy</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCreateOrder}>Tạo đơn</AlertDialogAction>
+            <AlertDialogAction onClick={confirmCreateOrder}>Tạo đơn mới</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -526,6 +563,9 @@ export function LiveCommentsPanel({
           {selectedOrderInfo && (
             <div className="space-y-2 text-sm">
               <div><strong>Mã đơn:</strong> {selectedOrderInfo.Code}</div>
+              {selectedOrderInfo.order_count && (
+                <div><strong>Đơn hàng lần thứ:</strong> {selectedOrderInfo.order_count}</div>
+              )}
               <div><strong>Tên KH:</strong> {selectedOrderInfo.Name}</div>
               <div><strong>SĐT:</strong> {selectedOrderInfo.Telephone}</div>
               <div><strong>Ghi chú:</strong> {selectedOrderInfo.Note}</div>
