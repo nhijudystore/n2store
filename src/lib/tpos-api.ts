@@ -67,6 +67,101 @@ export function clearTPOSCache() {
 }
 
 // =====================================================
+// TPOS PRODUCT SEARCH
+// =====================================================
+
+/**
+ * Tìm kiếm sản phẩm từ TPOS theo mã sản phẩm
+ */
+export async function searchTPOSProduct(productCode: string): Promise<TPOSProductSearchResult | null> {
+  try {
+    const token = await getActiveTPOSToken();
+    if (!token) {
+      throw new Error("TPOS Bearer Token not found. Please configure in Settings.");
+    }
+
+    const url = `https://tomato.tpos.vn/odata/Product/OdataService.GetViewV2?Active=true&DefaultCode=${encodeURIComponent(productCode)}&$top=50&$orderby=DateCreated desc&$count=true`;
+    
+    console.log(`🔍 Searching TPOS for product: ${productCode}`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getTPOSHeaders(token),
+    });
+
+    if (!response.ok) {
+      throw new Error(`TPOS API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.value && data.value.length > 0) {
+      console.log(`✅ Found product in TPOS:`, data.value[0]);
+      return data.value[0] as TPOSProductSearchResult;
+    }
+
+    console.log(`❌ Product not found in TPOS: ${productCode}`);
+    return null;
+  } catch (error) {
+    console.error('Error searching TPOS:', error);
+    throw error;
+  }
+}
+
+/**
+ * Import sản phẩm từ TPOS vào database
+ */
+export async function importProductFromTPOS(tposProduct: TPOSProductSearchResult) {
+  try {
+    // Extract supplier name from product name
+    const extractSupplier = (name: string): string | null => {
+      // Pattern: ddmm A## format
+      if (name.match(/^\d{4}\s+([A-Z]\d{1,4})\s+/)) {
+        return name.match(/^\d{4}\s+([A-Z]\d{1,4})\s+/)?.[1] || null;
+      }
+      // Pattern: [CODE] ddmm A## format
+      if (name.match(/^\[[\w\d]+\]\s*\d{4}\s+([A-Z]\d{1,4})\s+/)) {
+        return name.match(/^\[[\w\d]+\]\s*\d{4}\s+([A-Z]\d{1,4})\s+/)?.[1] || null;
+      }
+      // Pattern: A## at the start
+      if (name.match(/^([A-Z]\d{1,4})\s+/)) {
+        return name.match(/^([A-Z]\d{1,4})\s+/)?.[1] || null;
+      }
+      return null;
+    };
+
+    const supplierName = extractSupplier(tposProduct.Name);
+    
+    // Insert vào products table
+    const { data, error } = await supabase
+      .from('products')
+      .insert({
+        product_code: tposProduct.DefaultCode,
+        product_name: tposProduct.Name,
+        barcode: tposProduct.Barcode || null,
+        selling_price: tposProduct.ListPrice || 0,
+        purchase_price: tposProduct.StandardPrice || 0,
+        stock_quantity: 0, // Không lấy số lượng từ TPOS
+        unit: tposProduct.UOMName || 'Cái',
+        tpos_product_id: tposProduct.Id,
+        tpos_image_url: tposProduct.ImageUrl || null,
+        product_images: tposProduct.ImageUrl ? [tposProduct.ImageUrl] : null,
+        supplier_name: supplierName,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log(`✅ Product imported successfully:`, data);
+    return data;
+  } catch (error) {
+    console.error('Error importing product from TPOS:', error);
+    throw error;
+  }
+}
+
+// =====================================================
 // TPOS PRODUCT SYNC FUNCTIONS
 // =====================================================
 
@@ -74,6 +169,20 @@ interface TPOSProduct {
   Id: number;
   DefaultCode: string;
   Name: string;
+  Active: boolean;
+}
+
+interface TPOSProductSearchResult {
+  Id: number;
+  Name: string;
+  NameGet: string;
+  DefaultCode: string;
+  Barcode: string;
+  StandardPrice: number;
+  ListPrice: number;
+  ImageUrl: string;
+  UOMName: string;
+  QtyAvailable: number;
   Active: boolean;
 }
 

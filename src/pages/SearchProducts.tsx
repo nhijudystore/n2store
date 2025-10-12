@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
-import { Search, Package } from "lucide-react";
+import { Search, Package, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -16,11 +17,14 @@ import { Badge } from "@/components/ui/badge";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatVND } from "@/lib/currency-utils";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { searchTPOSProduct, importProductFromTPOS } from "@/lib/tpos-api";
+import { toast } from "sonner";
 
 export default function SearchProducts() {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, 300);
   const isMobile = useIsMobile();
+  const queryClient = useQueryClient();
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["search-products", debouncedSearch],
@@ -41,6 +45,36 @@ export default function SearchProducts() {
     staleTime: 30000,
     gcTime: 60000,
   });
+
+  const importFromTPOSMutation = useMutation({
+    mutationFn: async (productCode: string) => {
+      // Step 1: Search in TPOS
+      const tposProduct = await searchTPOSProduct(productCode);
+      if (!tposProduct) {
+        throw new Error(`Không tìm thấy sản phẩm "${productCode}" trong TPOS`);
+      }
+
+      // Step 2: Import to database
+      return await importProductFromTPOS(tposProduct);
+    },
+    onSuccess: (data) => {
+      toast.success(`✅ Đã import sản phẩm: ${data.product_name}`);
+      // Refresh search results
+      queryClient.invalidateQueries({ queryKey: ["search-products"] });
+    },
+    onError: (error: Error) => {
+      toast.error(`❌ Lỗi: ${error.message}`);
+      console.error(error);
+    },
+  });
+
+  const handleImportFromTPOS = () => {
+    if (debouncedSearch.trim().length === 0) {
+      toast.error("Vui lòng nhập mã sản phẩm");
+      return;
+    }
+    importFromTPOSMutation.mutate(debouncedSearch.trim());
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -91,9 +125,18 @@ export default function SearchProducts() {
           ) : products.length === 0 ? (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-4">
                 Không tìm thấy sản phẩm nào với từ khóa "{debouncedSearch}"
               </p>
+              <Button
+                onClick={handleImportFromTPOS}
+                disabled={importFromTPOSMutation.isPending}
+                variant="outline"
+                className="gap-2"
+              >
+                <Download className="w-4 h-4" />
+                {importFromTPOSMutation.isPending ? "Đang lấy từ TPOS..." : "Lấy sản phẩm từ TPOS"}
+              </Button>
             </div>
           ) : (
             <>
