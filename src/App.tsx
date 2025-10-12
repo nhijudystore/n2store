@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "@/components/Layout";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BarcodeScannerProvider } from "@/contexts/BarcodeScannerContext";
-import { CommentsSidebarProvider } from "@/contexts/CommentsSidebarContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import PurchaseOrders from "./pages/PurchaseOrders";
 import Products from "./pages/Products";
@@ -37,8 +36,7 @@ const App = () => (
       <BarcodeScannerProvider>
         <TooltipProvider>
           <AuthProvider>
-            <CommentsSidebarProvider>
-              <Routes>
+            <Routes>
               <Route path="/auth" element={<Auth />} />
               <Route path="/" element={
                 <ProtectedRoute>
@@ -112,10 +110,9 @@ const App = () => (
               } />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-              <Sonner />
-            </CommentsSidebarProvider>
+            </Routes>
+            <Toaster />
+            <Sonner />
           </AuthProvider>
         </TooltipProvider>
       </BarcodeScannerProvider>

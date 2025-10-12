@@ -1,27 +1,21 @@
-import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Bell, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
-import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useEffect } from "react";
 interface LayoutProps {
   children: React.ReactNode;
 }
-function LayoutContent({ children }: LayoutProps) {
-  const { user, signOut } = useAuth();
-  const { setOpen: setNavSidebarOpen } = useSidebar();
-  const { isCommentsOpen } = useCommentsSidebar();
-  
-  // Auto-close navigation sidebar when comments sidebar opens
-  useEffect(() => {
-    if (isCommentsOpen) {
-      setNavSidebarOpen(false);
-    }
-  }, [isCommentsOpen, setNavSidebarOpen]);
+export function Layout({
+  children
+}: LayoutProps) {
+  const {
+    user,
+    signOut
+  } = useAuth();
   const getInitials = (email: string | undefined) => {
     if (!email) return "U";
     const username = email.split('@')[0];
@@ -95,14 +89,6 @@ function LayoutContent({ children }: LayoutProps) {
           </main>
         </div>
       </div>
-    </SidebarProvider>
-  );
-}
-
-export function Layout({ children }: LayoutProps) {
-  return (
-    <SidebarProvider>
-      <LayoutContent>{children}</LayoutContent>
     </SidebarProvider>
   );
 }
