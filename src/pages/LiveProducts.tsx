@@ -19,6 +19,7 @@ import { FullScreenProductView } from "@/components/live-products/FullScreenProd
 import { LiveSupplierStats } from "@/components/live-products/LiveSupplierStats";
 import { TPOSActionsCollapsible } from "@/components/live-products/TPOSActionsCollapsible";
 import { useBarcodeScanner } from "@/contexts/BarcodeScannerContext";
+import { useCommentsSidebar } from "@/contexts/CommentsSidebarContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { 
@@ -41,10 +42,16 @@ import {
   Upload,
   Store,
   Search,
+  MessageSquare,
   ShoppingBag
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { CommentsSettingsCollapsible } from "@/components/live-products/CommentsSettingsCollapsible";
+import { LiveCommentsPanel } from "@/components/live-products/LiveCommentsPanel";
+import { CommentsSidebar } from "@/components/live-products/CommentsSidebar";
+import { useFacebookComments } from "@/hooks/use-facebook-comments";
+import type { FacebookVideo } from "@/types/facebook";
 import { toast } from "sonner";
 import { generateOrderImage } from "@/lib/order-image-generator";
 import { getProductImageUrl } from "@/lib/tpos-image-loader";
@@ -188,7 +195,38 @@ export default function LiveProducts() {
     return localStorage.getItem('liveProducts_activeTab') || "products";
   });
   
+  // Facebook Comments State - persist in localStorage
+  const [commentsPageId, setCommentsPageId] = useState(() => {
+    return localStorage.getItem('liveProducts_commentsPageId') || "";
+  });
+  const [commentsVideoId, setCommentsVideoId] = useState(() => {
+    return localStorage.getItem('liveProducts_commentsVideoId') || "";
+  });
+  const [selectedFacebookVideo, setSelectedFacebookVideo] = useState<FacebookVideo | null>(() => {
+    const saved = localStorage.getItem('liveProducts_selectedFacebookVideo');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isCommentsAutoRefresh, setIsCommentsAutoRefresh] = useState(true);
+  const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
+  const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
+  const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   const productListRef = useRef<HTMLDivElement>(null);
+  const { isCommentsOpen: isCommentsPanelOpen, setIsCommentsOpen: setIsCommentsPanelOpen } = useCommentsSidebar();
+  
+  const {
+    comments,
+    ordersData,
+    newCommentIds,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    refetchComments,
+    commentsLoading,
+  } = useFacebookComments({
+    pageId: commentsPageId,
+    videoId: commentsVideoId,
+    isAutoRefresh: isCommentsAutoRefresh,
+  });
   
   const [isCreateSessionOpen, setIsCreateSessionOpen] = useState(false);
   const [isEditSessionOpen, setIsEditSessionOpen] = useState(false);
@@ -423,6 +461,18 @@ export default function LiveProducts() {
   useEffect(() => {
     localStorage.setItem('liveProducts_activeTab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_commentsPageId', commentsPageId);
+  }, [commentsPageId]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_commentsVideoId', commentsVideoId);
+  }, [commentsVideoId]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_selectedFacebookVideo', JSON.stringify(selectedFacebookVideo));
+  }, [selectedFacebookVideo]);
 
   // Helper function to get color based on copy status
   const getCopyStatusColor = (copyCount: number, soldQuantity: number) => {
@@ -1333,8 +1383,11 @@ export default function LiveProducts() {
         </div>
       </div>
 
-      {/* Main content wrapper */}
-      <div>
+      {/* Main content wrapper - pushes left when sidebar opens */}
+      <div className={cn(
+        "transition-all duration-300 ease-in-out",
+        isCommentsPanelOpen && !isMobile ? 'mr-[450px]' : 'mr-0'
+      )}>
         {/* Session Selection */}
         {liveSessions.length > 0 && (
         <Card>
@@ -1453,6 +1506,22 @@ export default function LiveProducts() {
               <div className="flex gap-2">
                 {activeTab === "products" && (
                   <>
+                    {commentsVideoId && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={() => setIsCommentsPanelOpen(!isCommentsPanelOpen)}
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          Comments
+                          {isCommentsPanelOpen && (
+                            <Badge variant="secondary" className="ml-1">Đang mở</Badge>
+                          )}
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="default"
                       size="sm"
@@ -2609,6 +2678,28 @@ export default function LiveProducts() {
         </TooltipProvider>
       )}
       </div>
+
+      {/* Comments Sidebar - outside content wrapper */}
+      {commentsVideoId && (
+        <CommentsSidebar
+          isOpen={isCommentsPanelOpen}
+          onClose={() => setIsCommentsPanelOpen(false)}
+        >
+          <LiveCommentsPanel
+            pageId={commentsPageId}
+            videoId={commentsVideoId}
+            comments={comments}
+            ordersData={ordersData}
+            newCommentIds={newCommentIds}
+            showOnlyWithOrders={showOnlyWithOrders}
+            hideNames={hideNames}
+            isLoading={commentsLoading || isFetchingNextPage}
+            onLoadMore={() => fetchNextPage()}
+            hasMore={hasNextPage}
+            onRefresh={refetchComments}
+          />
+        </CommentsSidebar>
+      )}
     </div>
   );
 }
