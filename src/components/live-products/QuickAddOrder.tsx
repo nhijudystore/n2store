@@ -412,15 +412,14 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                     .map((order) => (
                       <CommandItem
                         key={order.id}
-                        value={order.session_index!}
                         onSelect={() => handleSelectOrder(order)}
-                        className="cursor-pointer"
+                        className="cursor-pointer flex items-center gap-1"
                       >
-                        <span className="font-medium">{order.session_index}</span>
-                        <span className="mx-1">-</span>
+                        <span className="font-medium shrink-0">{order.session_index}</span>
+                        <span className="shrink-0">-</span>
                         <span className="font-bold truncate">{order.name || '(không có tên)'}</span>
-                        <span className="mx-1">-</span>
-                        <span className="flex-1 truncate">
+                        <span className="shrink-0">-</span>
+                        <span className="flex-1 truncate text-muted-foreground">
                           {order.comment || '(không có comment)'}
                         </span>
                       </CommandItem>
