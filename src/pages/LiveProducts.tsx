@@ -190,10 +190,17 @@ export default function LiveProducts() {
     return localStorage.getItem('liveProducts_activeTab') || "products";
   });
   
-  // Facebook Comments State
-  const [commentsPageId, setCommentsPageId] = useState("");
-  const [commentsVideoId, setCommentsVideoId] = useState("");
-  const [selectedFacebookVideo, setSelectedFacebookVideo] = useState<FacebookVideo | null>(null);
+  // Facebook Comments State - persist in localStorage
+  const [commentsPageId, setCommentsPageId] = useState(() => {
+    return localStorage.getItem('liveProducts_commentsPageId') || "";
+  });
+  const [commentsVideoId, setCommentsVideoId] = useState(() => {
+    return localStorage.getItem('liveProducts_commentsVideoId') || "";
+  });
+  const [selectedFacebookVideo, setSelectedFacebookVideo] = useState<FacebookVideo | null>(() => {
+    const saved = localStorage.getItem('liveProducts_selectedFacebookVideo');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [isCommentsAutoRefresh, setIsCommentsAutoRefresh] = useState(true);
   const [showOnlyWithOrders, setShowOnlyWithOrders] = useState(false);
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
@@ -446,6 +453,18 @@ export default function LiveProducts() {
   useEffect(() => {
     localStorage.setItem('liveProducts_activeTab', activeTab);
   }, [activeTab]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_commentsPageId', commentsPageId);
+  }, [commentsPageId]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_commentsVideoId', commentsVideoId);
+  }, [commentsVideoId]);
+
+  useEffect(() => {
+    localStorage.setItem('liveProducts_selectedFacebookVideo', JSON.stringify(selectedFacebookVideo));
+  }, [selectedFacebookVideo]);
 
   // Helper function to get color based on copy status
   const getCopyStatusColor = (copyCount: number, soldQuantity: number) => {
@@ -2548,7 +2567,13 @@ export default function LiveProducts() {
 
             {/* Facebook Live Comments Feature Tab */}
             <TabsContent value="test-comment" className="space-y-4">
-              <FacebookCommentsManager />
+              <FacebookCommentsManager 
+                onVideoSelected={(pageId, videoId, video) => {
+                  setCommentsPageId(pageId);
+                  setCommentsVideoId(videoId);
+                  setSelectedFacebookVideo(video);
+                }}
+              />
             </TabsContent>
           </Tabs>
         </>

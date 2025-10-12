@@ -39,11 +39,25 @@ function debounce<T extends (...args: any[]) => any>(
   };
 }
 
-export function FacebookCommentsManager() {
+interface FacebookCommentsManagerProps {
+  onVideoSelected?: (pageId: string, videoId: string, video: FacebookVideo | null) => void;
+}
+
+export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsManagerProps = {}) {
   const queryClient = useQueryClient();
-  const [pageId, setPageId] = useState("");
+  const [pageId, setPageId] = useState(() => {
+    return localStorage.getItem('liveProducts_commentsPageId') || "";
+  });
   const [limit, setLimit] = useState("1");
-  const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(() => {
+    const saved = localStorage.getItem('liveProducts_selectedFacebookVideo');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Persist pageId to localStorage
+  useEffect(() => {
+    localStorage.setItem('liveProducts_commentsPageId', pageId);
+  }, [pageId]);
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
@@ -514,6 +528,11 @@ export function FacebookCommentsManager() {
 
   const handleVideoClick = (video: FacebookVideo) => {
     setSelectedVideo(video);
+    localStorage.setItem('liveProducts_selectedFacebookVideo', JSON.stringify(video));
+    localStorage.setItem('liveProducts_commentsVideoId', video.objectId);
+    if (onVideoSelected) {
+      onVideoSelected(pageId, video.objectId, video);
+    }
     allCommentIdsRef.current = new Set();
     setNewCommentIds(new Set());
     setSearchQuery("");
