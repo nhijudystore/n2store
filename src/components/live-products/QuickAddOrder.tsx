@@ -199,31 +199,6 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
       queryClient.refetchQueries({ queryKey: ['orders-with-products', phaseId] });
       
       if (billData) {
-        // Create a temporary element for printing
-        const printContent = document.createElement('div');
-        printContent.innerHTML = `
-          <div style="font-family: monospace; text-align: center; padding: 20px;">
-            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px;">
-              #${billData.sessionIndex} - ${billData.phone || 'Chưa có SĐT'}
-            </div>
-            <div style="font-weight: 600; margin-bottom: 8px;">${billData.customerName}</div>
-            <div style="margin-bottom: 8px;">${billData.productCode} - ${billData.productName.replace(/^\d+\s+/, '')}</div>
-            ${billData.comment ? `<div style="font-style: italic; margin-bottom: 8px; color: #666;">${billData.comment}</div>` : ''}
-            <div style="margin: 10px 0;">
-              <svg id="barcode-${billData.sessionIndex}"></svg>
-            </div>
-          </div>
-        `;
-        
-        // Show toast notification
-        toast({
-          description: (
-            <OrderBillNotification {...billData} />
-          ),
-          variant: isOversell ? "destructive" : "default",
-          duration: 10000,
-        });
-        
         // Trigger print using hidden iframe
         const iframe = document.createElement('iframe');
         iframe.style.position = 'absolute';
