@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   getPrinterConfig,
   savePrinterConfig,
-  checkJSPMStatus,
+  isJSPMInstalled,
   getInstalledPrinters,
   printDirectly,
   PrinterConfig,
@@ -21,24 +21,15 @@ export function PrinterSettings() {
   const [isJSPMReady, setIsJSPMReady] = useState(false);
   const [installedPrinters, setInstalledPrinters] = useState<string[]>([]);
   const [isLoadingPrinters, setIsLoadingPrinters] = useState(false);
-  const [isCheckingJSPM, setIsCheckingJSPM] = useState(true);
-  const [jspmStatus, setJspmStatus] = useState<'checking' | 'connected' | 'disconnected' | 'not-installed'>('checking');
   
   const [printerName, setPrinterName] = useState("");
   const [paperSize, setPaperSize] = useState<'80mm' | '58mm'>('80mm');
   const [silentPrintEnabled, setSilentPrintEnabled] = useState(false);
 
-  // Load config on mount and check JSPM periodically
+  // Load config on mount
   useEffect(() => {
     loadPrinterConfig();
     checkJSPM();
-    
-    // Auto-refresh every 30s
-    const interval = setInterval(() => {
-      checkJSPM();
-    }, 30000);
-    
-    return () => clearInterval(interval);
   }, []);
 
   const loadPrinterConfig = () => {
@@ -51,24 +42,10 @@ export function PrinterSettings() {
   };
 
   const checkJSPM = async () => {
-    setIsCheckingJSPM(true);
-    setJspmStatus('checking');
-    
-    try {
-      const statusResult = await checkJSPMStatus();
-      
-      setIsJSPMReady(statusResult.isConnected);
-      setJspmStatus(statusResult.status);
-      
-      if (statusResult.isConnected) {
-        await loadPrinters();
-      }
-    } catch (error) {
-      console.error('JSPM check error:', error);
-      setIsJSPMReady(false);
-      setJspmStatus('disconnected');
-    } finally {
-      setIsCheckingJSPM(false);
+    const installed = await isJSPMInstalled();
+    setIsJSPMReady(installed);
+    if (installed) {
+      loadPrinters();
     }
   };
 
@@ -175,54 +152,14 @@ export function PrinterSettings() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Connection Status */}
-        <div className="flex items-center justify-between p-4 border rounded-lg">
-          <div className="flex items-center gap-3">
-            <div className={cn(
-              "h-3 w-3 rounded-full",
-              jspmStatus === 'connected' && "bg-green-500 animate-pulse",
-              jspmStatus === 'disconnected' && "bg-yellow-500",
-              jspmStatus === 'not-installed' && "bg-red-500",
-              jspmStatus === 'checking' && "bg-gray-400 animate-pulse"
-            )} />
-            <div>
-              <p className="font-medium">
-                {jspmStatus === 'connected' && "✅ Đã kết nối"}
-                {jspmStatus === 'disconnected' && "⚠️ Chưa kết nối"}
-                {jspmStatus === 'not-installed' && "❌ Chưa cài đặt"}
-                {jspmStatus === 'checking' && "🔄 Đang kiểm tra..."}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {jspmStatus === 'connected' && `Đã kết nối với ${installedPrinters.length} máy in`}
-                {jspmStatus === 'disconnected' && "JSPrintManager service chưa chạy"}
-                {jspmStatus === 'not-installed' && "Cần cài đặt JSPrintManager Client"}
-                {jspmStatus === 'checking' && "Đang kiểm tra trạng thái kết nối..."}
-              </p>
-            </div>
-          </div>
-          
-          <Button 
-            onClick={checkJSPM} 
-            disabled={isCheckingJSPM}
-            variant="ghost"
-            size="sm"
-          >
-            <RefreshCw className={cn("h-4 w-4", isCheckingJSPM && "animate-spin")} />
-          </Button>
-        </div>
-
-        {/* Download link - only show if not installed */}
-        {jspmStatus === 'not-installed' && (
+        {/* JSPM Installation Check */}
+        {!isJSPMReady && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Hướng dẫn cài đặt</AlertTitle>
-            <AlertDescription>
-              <ol className="list-decimal ml-4 space-y-1 text-sm">
-                <li>Tải JSPrintManager Client từ link bên dưới</li>
-                <li>Cài đặt và chạy service</li>
-                <li>Click "Kiểm tra kết nối" để xác nhận</li>
-              </ol>
-              <Button variant="link" className="h-auto p-0 mt-2" asChild>
+            <AlertTitle>Cần cài đặt JSPrintManager</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>Vui lòng tải và cài đặt JSPrintManager Client để sử dụng in tự động.</p>
+              <Button variant="link" className="h-auto p-0" asChild>
                 <a 
                   href="https://www.neodynamic.com/downloads/jspm/" 
                   target="_blank" 
@@ -235,31 +172,13 @@ export function PrinterSettings() {
           </Alert>
         )}
 
-        {/* Service not running - show troubleshooting */}
-        {jspmStatus === 'disconnected' && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Service chưa chạy</AlertTitle>
-            <AlertDescription>
-              <p className="text-sm">JSPrintManager đã cài đặt nhưng service chưa chạy.</p>
-              <p className="text-sm mt-1">Vui lòng:</p>
-              <ul className="list-disc ml-4 text-sm">
-                <li>Mở JSPrintManager Client</li>
-                <li>Đảm bảo service đang chạy (icon trong system tray)</li>
-                <li>Click nút refresh để kiểm tra lại</li>
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Printer Settings - only show when connected */}
-        {jspmStatus === 'connected' && (
+        {isJSPMReady && (
           <>
             {/* Printer Selection */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Máy in mặc định</label>
               <div className="flex gap-2">
-                <Select value={printerName} onValueChange={setPrinterName} disabled={!isJSPMReady}>
+                <Select value={printerName} onValueChange={setPrinterName}>
                   <SelectTrigger className="flex-1">
                     <SelectValue placeholder="Chọn máy in" />
                   </SelectTrigger>
@@ -310,7 +229,7 @@ export function PrinterSettings() {
 
             {/* Action Buttons */}
             <div className="flex gap-2">
-              <Button onClick={handleTestPrint} disabled={!printerName || !isJSPMReady} variant="outline">
+              <Button onClick={handleTestPrint} disabled={!printerName} variant="outline">
                 <TestTube2 className="h-4 w-4 mr-2" />
                 Test in thử
               </Button>
