@@ -51,11 +51,26 @@ export function LiveCommentsPanel({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [customerStatusMap, setCustomerStatusMap] = useState<Map<string, any>>(new Map());
+  
+  // Load cache from localStorage on mount
+  const loadCacheFromStorage = (): Map<string, any> => {
+    const cached = localStorage.getItem('liveComments_customerStatusCache');
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        return new Map(Object.entries(parsed));
+      } catch (e) {
+        console.error('[LiveCommentsPanel] Error loading cache:', e);
+      }
+    }
+    return new Map();
+  };
+  
+  const [customerStatusMap, setCustomerStatusMap] = useState<Map<string, any>>(loadCacheFromStorage);
   const [isLoadingCustomerStatus, setIsLoadingCustomerStatus] = useState(false);
   const fetchInProgress = useRef(false);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const customerStatusMapRef = useRef<Map<string, any>>(new Map());
+  const customerStatusMapRef = useRef<Map<string, any>>(loadCacheFromStorage());
   const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
   const [selectedOrderInfo, setSelectedOrderInfo] = useState<TPOSOrder | null>(null);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
@@ -232,6 +247,15 @@ export function LiveCommentsPanel({
 
       customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
+      
+      // Save to localStorage
+      try {
+        const cacheObj = Object.fromEntries(newStatusMap);
+        localStorage.setItem('liveComments_customerStatusCache', JSON.stringify(cacheObj));
+      } catch (e) {
+        console.error('[LiveCommentsPanel] Error saving cache:', e);
+      }
+      
       console.log(`[LiveCommentsPanel] Successfully updated ${newStatusMap.size} customer statuses`);
     } catch (error) {
       console.error('[LiveCommentsPanel] Error in fetchPartnerStatusBatch:', error);
@@ -287,6 +311,14 @@ export function LiveCommentsPanel({
       customerStatusMapRef.current = newStatusMap;
       setCustomerStatusMap(newStatusMap);
       
+      // Save to localStorage
+      try {
+        const cacheObj = Object.fromEntries(newStatusMap);
+        localStorage.setItem('liveComments_customerStatusCache', JSON.stringify(cacheObj));
+      } catch (e) {
+        console.error('[LiveCommentsPanel] Error saving cache:', e);
+      }
+      
       console.log(`[LiveCommentsPanel] Updated cache for user ${facebookId}`);
     } catch (error) {
       console.error('[LiveCommentsPanel] Error refreshing user status:', error);
@@ -330,13 +362,12 @@ export function LiveCommentsPanel({
     };
   }, [comments, ordersData, fetchPartnerStatusBatch]);
 
-  // Reset tracking when video changes
+  // Reset tracking when video changes (but keep cache)
   useEffect(() => {
-    console.log('[LiveCommentsPanel] Video changed, resetting tracking');
+    console.log('[LiveCommentsPanel] Video changed, resetting tracking only');
     initialFetchDone.current = false;
     processedCommentIds.current = new Set();
-    customerStatusMapRef.current = new Map();
-    setCustomerStatusMap(new Map());
+    // Don't clear cache - it's shared across all videos
   }, [videoId]);
 
   const createOrderMutation = useMutation({
