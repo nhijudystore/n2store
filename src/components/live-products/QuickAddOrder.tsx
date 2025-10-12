@@ -348,21 +348,14 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
         } catch (error: any) {
           console.error('Print Bridge error:', error);
           
-          // Check if it's a mixed content error
-          if (error.message && error.message.includes('MIXED_CONTENT')) {
-            toast({
-              variant: "destructive",
-              title: "❌ Không thể in tự động",
-              description: "Trang HTTPS không kết nối được HTTP Print Bridge. Đã chuyển sang chế độ in thủ công.",
-              duration: 6000,
-            });
-          } else {
-            toast({
-              variant: "destructive",
-              title: "Lỗi kết nối máy in",
-              description: "Vui lòng kiểm tra Print Bridge và thử lại",
-            });
-          }
+          toast({
+            variant: "destructive",
+            title: "❌ Không thể in tự động",
+            description: window.location.protocol === 'https:' 
+              ? "Trang HTTPS không kết nối được HTTP Print Bridge. Vui lòng kiểm tra cấu hình hoặc truy cập qua HTTP."
+              : "Không thể kết nối Print Bridge. Vui lòng kiểm tra cài đặt máy in.",
+            duration: 6000,
+          });
         }
       }
       

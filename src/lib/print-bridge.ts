@@ -64,11 +64,6 @@ export async function printBill(
 ): Promise<void> {
   // Check if running on HTTPS
   const isHttps = window.location.protocol === 'https:';
-  
-  if (isHttps) {
-    throw new Error('MIXED_CONTENT: Không thể kết nối HTTP Print Bridge từ trang HTTPS. Vui lòng cấu hình Print Bridge với HTTPS hoặc truy cập trang web qua HTTP.');
-  }
-  
   const protocol = isHttps ? 'https' : 'http';
   
   const printContent = {
