@@ -45,11 +45,23 @@ export default function Products() {
       
       // If search query exists (>= 2 chars), search in database
       if (debouncedSearch.length >= 2) {
-        query = query.or(
-          `product_code.ilike.%${debouncedSearch}%,` +
-          `product_name.ilike.%${debouncedSearch}%,` +
-          `barcode.ilike.%${debouncedSearch}%`
-        );
+        // Split search query into keywords
+        const keywords = debouncedSearch.trim().split(/\s+/).filter(k => k.length > 0);
+        
+        if (keywords.length === 1) {
+          // Single keyword: search in product_code, product_name, barcode
+          query = query.or(
+            `product_code.ilike.%${keywords[0]}%,` +
+            `product_name.ilike.%${keywords[0]}%,` +
+            `barcode.ilike.%${keywords[0]}%`
+          );
+        } else {
+          // Multiple keywords: ALL must be present in product_name (in any order)
+          // Also check if full search matches product_code or barcode
+          keywords.forEach((keyword) => {
+            query = query.ilike("product_name", `%${keyword}%`);
+          });
+        }
       } else {
         // Otherwise, load 50 latest products
         query = query.range(0, 49);
