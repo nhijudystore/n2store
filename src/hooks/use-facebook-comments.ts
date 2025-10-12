@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { FacebookVideo, FacebookComment, TPOSOrder } from "@/types/facebook";
 
@@ -10,6 +10,7 @@ interface UseFacebookCommentsProps {
 }
 
 export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: UseFacebookCommentsProps) {
+  const queryClient = useQueryClient();
   const [selectedVideo, setSelectedVideo] = useState<FacebookVideo | null>(null);
   const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
   const allCommentIdsRef = useRef<Set<string>>(new Set());
@@ -141,6 +142,32 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     enabled: !!videoId,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Real-time subscription for facebook_pending_orders
+  useEffect(() => {
+    if (!videoId) return;
+
+    const channel = supabase
+      .channel('facebook-pending-orders-comments-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'facebook_pending_orders',
+          filter: `facebook_post_id=eq.${videoId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['tpos-orders', videoId] });
+          queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, videoId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [videoId, pageId, queryClient]);
 
   // Track new comments
   useEffect(() => {
