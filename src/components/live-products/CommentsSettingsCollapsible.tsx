@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -41,6 +41,13 @@ export function CommentsSettingsCollapsible({
 }: CommentsSettingsCollapsibleProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [limit, setLimit] = useState("1");
+
+  // Auto-collapse when video is selected
+  useEffect(() => {
+    if (videoId) {
+      setIsOpen(false);
+    }
+  }, [videoId]);
 
   // Fetch Facebook pages
   const { data: facebookPages } = useQuery({
