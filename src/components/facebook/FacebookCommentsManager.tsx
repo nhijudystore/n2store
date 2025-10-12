@@ -85,6 +85,9 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
   // State for fullscreen mode on mobile
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // State to track which comment is being processed
+  const [processingCommentId, setProcessingCommentId] = useState<string | null>(null);
+
   // Fetch Facebook pages from database
   const { data: facebookPages } = useQuery({
     queryKey: ["facebook-pages"],
@@ -135,6 +138,8 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       return responseData;
     },
     onSuccess: (data) => {
+      setProcessingCommentId(null);
+      createOrderMutation.reset();
       toast({
         title: "Tạo đơn hàng thành công!",
         description: `Đơn hàng ${data.response.Code} đã được tạo.`,
@@ -143,6 +148,7 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, selectedVideo?.objectId] });
     },
     onError: (error: any) => {
+      setProcessingCommentId(null);
       let errorData;
       try {
         errorData = JSON.parse(error.message);
@@ -163,12 +169,14 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       setConfirmCreateOrderComment(comment);
     } else {
       if (!selectedVideo) return;
+      setProcessingCommentId(comment.id);
       createOrderMutation.mutate({ comment, video: selectedVideo });
     }
   };
 
   const confirmCreateOrder = () => {
     if (confirmCreateOrderComment && selectedVideo) {
+      setProcessingCommentId(confirmCreateOrderComment.id);
       createOrderMutation.mutate({ comment: confirmCreateOrderComment, video: selectedVideo });
     }
     setConfirmCreateOrderComment(null);
@@ -1068,14 +1076,14 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
                                   
                                   <p className="text-sm mt-1.5 break-words">{comment.message}</p>
                                   
-                                  <div className="flex items-center gap-2 mt-3 flex-wrap">
+                                   <div className="flex items-center gap-2 mt-3 flex-wrap">
                                     <Button 
                                       size="sm" 
                                       className="h-7 text-xs"
                                       onClick={() => handleCreateOrderClick(comment)}
-                                      disabled={createOrderMutation.isPending && createOrderMutation.variables?.comment?.id === comment.id}
+                                      disabled={processingCommentId === comment.id}
                                     >
-                                      {(createOrderMutation.isPending && createOrderMutation.variables?.comment?.id === comment.id) && (
+                                      {processingCommentId === comment.id && (
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                       )}
                                       Tạo đơn hàng
