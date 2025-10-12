@@ -61,6 +61,7 @@ import type { DateRange } from "react-day-picker";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface LiveSession {
   id: string;
@@ -198,6 +199,7 @@ export default function LiveProducts() {
   const [hideNhiJudyHouse, setHideNhiJudyHouse] = useState(true);
   const hideNames = hideNhiJudyHouse ? ["Nhi Judy House"] : [];
   const productListRef = useRef<HTMLDivElement>(null);
+  const [isCommentsPanelOpen, setIsCommentsPanelOpen] = useState(false);
   
   const {
     comments,
@@ -1476,6 +1478,40 @@ export default function LiveProducts() {
               <div className="flex gap-2">
                 {activeTab === "products" && (
                   <>
+                    {commentsVideoId && (
+                      <Sheet open={isCommentsPanelOpen} onOpenChange={setIsCommentsPanelOpen}>
+                        <SheetTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            Comments
+                          </Button>
+                        </SheetTrigger>
+                        <SheetContent side="right" className="w-[500px] sm:w-[600px] overflow-y-auto">
+                          <SheetHeader>
+                            <SheetTitle>Facebook Comments</SheetTitle>
+                          </SheetHeader>
+                          <div className="mt-4">
+                            <LiveCommentsPanel
+                              pageId={commentsPageId}
+                              videoId={commentsVideoId}
+                              comments={comments}
+                              ordersData={ordersData}
+                              newCommentIds={newCommentIds}
+                              showOnlyWithOrders={showOnlyWithOrders}
+                              hideNames={hideNames}
+                              isLoading={commentsLoading || isFetchingNextPage}
+                              onLoadMore={() => fetchNextPage()}
+                              hasMore={hasNextPage}
+                              onRefresh={refetchComments}
+                            />
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                    )}
                     <Button
                       variant="default"
                       size="sm"
