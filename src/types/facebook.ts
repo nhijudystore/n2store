@@ -16,6 +16,11 @@ export interface FacebookComment {
   from: {
     name: string;
     id: string;
+    picture?: {
+      data?: {
+        url?: string;
+      };
+    };
   };
   created_time: string;
   like_count: number;
