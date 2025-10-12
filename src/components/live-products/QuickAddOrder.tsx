@@ -250,35 +250,35 @@ export function QuickAddOrder({ productId, phaseId, sessionId, availableQuantity
                 flex-direction: column;
                 gap: 0;
                 text-align: center;
-                line-height: 1.0;
+                line-height: 2.0;
               }
               .session-name {
-                font-size: 13pt;
+                font-size: 19.5pt;
                 font-weight: bold;
-                line-height: 1.0;
+                line-height: 2.0;
               }
               .phone {
                 font-size: 8pt;
                 font-weight: bold;
-                line-height: 1.0;
+                line-height: 2.0;
               }
               .product {
                 font-size: 10pt;
                 font-weight: bold;
-                line-height: 1.0;
+                line-height: 2.0;
               }
               .comment {
-                font-size: 10pt;
+                font-size: 15pt;
                 font-weight: bold;
                 font-style: italic;
                 color: #000;
-                line-height: 1.0;
+                line-height: 2.0;
               }
               .time {
                 font-size: 6pt;
-                font-weight: normal;
+                font-weight: bold;
                 color: #000;
-                line-height: 1.0;
+                line-height: 2.0;
               }
             </style>
           </head>
