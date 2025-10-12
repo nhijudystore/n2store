@@ -247,6 +247,52 @@ export function LiveCommentsPanel({
     }
   }, []);
 
+  // Force refresh status for a single user (used after creating order)
+  const refreshSingleUserStatus = useCallback(async (facebookId: string, commentId: string) => {
+    console.log(`[LiveCommentsPanel] Force refresh status for user: ${facebookId}`);
+    
+    try {
+      // Fetch fresh data from TPOS API for this specific user
+      const { data: pendingOrders = [] } = await supabase
+        .from('facebook_pending_orders')
+        .select('facebook_comment_id, code, tpos_order_id, order_count, phone')
+        .eq('facebook_user_id', facebookId)
+        .order('order_count', { ascending: false });
+
+      const { data: customer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('facebook_id', facebookId)
+        .maybeSingle();
+
+      // Find order from ordersData
+      const order = ordersData.find(o => o.Facebook_ASUserId === facebookId);
+      const pendingOrderInfo = pendingOrders.find(po => po.facebook_comment_id === commentId);
+
+      let orderInfoWithCount = order;
+      if (order && pendingOrderInfo?.order_count) {
+        orderInfoWithCount = { ...order, order_count: pendingOrderInfo.order_count };
+      }
+
+      // Update cache
+      const newStatusMap = new Map(customerStatusMapRef.current);
+      const partnerStatus = mapStatusText(customer?.customer_status || order?.PartnerStatusText || 'Bình thường');
+      
+      newStatusMap.set(facebookId, {
+        partnerStatus,
+        orderInfo: orderInfoWithCount || pendingOrderInfo,
+        isLoadingStatus: false,
+      });
+
+      customerStatusMapRef.current = newStatusMap;
+      setCustomerStatusMap(newStatusMap);
+      
+      console.log(`[LiveCommentsPanel] Updated cache for user ${facebookId}`);
+    } catch (error) {
+      console.error('[LiveCommentsPanel] Error refreshing user status:', error);
+    }
+  }, [ordersData]);
+
   // Debounced effect to prevent excessive fetching
   useEffect(() => {
     if (comments.length === 0) return;
@@ -320,12 +366,23 @@ export function LiveCommentsPanel({
 
       return responseData;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       toast({
         title: "Tạo đơn hàng thành công!",
         description: `Đơn hàng ${data.response.Code} đã được tạo.`,
       });
+      
+      // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ["tpos-orders", videoId] });
+      queryClient.invalidateQueries({ queryKey: ["facebook-comments", pageId, videoId] });
+      
+      // Force refresh status for user who just created order
+      const comment = variables.comment;
+      if (comment?.from?.id) {
+        setTimeout(() => {
+          refreshSingleUserStatus(comment.from.id, comment.id);
+        }, 1000); // Delay 1s to let TPOS API update
+      }
     },
     onError: (error: any) => {
       let errorData;
