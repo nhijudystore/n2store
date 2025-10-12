@@ -103,7 +103,6 @@ const statusColors: Record<string, string> = {
   "Thân thiết": "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
   VIP: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   "Chưa có TT": "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100",
-  "Trùng SĐT": "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
 };
 
 const statusLabels: Record<string, string> = {
@@ -115,7 +114,6 @@ const statusLabels: Record<string, string> = {
   "Thân thiết": "Thân thiết",
   VIP: "VIP",
   "Chưa có TT": "Chưa có TT",
-  "Trùng SĐT": "Trùng SĐT",
 };
 
 const mapStatusText = (statusText: string | null | undefined): string => {
@@ -131,7 +129,6 @@ const mapStatusText = (statusText: string | null | undefined): string => {
     'khách sỉ': 'Khách sỉ', 'nguy hiểm': 'Nguy hiểm', 'thân thiết': 'Thân thiết',
     'thiếu thông tin': 'Thiếu thông tin', 'cần thêm tt': 'Cần thêm TT',
     'chưa có tt': 'Chưa có TT',
-    'trùng sđt': 'Trùng SĐT',
   };
 
   if (statusMap[normalizedStatus]) {
@@ -206,44 +203,8 @@ export default function Customers() {
   const [batchFetchFailedCount, setBatchFetchFailedCount] = useState(0);
   const [maxCustomersToBatch, setMaxCustomersToBatch] = useState("100"); // New state for batch size
 
-  const { data: duplicatePhones, isLoading: isLoadingDuplicates } = useQuery({
-    queryKey: ["duplicate-customer-phones"],
-    queryFn: async () => {
-      // This query fetches all customers with a phone number to check for duplicates.
-      // For very large datasets, this could be slow and should be optimized with a database function (RPC).
-      const { data, error } = await supabase
-        .from('customers')
-        .select('phone, customer_name')
-        .not('phone', 'is', null)
-        .gt('phone', '');
-
-      if (error) throw error;
-
-      const phoneMap = new Map<string, string[]>();
-      for (const customer of data) {
-        if (customer.phone) {
-          if (!phoneMap.has(customer.phone)) {
-            phoneMap.set(customer.phone, []);
-          }
-          phoneMap.get(customer.phone)!.push(customer.customer_name);
-        }
-      }
-
-      const duplicates = new Set<string>();
-      for (const [phone, names] of phoneMap.entries()) {
-        const uniqueNames = new Set(names.map(name => name.toLowerCase().trim()));
-        if (uniqueNames.size > 1) {
-          duplicates.add(phone);
-        }
-      }
-      
-      return duplicates;
-    },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
   const { data: customers = [], isLoading } = useQuery({
-    queryKey: ["customers", searchTerm, statusFilter, currentPage, pageSize, duplicatePhones],
+    queryKey: ["customers", searchTerm, statusFilter, currentPage, pageSize],
     queryFn: async () => {
       const start = (currentPage - 1) * pageSize;
       const end = start + pageSize - 1;
@@ -259,15 +220,7 @@ export default function Customers() {
         );
       }
 
-      if (statusFilter === "internal") {
-        query = query.like("idkh", "%-%");
-      } else if (statusFilter === "Trùng SĐT") {
-        if (!duplicatePhones || duplicatePhones.size === 0) {
-          setTotalCustomersCount(0);
-          return [];
-        }
-        query = query.in('phone', Array.from(duplicatePhones));
-      } else if (statusFilter !== "all") {
+      if (statusFilter !== "all") {
         query = query.eq("customer_status", statusFilter);
       }
 
@@ -279,7 +232,6 @@ export default function Customers() {
       setTotalCustomersCount(count || 0);
       return data as Customer[];
     },
-    enabled: !isLoadingDuplicates,
   });
 
   // Query to get all customers that need fetching (idkh exists and not synced_tpos)
@@ -324,25 +276,6 @@ export default function Customers() {
   const { data: totalSyncedTposCount = 0, isLoading: isLoadingSyncedTpos } = useQuery({
     queryKey: ["customers-count-synced_tpos"],
     queryFn: async () => (await supabase.from("customers").select("*", { count: "exact", head: true }).eq("info_status", "synced_tpos")).count || 0,
-  });
-  const { data: totalTrungSdtCount = 0, isLoading: isLoadingTrungSdt } = useQuery({
-    queryKey: ["customers-count-trungsdt", duplicatePhones],
-    queryFn: async () => {
-        if (!duplicatePhones || duplicatePhones.size === 0) return 0;
-
-        const { count, error } = await supabase
-            .from("customers")
-            .select('*', { count: 'exact', head: true })
-            .in('phone', Array.from(duplicatePhones));
-        
-        if (error) throw error;
-        return count || 0;
-    },
-    enabled: !!duplicatePhones,
-  });
-  const { data: totalInternalCount = 0, isLoading: isLoadingInternal } = useQuery({
-    queryKey: ["customers-count-internal"],
-    queryFn: async () => (await supabase.from("customers").select("*", { count: "exact", head: true }).like("idkh", "%-%")).count || 0,
   });
 
   const createMutation = useMutation({
@@ -556,8 +489,6 @@ export default function Customers() {
     vip: totalVipCount,
     chuacott: totalChuaCoTTCount,
     synced_tpos: totalSyncedTposCount, // New stat
-    trungsdt: totalTrungSdtCount,
-    internal: totalInternalCount,
     wholesale: 0, 
     close: 0,
     danger: 0,
@@ -1015,7 +946,7 @@ export default function Customers() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -1091,28 +1022,6 @@ export default function Customers() {
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Trùng SĐT</p>
-              <p className="text-2xl font-bold">
-                {isLoadingTrungSdt ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.trungsdt}
-              </p>
-            </div>
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Khách nội bộ</p>
-              <p className="text-2xl font-bold">
-                {isLoadingInternal ? <Loader2 className="h-6 w-6 animate-spin" /> : stats.internal}
-              </p>
-            </div>
-            <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
-          </div>
-        </Card>
       </div>
 
       {selectedIds.size > 0 && (
@@ -1166,8 +1075,6 @@ export default function Customers() {
               <SelectItem value="Thân thiết">Thân thiết</SelectItem>
               <SelectItem value="VIP">VIP</SelectItem>
               <SelectItem value="Chưa có TT">Chưa có TT</SelectItem>
-              <SelectItem value="Trùng SĐT">Trùng SĐT</SelectItem>
-              <SelectItem value="internal">Khách nội bộ</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1256,25 +1163,14 @@ export default function Customers() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {customer.phone && duplicatePhones?.has(customer.phone) ? (
-                      <div
-                        className={cn(
-                          "inline-flex px-2 py-1 rounded-full text-xs font-medium",
-                          statusColors["Trùng SĐT"],
-                        )}
-                      >
-                        {statusLabels["Trùng SĐT"]}
-                      </div>
-                    ) : (
-                      <div
-                        className={cn(
-                          "inline-flex px-2 py-1 rounded-full text-xs font-medium",
-                          statusColors[mapStatusText(customer.customer_status)],
-                        )}
-                      >
-                        {statusLabels[mapStatusText(customer.customer_status)]}
-                      </div>
-                    )}
+                    <div
+                      className={cn(
+                        "inline-flex px-2 py-1 rounded-full text-xs font-medium",
+                        statusColors[mapStatusText(customer.customer_status)],
+                      )}
+                    >
+                      {statusLabels[mapStatusText(customer.customer_status)]}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div

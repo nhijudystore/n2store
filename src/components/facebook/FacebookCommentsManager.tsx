@@ -194,7 +194,7 @@ export function FacebookCommentsManager() {
     queryFn: async ({ pageParam }) => {
       if (!pageId || !selectedVideo?.objectId) return { data: [], paging: {} };
       
-      const order = 'reverse_chronological'; // Always sort newest to oldest
+      const order = selectedVideo.statusLive === 1 ? 'reverse_chronological' : 'chronological';
       
       let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${selectedVideo.objectId}&limit=500&order=${order}`;
       if (pageParam) {
