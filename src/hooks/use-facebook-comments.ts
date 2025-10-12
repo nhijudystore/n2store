@@ -59,7 +59,7 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     },
     initialPageParam: undefined,
     enabled: !!videoId && !!pageId,
-    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 5000 : false,
+    refetchInterval: isAutoRefresh && selectedVideo?.statusLive === 1 ? 10000 : false,
   });
 
   const comments = useMemo(() => {
