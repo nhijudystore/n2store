@@ -38,6 +38,32 @@ export const isJSPMInstalled = async (): Promise<boolean> => {
   }
 };
 
+// Check JSPrintManager status with detailed information
+export const checkJSPMStatus = async (): Promise<{
+  isInstalled: boolean;
+  isConnected: boolean;
+  status: 'connected' | 'disconnected' | 'not-installed';
+}> => {
+  try {
+    if (typeof JSPM === 'undefined') {
+      return { isInstalled: false, isConnected: false, status: 'not-installed' };
+    }
+
+    JSPM.JSPrintManager.auto_reconnect = false;
+    await JSPM.JSPrintManager.start();
+    
+    const isOpen = JSPM.JSPrintManager.websocket_status === JSPM.WSStatus.Open;
+    
+    return {
+      isInstalled: true,
+      isConnected: isOpen,
+      status: isOpen ? 'connected' : 'disconnected'
+    };
+  } catch (e) {
+    return { isInstalled: true, isConnected: false, status: 'disconnected' };
+  }
+};
+
 // Get list of installed printers
 export const getInstalledPrinters = async (): Promise<string[]> => {
   try {
