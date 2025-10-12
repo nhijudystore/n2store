@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, ChevronDown, Copy } from "lucide-react";
+import { Video, MessageCircle, Heart, RefreshCw, Pause, Play, Search, Loader2, Facebook, ChevronDown, Copy, Maximize, Minimize } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
 import type { FacebookVideo, FacebookComment, CommentWithStatus, TPOSOrder } from "@/types/facebook";
@@ -81,6 +81,9 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
 
   // New state for confirmation dialog
   const [confirmCreateOrderComment, setConfirmCreateOrderComment] = useState<CommentWithStatus | null>(null);
+  
+  // State for fullscreen mode on mobile
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Fetch Facebook pages from database
   const { data: facebookPages } = useQuery({
@@ -612,6 +615,7 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
       <div className={cn("flex-1 overflow-auto", isMobile ? "p-2" : "p-4")}>
         <div className="space-y-4">
           {/* Video List - now full width */}
+          {!selectedVideo && (
           <Card className="border-0 shadow-sm">
           <CardHeader className={isMobile ? "pb-2" : "pb-3"}>
             <CardTitle className={isMobile ? "text-sm" : "text-base"}>
@@ -785,8 +789,9 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
               )}
             </CardContent>
           </Card>
+          )}
 
-          {videos.length > 0 && (
+          {videos.length > 0 && !selectedVideo && (
             <ScrollArea className="h-[600px]">
               <div className="space-y-4 pr-4">
                 {videos.map((video) => (
@@ -845,18 +850,63 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
 
           {/* Comments Panel - now full width */}
           {selectedVideo ? (
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="border-b py-3">
-              <div className="flex items-center justify-between">
+          <Card className={cn(
+            "border-0 shadow-sm transition-all duration-300",
+            isMobile && isFullscreen && "fixed inset-0 z-50 rounded-none m-0"
+          )}>
+            <CardHeader className={cn(
+              "border-b",
+              isMobile ? "py-2" : "py-3"
+            )}>
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="line-clamp-1 text-base">{selectedVideo.title}</CardTitle>
-                  <CardDescription className="text-sm">
+                  <CardTitle className={cn(
+                    "line-clamp-1",
+                    isMobile ? "text-sm" : "text-base"
+                  )}>
+                    {selectedVideo.title}
+                  </CardTitle>
+                  <CardDescription className={isMobile ? "text-xs" : "text-sm"}>
                     Xem và theo dõi comments từ video
                   </CardDescription>
                 </div>
-                {selectedVideo.statusLive === 1 && (
-                  <Badge variant="destructive" className="ml-2">🔴 LIVE</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {selectedVideo.statusLive === 1 && (
+                    <Badge variant="destructive" className={isMobile ? "text-xs" : ""}>
+                      🔴 LIVE
+                    </Badge>
+                  )}
+                  
+                  {/* Fullscreen button for mobile */}
+                  {isMobile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsFullscreen(!isFullscreen)}
+                      className="h-7 px-2"
+                    >
+                      {isFullscreen ? (
+                        <Minimize className="h-3.5 w-3.5" />
+                      ) : (
+                        <Maximize className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  )}
+                  
+                  {/* Select another video button */}
+                  <Button
+                    variant="outline"
+                    size={isMobile ? "sm" : "default"}
+                    onClick={() => {
+                      setSelectedVideo(null);
+                      setIsFullscreen(false);
+                    }}
+                    className={isMobile ? "text-xs h-7 px-2" : ""}
+                  >
+                    <Video className={cn(isMobile ? "h-3 w-3" : "h-4 w-4 mr-2")} />
+                    {!isMobile && "Chọn video khác"}
+                  </Button>
+                </div>
               </div>
             </CardHeader>
               
@@ -929,7 +979,15 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
                   </div>
                 </div>
 
-                <ScrollArea className="h-[500px] pr-4" ref={scrollRef}>
+                <ScrollArea 
+                  className={cn(
+                    isMobile && isFullscreen 
+                      ? "h-[calc(100vh-180px)]"
+                      : "h-[500px]",
+                    "pr-4"
+                  )} 
+                  ref={scrollRef}
+                >
                   <div className="space-y-4">
                     {commentsLoading && comments.length === 0 ? (
                       <div className="text-center py-8">
@@ -1089,13 +1147,27 @@ export function FacebookCommentsManager({ onVideoSelected }: FacebookCommentsMan
             </Card>
           ) : (
             <Card className="border-0 shadow-sm">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <MessageCircle className="h-16 w-16 text-muted-foreground/30 mb-4" />
-                <p className="text-lg font-medium text-muted-foreground">
+              <CardContent className={cn(
+                "flex flex-col items-center justify-center",
+                isMobile ? "py-8" : "py-12"
+              )}>
+                <MessageCircle className={cn(
+                  "text-muted-foreground/30 mb-4",
+                  isMobile ? "h-12 w-12" : "h-16 w-16"
+                )} />
+                <p className={cn(
+                  "font-medium text-muted-foreground",
+                  isMobile ? "text-base" : "text-lg"
+                )}>
                   Chọn video để xem comments
                 </p>
-                <p className="text-sm text-muted-foreground/70 mt-2">
-                  Click vào một video để bắt đầu
+                <p className={cn(
+                  "text-muted-foreground/70 mt-2",
+                  isMobile ? "text-xs" : "text-sm"
+                )}>
+                  {videos.length > 0 
+                    ? `${videos.length} video có sẵn - Click để xem comment` 
+                    : "Tải videos từ Facebook page ở trên"}
                 </p>
               </CardContent>
             </Card>
