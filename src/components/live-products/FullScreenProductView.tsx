@@ -115,6 +115,7 @@ export function FullScreenProductView({
             phaseId={selectedPhase || ""}
             sessionId={selectedSession || ""}
             availableQuantity={remaining}
+            quantityToAdd={1}
           />
         </div>
       </div>

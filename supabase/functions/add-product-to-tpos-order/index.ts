@@ -48,18 +48,67 @@ serve(async (req) => {
 			throw new Error("Facebook bearer token not configured");
 		}
 
-		// Prepare the PUT payload with full details
-		// Remove product_code field added for reference
-		const cleanDetails = fullDetails.map(({ product_code, ...detail }) => detail);
-		
+		console.log(`Fetching existing TPOS order ${tposOrderId}`);
+
+		// Step 1: GET existing order from TPOS
+		const getUrl = `https://tomato.tpos.vn/odata/SaleOnline_Order(${tposOrderId})`;
+		const getResponse = await fetch(getUrl, {
+			method: "GET",
+			headers: getTPOSHeaders(bearerToken),
+		});
+
+		if (!getResponse.ok) {
+			const errorText = await getResponse.text();
+			console.error(`TPOS GET failed (${getResponse.status}):`, errorText);
+			throw new Error(
+				`Failed to GET TPOS order (${getResponse.status}): ${errorText}`,
+			);
+		}
+
+		const existingOrder = await getResponse.json();
+		const existingDetails = existingOrder.Details || [];
+
+		console.log(`Found ${existingDetails.length} existing products in order`);
+
+		// Step 2: Prepare new details (remove product_code field)
+		const newDetails = fullDetails.map(({ product_code, ...detail }: any) => detail);
+
+		// Step 3: Merge Details - use Map to handle duplicates by ProductId
+		const mergedDetailsMap = new Map<number, any>();
+
+		// Add existing details to Map
+		existingDetails.forEach((detail: any) => {
+			mergedDetailsMap.set(detail.ProductId, detail);
+		});
+
+		// Add/Update new details (sum Quantity if ProductId exists)
+		newDetails.forEach((detail: any) => {
+			if (mergedDetailsMap.has(detail.ProductId)) {
+				// Product exists - sum quantities
+				const existing = mergedDetailsMap.get(detail.ProductId);
+				mergedDetailsMap.set(detail.ProductId, {
+					...detail,
+					Quantity: existing.Quantity + detail.Quantity,
+				});
+				console.log(`Updated quantity for ProductId ${detail.ProductId}: ${existing.Quantity} + ${detail.Quantity} = ${existing.Quantity + detail.Quantity}`);
+			} else {
+				// New product - add it
+				mergedDetailsMap.set(detail.ProductId, detail);
+				console.log(`Added new product: ProductId ${detail.ProductId}`);
+			}
+		});
+
+		// Step 4: Convert Map back to array
+		const mergedDetails = Array.from(mergedDetailsMap.values());
+
 		const updatePayload = {
 			Id: tposOrderId,
-			Details: cleanDetails,
+			Details: mergedDetails,
 		};
 
-		console.log(`Updating TPOS order ${tposOrderId} with ${cleanDetails.length} products`);
+		console.log(`Updating TPOS order ${tposOrderId} with ${mergedDetails.length} total products`);
 
-		// PUT the updated order to TPOS
+		// Step 5: PUT the merged details back to TPOS
 		const putUrl = `https://tomato.tpos.vn/odata/SaleOnline_Order(${tposOrderId})`;
 		const putResponse = await fetch(putUrl, {
 			method: "PUT",
@@ -84,8 +133,8 @@ serve(async (req) => {
 		return new Response(
 			JSON.stringify({
 				success: true,
-				message: "Products updated in TPOS order",
-				product_count: cleanDetails.length,
+				message: "Products merged and updated in TPOS order",
+				product_count: mergedDetails.length,
 			}),
 			{
 				headers: { ...corsHeaders, "Content-Type": "application/json" },
