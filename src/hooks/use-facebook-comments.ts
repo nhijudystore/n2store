@@ -16,20 +16,49 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
   const allCommentIdsRef = useRef<Set<string>>(new Set());
   const [errorCount, setErrorCount] = useState(0);
   const [hasError, setHasError] = useState(false);
+  const isCheckingNewCommentsRef = useRef(false);
 
-  // Dynamic refetch interval based on error rate
-  const getRefetchInterval = useCallback(() => {
-    if (!isAutoRefresh || selectedVideo?.statusLive !== 1) return false;
-    
-    // If we have errors, increase the interval exponentially
-    if (errorCount > 0) {
-      const interval = Math.min(8000 * Math.pow(2, errorCount), 60000); // Max 60s
-      console.log(`[useFacebookComments] Error count: ${errorCount}, using interval: ${interval}ms`);
-      return interval;
+  // Realtime check for new comments (only when live)
+  useEffect(() => {
+    if (!videoId || !selectedVideo || !isAutoRefresh || selectedVideo.statusLive !== 1) {
+      return;
     }
+
+    const checkForNewComments = async () => {
+      if (isCheckingNewCommentsRef.current) return;
+      
+      isCheckingNewCommentsRef.current = true;
+      
+      try {
+        console.log('[Realtime Check] Fetching from TPOS API...');
+        
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        // Fetch trực tiếp - Edge function sẽ xử lý merge, debounce và push vào archive
+        await fetch(
+          `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${videoId}&sessionIndex=${videoId}&limit=500`,
+          {
+            headers: {
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+          }
+        );
+        
+        console.log('[Realtime Check] ✅ Fetch completed');
+      } catch (error) {
+        console.error('[Realtime Check] Error:', error);
+      } finally {
+        isCheckingNewCommentsRef.current = false;
+      }
+    };
     
-    return 8000; // Default 8 seconds
-  }, [isAutoRefresh, selectedVideo?.statusLive, errorCount]);
+    checkForNewComments();
+    
+    // Check every 5 seconds when live
+    const interval = setInterval(checkForNewComments, 5000);
+    
+    return () => clearInterval(interval);
+  }, [videoId, selectedVideo, isAutoRefresh, pageId, queryClient]);
 
   // Fetch comments with infinite scroll
   const {
@@ -45,64 +74,59 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     queryFn: async ({ pageParam }) => {
       if (!pageId || !videoId) return { data: [], paging: {} };
       
-      console.log(`[useFacebookComments] Fetching comments for video ${videoId}, pageParam: ${pageParam}`);
+      console.log(`[useFacebookComments] Fetching comments from archive for video ${videoId}`);
       const startTime = Date.now();
       
-      const order = 'reverse_chronological'; // Always show newest comments first
+      // ========== ALWAYS READ FROM ARCHIVE TABLE ==========
+      const { data: archivedComments, error: dbError } = await supabase
+        .from('facebook_comments_archive' as any)
+        .select('*')
+        .eq('facebook_post_id', videoId)
+        .order('comment_created_time', { ascending: false })
+        .limit(1000);
       
-      let url = `https://xneoovjmwhzzphwlwojc.supabase.co/functions/v1/facebook-comments?pageId=${pageId}&postId=${videoId}&limit=500&order=${order}`;
-      if (pageParam) {
-        url += `&after=${pageParam}`;
+      if (dbError) {
+        console.error('[useFacebookComments] Archive DB error:', dbError);
+        return { data: [], paging: {} };
       }
       
-      const { data: { session } } = await supabase.auth.getSession();
+      const formattedComments = archivedComments?.map((c: any) => ({
+        id: c.facebook_comment_id,
+        message: c.comment_message || '',
+        from: {
+          name: c.facebook_user_name || 'Unknown',
+          id: c.facebook_user_id || '',
+        },
+        created_time: c.comment_created_time,
+        like_count: c.like_count || 0,
+        is_deleted_by_tpos: c.is_deleted_by_tpos || false,
+        deleted_at: c.updated_at,
+      })) || [];
       
-      try {
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          console.error('[useFacebookComments] Fetch error:', error);
-          setErrorCount(prev => prev + 1);
-          setHasError(true);
-          throw new Error(error.error || 'Failed to fetch comments');
-        }
-
-        const data = await response.json();
-        const elapsed = Date.now() - startTime;
-        console.log(`[useFacebookComments] Fetched ${data.data?.length || 0} comments in ${elapsed}ms`);
-        
-        // Reset error count on success
-        setErrorCount(0);
-        setHasError(false);
-        
-        return data;
-      } catch (error) {
-        console.error('[useFacebookComments] Exception in queryFn:', error);
-        setErrorCount(prev => prev + 1);
-        setHasError(true);
-        throw error;
-      }
+      const elapsed = Date.now() - startTime;
+      console.log(`[useFacebookComments] Loaded ${formattedComments.length} comments from archive in ${elapsed}ms`);
+      
+      setErrorCount(0);
+      setHasError(false);
+      
+      return { 
+        data: formattedComments, 
+        paging: {},
+        fromArchive: true 
+      };
     },
     getNextPageParam: (lastPage) => {
-      if (!lastPage.data || lastPage.data.length === 0) return undefined;
-      const nextPageCursor = lastPage.paging?.cursors?.after || (lastPage.paging?.next ? new URL(lastPage.paging.next).searchParams.get('after') : null);
-      if (!nextPageCursor) return undefined;
-      return nextPageCursor;
+      // No pagination for archive data
+      return undefined;
     },
     initialPageParam: undefined,
     enabled: !!videoId && !!pageId,
-    refetchInterval: getRefetchInterval(),
+    refetchInterval: false, // Disabled - using realtime check instead
     retry: (failureCount, error) => {
       console.log(`[useFacebookComments] Retry attempt ${failureCount} for error:`, error);
-      return failureCount < 3; // Retry up to 3 times
+      return failureCount < 3;
     },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
   const comments = useMemo(() => {
@@ -191,7 +215,9 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
     if (!videoId) return;
 
     const channel = supabase
-      .channel('facebook-pending-orders-comments-realtime')
+      .channel(`facebook-realtime-${videoId}`)
+      
+      // Subscribe to pending orders changes
       .on(
         'postgres_changes',
         {
@@ -200,11 +226,12 @@ export function useFacebookComments({ pageId, videoId, isAutoRefresh = true }: U
           table: 'facebook_pending_orders',
           filter: `facebook_post_id=eq.${videoId}`,
         },
-        () => {
+        (payload) => {
+          console.log('[Realtime] facebook_pending_orders change:', payload);
           queryClient.invalidateQueries({ queryKey: ['tpos-orders', videoId] });
-          queryClient.invalidateQueries({ queryKey: ['facebook-comments', pageId, videoId] });
         }
       )
+      
       .subscribe();
 
     return () => {
